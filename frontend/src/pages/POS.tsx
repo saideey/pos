@@ -1,0 +1,2134 @@
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  Search, Trash2, User, ShoppingCart, CreditCard,
+  Banknote, Building, Check, AlertCircle, Edit3,
+  Loader2, Ruler, Star, Grid3X3, X, ChevronUp, GripVertical, Plus, Minus, Phone, Printer
+} from 'lucide-react'
+import toast from 'react-hot-toast'
+import { 
+  Button, 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription 
+} from '@/components/ui'
+import { productsService, salesService, customersService } from '@/services'
+import api from '@/services/api'
+import { formatMoney, formatNumber, formatInputNumber, cn, debounce } from '@/lib/utils'
+import type { Product, Customer, UOMConversion } from '@/types'
+
+// Category order storage key
+const CATEGORY_ORDER_KEY = 'pos_category_order'
+
+const PAYMENT_TYPES = [
+  { type: 'CASH', label: 'Naqd', icon: Banknote, color: 'bg-green-600' },
+  { type: 'CARD', label: 'Karta', icon: CreditCard, color: 'bg-blue-600' },
+  { type: 'TRANSFER', label: "O'tkazma", icon: Building, color: 'bg-purple-600' },
+  { type: 'DEBT', label: 'Qarzga', icon: AlertCircle, color: 'bg-orange-500' },
+]
+
+const CATEGORY_COLORS = [
+  '#2563EB', '#059669', '#D97706', '#DC2626', '#7C3AED', 
+  '#DB2777', '#0891B2', '#65A30D', '#EA580C', '#4F46E5'
+]
+
+interface CartItem {
+  id: string
+  product_id: number
+  product_name: string
+  quantity: number
+  uom_id: number
+  uom_symbol: string
+  uom_name: string
+  conversion_factor: number
+  base_uom_id: number
+  base_uom_symbol: string
+  cost_price: number
+  original_price: number
+  unit_price: number
+  available_stock: number
+}
+
+export default function POSPage() {
+  const queryClient = useQueryClient()
+  
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<number | 'favorites' | null>('favorites')
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false)
+  const [showCustomerDialog, setShowCustomerDialog] = useState(false)
+  const [showEditPriceDialog, setShowEditPriceDialog] = useState(false)
+  const [showEditQuantityDialog, setShowEditQuantityDialog] = useState(false)
+  const [showUOMSelectDialog, setShowUOMSelectDialog] = useState(false)
+  const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [editPriceValue, setEditPriceValue] = useState('')
+  const [editQuantityValue, setEditQuantityValue] = useState('')
+  const [paymentType, setPaymentType] = useState<string>('CASH')
+  const [paymentAmount, setPaymentAmount] = useState('')
+  const [paymentCurrency, setPaymentCurrency] = useState<'UZS' | 'USD'>('UZS')
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedProductForUOM, setSelectedProductForUOM] = useState<Product | null>(null)
+  const [changingUOMItemId, setChangingUOMItemId] = useState<string | null>(null)
+  
+  // General discount
+  const [generalDiscount, setGeneralDiscount] = useState<number>(0)
+  const [showDiscountInput, setShowDiscountInput] = useState(false)
+  
+  // Drag and drop state
+  const [draggedProduct, setDraggedProduct] = useState<Product | null>(null)
+  const [dragOverProduct, setDragOverProduct] = useState<number | null>(null)
+  
+  // Mobile cart visibility
+  const [mobileCartOpen, setMobileCartOpen] = useState(false)
+  
+  // Print preview state
+  const [showPrintPreview, setShowPrintPreview] = useState(false)
+  const printRef = useRef<HTMLDivElement>(null)
+  
+  // NEW: Add product dialog state
+  const [showAddProductDialog, setShowAddProductDialog] = useState(false)
+  const [addProductData, setAddProductData] = useState<{
+    product: Product | null
+    selectedUomId: number
+    selectedUomSymbol: string
+    selectedUomName: string
+    conversionFactor: number
+    unitPrice: number
+    costPrice: number
+    quantity: number
+  }>({
+    product: null,
+    selectedUomId: 0,
+    selectedUomSymbol: '',
+    selectedUomName: '',
+    conversionFactor: 1,
+    unitPrice: 0,
+    costPrice: 0,
+    quantity: 1
+  })
+  
+  // NEW: Customer search
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('')
+  const [customerSellerFilter, setCustomerSellerFilter] = useState<number | ''>('')
+  
+  // NEW: Category ordering
+  const [categoryOrder, setCategoryOrder] = useState<number[]>([])
+  const [draggingCategoryId, setDraggingCategoryId] = useState<number | null>(null)
+  const [dragOverCategoryId, setDragOverCategoryId] = useState<number | null>(null)
+  
+  const [items, setItems] = useState<CartItem[]>([])
+  const [customer, setCustomer] = useState<Customer | null>(null)
+  const [warehouseId] = useState(1)
+  
+  const { data: exchangeRateData } = useQuery({
+    queryKey: ['exchange-rate'],
+    queryFn: async () => {
+      const response = await api.get('/settings/exchange-rate')
+      return response.data
+    },
+    staleTime: 60000,
+  })
+  const usdRate = exchangeRateData?.usd_rate || 12800
+
+  const { data: categories } = useQuery({
+    queryKey: ['categories'],
+    queryFn: productsService.getCategories,
+  })
+
+  // Load category order from localStorage
+  useEffect(() => {
+    const savedOrder = localStorage.getItem(CATEGORY_ORDER_KEY)
+    if (savedOrder) {
+      try {
+        setCategoryOrder(JSON.parse(savedOrder))
+      } catch (e) {
+        console.error('Failed to parse category order')
+      }
+    }
+  }, [])
+
+  // Save category order to localStorage when it changes
+  useEffect(() => {
+    if (categoryOrder.length > 0) {
+      localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(categoryOrder))
+    }
+  }, [categoryOrder])
+
+  // Sorted categories based on saved order
+  const sortedCategories = useMemo(() => {
+    if (!categories) return []
+    if (categoryOrder.length === 0) return categories
+    
+    return [...categories].sort((a: any, b: any) => {
+      const indexA = categoryOrder.indexOf(a.id)
+      const indexB = categoryOrder.indexOf(b.id)
+      if (indexA === -1 && indexB === -1) return 0
+      if (indexA === -1) return 1
+      if (indexB === -1) return -1
+      return indexA - indexB
+    })
+  }, [categories, categoryOrder])
+
+  const { data: productsData, isLoading: loadingProducts } = useQuery({
+    queryKey: ['products-pos', searchQuery, selectedCategory === 'favorites' ? null : selectedCategory],
+    queryFn: () => productsService.getProducts({
+      q: searchQuery || undefined,
+      category_id: selectedCategory === 'favorites' ? undefined : (selectedCategory || undefined),
+      is_active: true,
+      per_page: 500,
+    }),
+    staleTime: 30000,
+  })
+
+  const toggleFavorite = useMutation({
+    mutationFn: async (product: Product) => {
+      const response = await api.patch(`/products/${product.id}`, {
+        is_favorite: !product.is_favorite
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products-pos'] })
+      toast.success('Saqlandi')
+    },
+    onError: () => {
+      toast.error('Xatolik')
+    }
+  })
+
+  // Update product sort order
+  const updateSortOrder = useMutation({
+    mutationFn: async ({ productId, sortOrder }: { productId: number; sortOrder: number }) => {
+      const response = await api.patch(`/products/${productId}`, {
+        sort_order: sortOrder
+      })
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products-pos'] })
+    }
+  })
+
+  const filteredProducts = useMemo(() => {
+    if (!productsData?.data) return []
+    let products = productsData.data as Product[]
+    if (selectedCategory === 'favorites') {
+      products = products.filter(p => p.is_favorite)
+    }
+    return products.sort((a, b) => {
+      // First sort by sort_order
+      const orderA = a.sort_order || 999999
+      const orderB = b.sort_order || 999999
+      if (orderA !== orderB) return orderA - orderB
+      // Then by name
+      return a.name.localeCompare(b.name)
+    })
+  }, [productsData, selectedCategory])
+
+  const favoritesCount = useMemo(() => {
+    return productsData?.data?.filter((p: Product) => p.is_favorite).length || 0
+  }, [productsData])
+
+  const { data: customersData } = useQuery({
+    queryKey: ['customers-pos'],
+    queryFn: () => customersService.getCustomers({ per_page: 100, is_active: true }),
+    staleTime: 30000,
+  })
+
+  // Fetch sellers for customer filter
+  const { data: sellersData } = useQuery({
+    queryKey: ['sellers-pos'],
+    queryFn: async () => {
+      const response = await api.get('/users?per_page=100')
+      return response.data
+    },
+    staleTime: 60000,
+  })
+
+  const debouncedSearch = useCallback(
+    debounce((value: string) => setSearchQuery(value), 300),
+    []
+  )
+
+  // Subtotal before discount
+  const subtotal = items.reduce((sum, item) => sum + (item.unit_price * item.quantity), 0)
+  // Grand total after general discount
+  const finalTotal = subtotal - generalDiscount
+  const totalCost = items.reduce((sum, item) => sum + (item.cost_price * item.conversion_factor * item.quantity), 0)
+  const expectedProfit = finalTotal - totalCost
+
+  const getSalePrice = (product: Product, conversionFactor: number = 1): number => {
+    if (product.sale_price_usd) {
+      return product.sale_price_usd * usdRate * conversionFactor
+    }
+    return Number(product.sale_price) * conversionFactor
+  }
+
+  const getCostPrice = (product: Product): number => {
+    if (product.cost_price_usd) {
+      return product.cost_price_usd * usdRate
+    }
+    return Number(product.cost_price) || 0
+  }
+
+  const handleProductClick = (product: Product) => {
+    const salePrice = getSalePrice(product)
+    const costPrice = getCostPrice(product)
+    
+    // Open add product dialog with product info
+    setAddProductData({
+      product,
+      selectedUomId: product.base_uom_id,
+      selectedUomSymbol: product.base_uom_symbol,
+      selectedUomName: product.base_uom_name || product.base_uom_symbol,
+      conversionFactor: 1,
+      unitPrice: salePrice,
+      costPrice: costPrice,
+      quantity: 1
+    })
+    setShowAddProductDialog(true)
+  }
+
+  // Handle UOM change in add product dialog
+  const handleAddProductUOMChange = (uomConv: UOMConversion | null) => {
+    if (!addProductData.product) return
+    
+    if (uomConv === null) {
+      // Base UOM selected
+      const salePrice = getSalePrice(addProductData.product)
+      setAddProductData(prev => ({
+        ...prev,
+        selectedUomId: addProductData.product!.base_uom_id,
+        selectedUomSymbol: addProductData.product!.base_uom_symbol,
+        selectedUomName: addProductData.product!.base_uom_name || addProductData.product!.base_uom_symbol,
+        conversionFactor: 1,
+        unitPrice: salePrice
+      }))
+    } else {
+      const convPrice = uomConv.sale_price || getSalePrice(addProductData.product, uomConv.conversion_factor)
+      setAddProductData(prev => ({
+        ...prev,
+        selectedUomId: uomConv.uom_id,
+        selectedUomSymbol: uomConv.uom_symbol,
+        selectedUomName: uomConv.uom_name,
+        conversionFactor: uomConv.conversion_factor,
+        unitPrice: convPrice
+      }))
+    }
+  }
+
+  // Confirm add product to cart
+  const handleConfirmAddProduct = () => {
+    if (!addProductData.product) return
+    
+    const existingItem = items.find(i => 
+      i.product_id === addProductData.product!.id && 
+      i.uom_id === addProductData.selectedUomId
+    )
+    
+    if (existingItem) {
+      setItems(items.map(item => 
+        item.id === existingItem.id 
+          ? { ...item, quantity: item.quantity + addProductData.quantity, unit_price: addProductData.unitPrice }
+          : item
+      ))
+    } else {
+      setItems([...items, {
+        id: `${addProductData.product.id}-${addProductData.selectedUomId}-${Date.now()}`,
+        product_id: addProductData.product.id,
+        product_name: addProductData.product.name,
+        quantity: addProductData.quantity,
+        uom_id: addProductData.selectedUomId,
+        uom_symbol: addProductData.selectedUomSymbol,
+        uom_name: addProductData.selectedUomName,
+        conversion_factor: addProductData.conversionFactor,
+        base_uom_id: addProductData.product.base_uom_id,
+        base_uom_symbol: addProductData.product.base_uom_symbol,
+        cost_price: addProductData.costPrice,
+        original_price: addProductData.unitPrice,
+        unit_price: addProductData.unitPrice,
+        available_stock: Number(addProductData.product.current_stock) || 0,
+      }])
+    }
+    
+    setShowAddProductDialog(false)
+    setAddProductData({
+      product: null,
+      selectedUomId: 0,
+      selectedUomSymbol: '',
+      selectedUomName: '',
+      conversionFactor: 1,
+      unitPrice: 0,
+      costPrice: 0,
+      quantity: 1
+    })
+    toast.success('Qo\'shildi')
+  }
+
+  // Category drag handlers
+  const handleCategoryDragStart = (categoryId: number) => {
+    setDraggingCategoryId(categoryId)
+  }
+
+  const handleCategoryDragOver = (e: React.DragEvent, categoryId: number) => {
+    e.preventDefault()
+    if (draggingCategoryId !== categoryId) {
+      setDragOverCategoryId(categoryId)
+    }
+  }
+
+  const handleCategoryDrop = (targetCategoryId: number) => {
+    if (!draggingCategoryId || draggingCategoryId === targetCategoryId) {
+      setDraggingCategoryId(null)
+      setDragOverCategoryId(null)
+      return
+    }
+
+    const currentOrder = categoryOrder.length > 0 
+      ? [...categoryOrder] 
+      : sortedCategories.map((c: any) => c.id)
+    
+    const dragIndex = currentOrder.indexOf(draggingCategoryId)
+    const dropIndex = currentOrder.indexOf(targetCategoryId)
+    
+    if (dragIndex !== -1 && dropIndex !== -1) {
+      currentOrder.splice(dragIndex, 1)
+      currentOrder.splice(dropIndex, 0, draggingCategoryId)
+      setCategoryOrder(currentOrder)
+    }
+    
+    setDraggingCategoryId(null)
+    setDragOverCategoryId(null)
+  }
+
+  // Filtered customers based on search and seller filter
+  const filteredCustomers = useMemo(() => {
+    if (!customersData?.data) return []
+    
+    let filtered = customersData.data
+    
+    // Filter by seller
+    if (customerSellerFilter) {
+      filtered = filtered.filter((c: Customer) => c.manager_id === customerSellerFilter)
+    }
+    
+    // Filter by search query
+    if (customerSearchQuery.trim()) {
+      const query = customerSearchQuery.toLowerCase()
+      filtered = filtered.filter((c: Customer) => 
+        c.name?.toLowerCase().includes(query) ||
+        c.company_name?.toLowerCase().includes(query) ||
+        c.phone?.toLowerCase().includes(query)
+      )
+    }
+    
+    return filtered
+  }, [customersData, customerSearchQuery, customerSellerFilter])
+
+  const handleToggleFavorite = (e: React.MouseEvent, product: Product) => {
+    e.stopPropagation()
+    e.preventDefault()
+    toggleFavorite.mutate(product)
+  }
+
+  const addItemToCart = (
+    product: Product, 
+    uomId: number, 
+    uomSymbol: string, 
+    uomName: string,
+    conversionFactor: number, 
+    unitPrice: number
+  ) => {
+    const existingItem = items.find(i => i.product_id === product.id && i.uom_id === uomId)
+    
+    if (existingItem) {
+      setItems(items.map(item => 
+        item.id === existingItem.id 
+          ? { ...item, quantity: item.quantity + 1 }
+          : item
+      ))
+    } else {
+      let salePrice = unitPrice
+      if (customer?.customer_type?.toUpperCase() === 'VIP') {
+        if (product.vip_price_usd) {
+          salePrice = product.vip_price_usd * usdRate * conversionFactor
+        } else if (product.vip_price) {
+          salePrice = Number(product.vip_price) * conversionFactor
+        }
+      }
+      
+      const costPrice = getCostPrice(product)
+      
+      setItems([...items, {
+        id: `${product.id}-${uomId}-${Date.now()}`,
+        product_id: product.id,
+        product_name: product.name,
+        quantity: 1,
+        uom_id: uomId,
+        uom_symbol: uomSymbol,
+        uom_name: uomName,
+        conversion_factor: conversionFactor,
+        base_uom_id: product.base_uom_id,
+        base_uom_symbol: product.base_uom_symbol,
+        cost_price: costPrice,
+        original_price: salePrice,
+        unit_price: salePrice,
+        available_stock: Number(product.current_stock) || 0,
+      }])
+    }
+    
+    setShowUOMSelectDialog(false)
+    setSelectedProductForUOM(null)
+    toast.success('Qo\'shildi')
+  }
+
+  const handleSelectUOM = (uomConv: UOMConversion | null) => {
+    if (!selectedProductForUOM) return
+    
+    if (changingUOMItemId) {
+      if (uomConv === null) {
+        const salePrice = getSalePrice(selectedProductForUOM)
+        setItems(items.map(i => 
+          i.id === changingUOMItemId
+            ? {
+                ...i,
+                uom_id: selectedProductForUOM.base_uom_id,
+                uom_symbol: selectedProductForUOM.base_uom_symbol,
+                uom_name: selectedProductForUOM.base_uom_name || selectedProductForUOM.base_uom_symbol,
+                conversion_factor: 1,
+                original_price: salePrice,
+                unit_price: salePrice,
+              }
+            : i
+        ))
+      } else {
+        const convPrice = uomConv.sale_price || getSalePrice(selectedProductForUOM, uomConv.conversion_factor)
+        setItems(items.map(i => 
+          i.id === changingUOMItemId
+            ? {
+                ...i,
+                uom_id: uomConv.uom_id,
+                uom_symbol: uomConv.uom_symbol,
+                uom_name: uomConv.uom_name,
+                conversion_factor: uomConv.conversion_factor,
+                original_price: convPrice,
+                unit_price: convPrice,
+              }
+            : i
+        ))
+      }
+      setChangingUOMItemId(null)
+      setShowUOMSelectDialog(false)
+      setSelectedProductForUOM(null)
+      return
+    }
+    
+    if (uomConv === null) {
+      const salePrice = getSalePrice(selectedProductForUOM)
+      addItemToCart(
+        selectedProductForUOM,
+        selectedProductForUOM.base_uom_id,
+        selectedProductForUOM.base_uom_symbol,
+        selectedProductForUOM.base_uom_name || selectedProductForUOM.base_uom_symbol,
+        1,
+        salePrice
+      )
+    } else {
+      const convPrice = uomConv.sale_price || getSalePrice(selectedProductForUOM, uomConv.conversion_factor)
+      addItemToCart(
+        selectedProductForUOM,
+        uomConv.uom_id,
+        uomConv.uom_symbol,
+        uomConv.uom_name,
+        uomConv.conversion_factor,
+        convPrice
+      )
+    }
+  }
+
+  const handleChangeItemUOM = (item: CartItem) => {
+    const product = productsData?.data?.find((p: Product) => p.id === item.product_id)
+    if (product) {
+      setSelectedProductForUOM(product)
+      setChangingUOMItemId(item.id)
+      setShowUOMSelectDialog(true)
+    }
+  }
+
+  const handleQuantityChange = (itemId: string, delta: number) => {
+    setItems(items.map(item => {
+      if (item.id === itemId) {
+        const newQty = Math.max(0.1, item.quantity + delta)
+        return { ...item, quantity: newQty }
+      }
+      return item
+    }))
+  }
+
+  const handleRemoveItem = (itemId: string) => {
+    setItems(items.filter(item => item.id !== itemId))
+  }
+
+  const handleClearCart = () => {
+    setItems([])
+    setCustomer(null)
+    setPaymentType('CASH')
+    setPaymentAmount('')
+    setGeneralDiscount(0)
+    setShowDiscountInput(false)
+  }
+
+  const handleEditPrice = (item: CartItem) => {
+    setEditingItemId(item.id)
+    setEditPriceValue(item.unit_price.toString())
+    setShowEditPriceDialog(true)
+  }
+
+  const handleSavePrice = () => {
+    if (editingItemId && editPriceValue) {
+      const newPrice = parseFloat(editPriceValue)
+      if (!isNaN(newPrice) && newPrice >= 0) {
+        setItems(items.map(item =>
+          item.id === editingItemId
+            ? { ...item, unit_price: newPrice }
+            : item
+        ))
+        toast.success('Narx o\'zgartirildi')
+      }
+    }
+    setShowEditPriceDialog(false)
+    setEditingItemId(null)
+  }
+
+  const handleEditQuantity = (item: CartItem) => {
+    setEditingItemId(item.id)
+    setEditQuantityValue(item.quantity.toString())
+    setShowEditQuantityDialog(true)
+  }
+
+  const handleSaveQuantity = () => {
+    if (editingItemId && editQuantityValue) {
+      const newQty = parseFloat(editQuantityValue)
+      if (!isNaN(newQty) && newQty > 0) {
+        setItems(items.map(item =>
+          item.id === editingItemId
+            ? { ...item, quantity: newQty }
+            : item
+        ))
+        toast.success('Miqdor o\'zgartirildi')
+      }
+    }
+    setShowEditQuantityDialog(false)
+    setEditingItemId(null)
+  }
+
+  // Apply general discount - calculate final price after discount
+  const applyGeneralDiscount = (discountAmount: number) => {
+    if (discountAmount >= 0 && discountAmount <= subtotal) {
+      setGeneralDiscount(discountAmount)
+    } else {
+      toast.error('Chegirma summasi noto\'g\'ri')
+    }
+  }
+
+  // Set final total directly (user enters what they want to receive)
+  const setFinalTotalDirectly = (newTotal: number) => {
+    if (newTotal > 0 && newTotal <= subtotal) {
+      setGeneralDiscount(subtotal - newTotal)
+    } else {
+      toast.error('Summa noto\'g\'ri')
+    }
+  }
+
+  const processSale = async () => {
+    if (items.length === 0) {
+      toast.error('Savat bo\'sh!')
+      return
+    }
+
+    if (paymentType === 'DEBT' && !customer) {
+      toast.error('Qarzga sotuv uchun mijoz tanlang!')
+      return
+    }
+
+    setIsProcessing(true)
+
+    try {
+      let paymentInUZS = finalTotal
+      const inputAmount = parseFloat(paymentAmount) || 0
+      
+      if (paymentType !== 'DEBT' && inputAmount > 0) {
+        paymentInUZS = paymentCurrency === 'USD' ? inputAmount * usdRate : inputAmount
+      }
+
+      // Distribute general discount proportionally across items
+      const saleItems = items.map(item => {
+        const itemTotal = item.unit_price * item.quantity
+        // Calculate this item's share of the general discount
+        const itemDiscountShare = subtotal > 0 
+          ? (itemTotal / subtotal) * generalDiscount 
+          : 0
+        // Per-item discount from price changes + share of general discount
+        const perItemDiscount = (item.original_price - item.unit_price) * item.quantity + itemDiscountShare
+        
+        return {
+          product_id: item.product_id,
+          quantity: item.quantity,
+          uom_id: item.uom_id,
+          unit_price: item.unit_price,
+          discount_amount: perItemDiscount,
+        }
+      })
+
+      const saleData = {
+        customer_id: customer?.id || null,
+        warehouse_id: warehouseId,
+        items: saleItems,
+        payment_type: paymentType,
+        payment_amount: paymentType === 'DEBT' ? 0 : paymentInUZS,
+        notes: generalDiscount > 0 ? `Umumiy chegirma: ${formatMoney(generalDiscount)}` : '',
+      }
+
+      const result = await salesService.quickSale(saleData)
+      
+      toast.success(
+        paymentType === 'DEBT'
+          ? `Qarzga sotildi`
+          : `Sotuv yakunlandi ${result.change > 0 ? `Qaytim: ${formatMoney(result.change)}` : ''}`
+      )
+
+      handleClearCart()
+      setShowPaymentDialog(false)
+      queryClient.invalidateQueries({ queryKey: ['products-pos'] })
+
+    } catch (error: any) {
+      toast.error(error.response?.data?.detail || 'Xatolik yuz berdi!')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const getProductColor = (product: Product, categoryIndex: number): string => {
+    if (product.color) return product.color
+    return CATEGORY_COLORS[categoryIndex % CATEGORY_COLORS.length]
+  }
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, product: Product) => {
+    setDraggedProduct(product)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent, productId: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverProduct(productId)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverProduct(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetProduct: Product) => {
+    e.preventDefault()
+    if (!draggedProduct || draggedProduct.id === targetProduct.id) {
+      setDraggedProduct(null)
+      setDragOverProduct(null)
+      return
+    }
+
+    // Get current products in order
+    const currentProducts = [...filteredProducts]
+    const draggedIndex = currentProducts.findIndex(p => p.id === draggedProduct.id)
+    const targetIndex = currentProducts.findIndex(p => p.id === targetProduct.id)
+
+    if (draggedIndex === -1 || targetIndex === -1) return
+
+    // Calculate new sort orders
+    const updates: { productId: number; sortOrder: number }[] = []
+    
+    // Remove dragged product and insert at new position
+    currentProducts.splice(draggedIndex, 1)
+    currentProducts.splice(targetIndex, 0, draggedProduct)
+
+    // Update sort_order for all affected products
+    currentProducts.forEach((product, index) => {
+      const newOrder = (index + 1) * 10
+      if (product.sort_order !== newOrder) {
+        updates.push({ productId: product.id, sortOrder: newOrder })
+      }
+    })
+
+    // Send updates to API
+    updates.forEach(update => {
+      updateSortOrder.mutate(update)
+    })
+
+    setDraggedProduct(null)
+    setDragOverProduct(null)
+    toast.success('Tartib saqlandi')
+  }
+
+  const handleDragEnd = () => {
+    setDraggedProduct(null)
+    setDragOverProduct(null)
+  }
+
+  return (
+    <div className="h-[calc(100vh-4rem)] lg:h-[calc(100vh-1.5rem)] flex flex-col lg:flex-row bg-gray-100">
+      {/* Mobile Cart Button */}
+      <button
+        onClick={() => setMobileCartOpen(true)}
+        className={cn(
+          "lg:hidden fixed bottom-4 right-4 z-40 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-all",
+          items.length > 0 ? "bg-blue-600 text-white" : "bg-white text-gray-600 border"
+        )}
+      >
+        <ShoppingCart className="w-5 h-5" />
+        {items.length > 0 && (
+          <>
+            <span className="font-medium">{items.length}</span>
+            <span className="text-sm">• {formatMoney(finalTotal, false)}</span>
+          </>
+        )}
+      </button>
+
+      {/* LEFT - Categories (hidden on mobile, horizontal on tablet) */}
+      <div className="hidden lg:flex w-52 bg-white border-r flex-col shrink-0">
+        <div className="p-3 border-b">
+          <h3 className="font-semibold text-sm text-gray-500 uppercase">Bo'limlar</h3>
+          <p className="text-[10px] text-gray-400 mt-0.5">Tartibni o'zgartirish uchun surish</p>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto">
+          <button
+            onClick={() => setSelectedCategory('favorites')}
+            className={cn(
+              'w-full flex items-center gap-3 px-4 py-3 text-left border-b transition-colors',
+              selectedCategory === 'favorites' 
+                ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' 
+                : 'hover:bg-gray-50'
+            )}
+          >
+            <Star className={cn('w-5 h-5', selectedCategory === 'favorites' ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400')} />
+            <span className="flex-1 text-[15px] font-medium">Sevimlilar</span>
+            <span className="text-sm text-gray-500">{favoritesCount}</span>
+          </button>
+          
+          <button
+            onClick={() => setSelectedCategory(null)}
+            className={cn(
+              'w-full flex items-center gap-3 px-4 py-3 text-left border-b transition-colors',
+              selectedCategory === null 
+                ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' 
+                : 'hover:bg-gray-50'
+            )}
+          >
+            <Grid3X3 className="w-5 h-5 text-gray-400" />
+            <span className="flex-1 text-[15px] font-medium">Barchasi</span>
+          </button>
+          
+          {sortedCategories?.map((cat: any, index: number) => (
+            <div
+              key={cat.id}
+              draggable
+              onDragStart={() => handleCategoryDragStart(cat.id)}
+              onDragOver={(e) => handleCategoryDragOver(e, cat.id)}
+              onDrop={() => handleCategoryDrop(cat.id)}
+              onDragEnd={() => { setDraggingCategoryId(null); setDragOverCategoryId(null) }}
+              className={cn(
+                'w-full flex items-center gap-2 px-2 py-3 text-left border-b transition-all cursor-grab active:cursor-grabbing',
+                selectedCategory === cat.id 
+                  ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' 
+                  : 'hover:bg-gray-50',
+                draggingCategoryId === cat.id && 'opacity-50',
+                dragOverCategoryId === cat.id && 'bg-blue-100 border-blue-300'
+              )}
+            >
+              <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
+              <button
+                onClick={() => setSelectedCategory(cat.id)}
+                className="flex items-center gap-2 flex-1 min-w-0"
+              >
+                <div 
+                  className="w-3 h-3 rounded-full flex-shrink-0" 
+                  style={{ backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }}
+                />
+                <span className="text-[15px] truncate">{cat.name}</span>
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Mobile Categories - Horizontal scroll */}
+      <div className="lg:hidden flex items-center gap-2 px-3 py-2 bg-white border-b overflow-x-auto no-scrollbar">
+        <button
+          onClick={() => setSelectedCategory('favorites')}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
+            selectedCategory === 'favorites' 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-100 text-gray-700'
+          )}
+        >
+          <Star className={cn('w-4 h-4', selectedCategory === 'favorites' && 'fill-white')} />
+          Sevimlilar
+        </button>
+        
+        <button
+          onClick={() => setSelectedCategory(null)}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
+            selectedCategory === null 
+              ? 'bg-blue-600 text-white' 
+              : 'bg-gray-100 text-gray-700'
+          )}
+        >
+          <Grid3X3 className="w-4 h-4" />
+          Barchasi
+        </button>
+        
+        {sortedCategories?.map((cat: any, index: number) => (
+          <button
+            key={cat.id}
+            onClick={() => setSelectedCategory(cat.id)}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
+              selectedCategory === cat.id 
+                ? 'bg-blue-600 text-white' 
+                : 'bg-gray-100 text-gray-700'
+            )}
+          >
+            <div 
+              className="w-2.5 h-2.5 rounded-full" 
+              style={{ backgroundColor: selectedCategory === cat.id ? '#fff' : CATEGORY_COLORS[index % CATEGORY_COLORS.length] }}
+            />
+            {cat.name}
+          </button>
+        ))}
+      </div>
+
+      {/* CENTER - Products */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Search */}
+        <div className="p-3 lg:p-4 bg-white border-b flex items-center gap-2 lg:gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Qidirish..."
+              className="w-full h-10 lg:h-11 pl-10 lg:pl-11 pr-4 text-sm lg:text-[15px] border rounded-lg focus:border-blue-500 focus:outline-none"
+              onChange={(e) => debouncedSearch(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-1 lg:gap-2 text-xs lg:text-sm bg-blue-50 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg">
+            <span className="text-gray-500">$</span>
+            <span className="font-semibold text-blue-600">{formatNumber(usdRate)}</span>
+          </div>
+        </div>
+
+        {/* Products Grid */}
+        <div className="flex-1 overflow-y-auto p-2 lg:p-4 pb-20 lg:pb-4">
+          {loadingProducts ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-8 h-8 lg:w-10 lg:h-10 animate-spin text-blue-600" />
+            </div>
+          ) : filteredProducts.length > 0 ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2 lg:gap-3">
+              {filteredProducts.map((product: Product) => {
+                const baseStock = Number(product.current_stock) || 0
+                const isOutOfStock = baseStock <= 0
+                const categoryIndex = categories?.findIndex((c: any) => c.id === product.category_id) || 0
+                const productColor = getProductColor(product, categoryIndex)
+                const salePrice = getSalePrice(product)
+                const costPrice = getCostPrice(product)
+                const isDragOver = dragOverProduct === product.id
+                
+                return (
+                  <div
+                    key={product.id}
+                    draggable={!isOutOfStock}
+                    onDragStart={(e) => handleDragStart(e, product)}
+                    onDragOver={(e) => handleDragOver(e, product.id)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, product)}
+                    onDragEnd={handleDragEnd}
+                    className={cn(
+                      "relative flex flex-col rounded-lg border bg-white transition-all",
+                      isOutOfStock
+                        ? "opacity-50"
+                        : "hover:shadow-lg hover:border-blue-400 cursor-grab active:cursor-grabbing",
+                      isDragOver && "ring-2 ring-blue-500 ring-offset-2",
+                      draggedProduct?.id === product.id && "opacity-50"
+                    )}
+                    style={!isOutOfStock ? { borderLeftColor: productColor, borderLeftWidth: '4px' } : undefined}
+                  >
+                    {/* Favorite button */}
+                    <button
+                      onClick={(e) => handleToggleFavorite(e, product)}
+                      className="absolute top-1.5 lg:top-2 right-1.5 lg:right-2 p-1 rounded-full hover:bg-gray-100 z-10"
+                    >
+                      <Star className={cn(
+                        'w-3.5 h-3.5 lg:w-4 lg:h-4',
+                        product.is_favorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
+                      )} />
+                    </button>
+                    
+                    <button
+                      onClick={() => !isOutOfStock && handleProductClick(product)}
+                      disabled={isOutOfStock}
+                      className="flex flex-col p-2 lg:p-3 text-left flex-1"
+                    >
+                      {/* Name */}
+                      <p className="font-semibold text-xs lg:text-[15px] leading-tight line-clamp-2 pr-4 lg:pr-6 mb-1.5 lg:mb-2">
+                        {product.name}
+                      </p>
+                      
+                      {/* UOM */}
+                      <div className="flex flex-wrap gap-1 mb-1.5 lg:mb-2">
+                        <span className="text-[10px] lg:text-xs px-1.5 lg:px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">
+                          {product.base_uom_symbol}
+                        </span>
+                        {product.uom_conversions?.slice(0, 1).map((conv) => (
+                          <span key={conv.uom_id} className="text-[10px] lg:text-xs px-1.5 lg:px-2 py-0.5 bg-gray-100 text-gray-600 rounded hidden sm:inline-block">
+                            {conv.uom_symbol}
+                          </span>
+                        ))}
+                      </div>
+                      
+                      {/* Price */}
+                      <div className="mt-auto">
+                        <p className="text-sm lg:text-lg font-bold text-green-600">
+                          {formatMoney(salePrice, false)}
+                        </p>
+                        {product.sale_price_usd && (
+                          <p className="text-[10px] lg:text-xs text-gray-500">${formatNumber(product.sale_price_usd, 2)}</p>
+                        )}
+                        {/* Cost price */}
+                        <p className="text-[10px] lg:text-xs text-orange-600 mt-0.5">
+                          Kelish: {formatMoney(costPrice, false)}
+                        </p>
+                      </div>
+                      
+                      {/* Stock */}
+                      <p className={cn(
+                        'text-[10px] lg:text-xs mt-1.5 lg:mt-2',
+                        isOutOfStock ? 'text-red-500' : 'text-gray-500'
+                      )}>
+                        {formatNumber(baseStock)} {product.base_uom_symbol}
+                        {product.uom_conversions?.[0] && (
+                          <span className="hidden sm:inline"> • {formatNumber(baseStock / product.uom_conversions[0].conversion_factor, 0)} {product.uom_conversions[0].uom_symbol}</span>
+                        )}
+                      </p>
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+              <ShoppingCart className="w-12 h-12 lg:w-16 lg:h-16 mb-3 opacity-30" />
+              <p className="text-base lg:text-lg">Tovar topilmadi</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* RIGHT - Cart (Desktop) */}
+      <div className="hidden lg:flex w-80 bg-white border-l flex-col shrink-0">
+        {/* Customer */}
+        <div className="p-3 border-b">
+          <button
+            onClick={() => setShowCustomerDialog(true)}
+            className={cn(
+              "w-full h-10 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors",
+              customer 
+                ? "bg-blue-600 text-white" 
+                : "border border-dashed border-gray-300 text-gray-600 hover:border-blue-500"
+            )}
+          >
+            <User className="w-4 h-4" />
+            {customer ? customer.name : 'Mijoz tanlash'}
+          </button>
+          
+          {customer && customer.current_debt > 0 && (
+            <p className="text-xs text-red-600 text-center mt-1">Qarz: {formatMoney(customer.current_debt)}</p>
+          )}
+        </div>
+
+        {/* Items */}
+        <div className="flex-1 overflow-y-auto">
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-gray-400">
+              <ShoppingCart className="w-12 h-12 mb-2 opacity-30" />
+              <p className="text-sm">Savat bo'sh</p>
+            </div>
+          ) : (
+            <div className="p-2 space-y-2">
+              {items.map((item, index) => (
+                <div key={item.id} className="p-2 bg-gray-50 rounded-lg">
+                  <div className="flex items-start justify-between mb-1">
+                    <p className="text-sm font-medium flex-1 pr-2">{index + 1}. {item.product_name}</p>
+                    <button onClick={() => handleRemoveItem(item.id)} className="p-1 hover:bg-red-100 rounded">
+                      <Trash2 className="w-4 h-4 text-red-500" />
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mb-1">
+                    <button
+                      onClick={() => handleChangeItemUOM(item)}
+                      className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                    >
+                      {item.uom_symbol}
+                    </button>
+                    <span className="text-sm text-green-600 font-medium">{formatMoney(item.unit_price, false)}</span>
+                    <button onClick={() => handleEditPrice(item)} className="p-1 hover:bg-gray-200 rounded ml-auto">
+                      <Edit3 className="w-3 h-3 text-blue-600" />
+                    </button>
+                  </div>
+                  
+                  <p className="text-xs text-orange-600 mb-2">Kelish: {formatMoney(item.cost_price * item.conversion_factor, false)}</p>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleQuantityChange(item.id, -1)}
+                        className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-lg font-bold"
+                      >
+                        -
+                      </button>
+                      <button
+                        onClick={() => handleEditQuantity(item)}
+                        className="w-14 h-8 text-center text-sm font-medium bg-white border rounded hover:bg-blue-50 hover:border-blue-300"
+                        title="Miqdorni o'zgartirish"
+                      >
+                        {formatNumber(item.quantity, 1)}
+                      </button>
+                      <button
+                        onClick={() => handleQuantityChange(item.id, 1)}
+                        className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-lg font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <p className="text-sm font-bold">{formatMoney(item.unit_price * item.quantity, false)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t p-3 space-y-2">
+          {/* Subtotal */}
+          {items.length > 0 && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Jami (chegirmasiz):</span>
+                <span className="font-medium">{formatMoney(subtotal, false)}</span>
+              </div>
+              
+              {/* Discount section */}
+              <div className="border rounded-lg p-2 bg-orange-50">
+                <button
+                  onClick={() => setShowDiscountInput(!showDiscountInput)}
+                  className="w-full flex items-center justify-between text-sm"
+                >
+                  <span className="text-orange-700 font-medium">Chegirma:</span>
+                  <span className="text-orange-700 font-bold">
+                    {generalDiscount > 0 ? `-${formatMoney(generalDiscount, false)}` : 'Qo\'shish +'}
+                  </span>
+                </button>
+                
+                {showDiscountInput && (
+                  <div className="mt-2 space-y-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="number"
+                        value={generalDiscount || ''}
+                        onChange={(e) => applyGeneralDiscount(parseFloat(e.target.value) || 0)}
+                        placeholder="Chegirma summasi"
+                        className="flex-1 h-9 px-3 text-sm border rounded-lg"
+                      />
+                      <button
+                        onClick={() => { setGeneralDiscount(0); setShowDiscountInput(false) }}
+                        className="px-3 h-9 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg"
+                      >
+                        Bekor
+                      </button>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Yoki yakuniy summani kiriting:
+                    </div>
+                    <input
+                      type="number"
+                      value={finalTotal > 0 ? finalTotal : ''}
+                      onChange={(e) => setFinalTotalDirectly(parseFloat(e.target.value) || 0)}
+                      placeholder="Yakuniy summa"
+                      className="w-full h-9 px-3 text-sm border rounded-lg"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              {/* Profit */}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Foyda:</span>
+                <span className={expectedProfit >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                  {formatMoney(expectedProfit, false)}
+                </span>
+              </div>
+            </>
+          )}
+          
+          {/* Total */}
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-xs text-gray-500">Yakuniy summa:</p>
+              <p className="text-2xl font-bold text-green-700">{formatMoney(finalTotal, false)}</p>
+              <p className="text-xs text-gray-500">≈ ${formatNumber(finalTotal / usdRate, 2)}</p>
+            </div>
+            <button
+              onClick={handleClearCart}
+              disabled={items.length === 0}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+            >
+              <Trash2 className="w-4 h-4" />
+              Tozalash
+            </button>
+          </div>
+          
+          <button
+            onClick={() => setShowPaymentDialog(true)}
+            disabled={items.length === 0}
+            className="w-full h-12 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-lg font-medium"
+          >
+            <Check className="w-5 h-5" />
+            To'lov
+          </button>
+          
+          <button
+            onClick={() => setShowPrintPreview(true)}
+            disabled={items.length === 0}
+            className="w-full h-10 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-lg text-base font-medium border border-gray-300"
+          >
+            <Printer className="w-4 h-4" />
+            Chek chiqarish
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Cart Modal */}
+      {mobileCartOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileCartOpen(false)} />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[85vh] flex flex-col animate-in slide-in-from-bottom duration-300">
+            {/* Handle */}
+            <div className="flex justify-center py-2">
+              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+            </div>
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pb-2 border-b">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5" />
+                Savat ({items.length})
+              </h3>
+              <button onClick={() => setMobileCartOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            {/* Customer */}
+            <div className="p-3 border-b">
+              <button
+                onClick={() => setShowCustomerDialog(true)}
+                className={cn(
+                  "w-full h-10 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors",
+                  customer 
+                    ? "bg-blue-600 text-white" 
+                    : "border border-dashed border-gray-300 text-gray-600"
+                )}
+              >
+                <User className="w-4 h-4" />
+                {customer ? customer.name : 'Mijoz tanlash'}
+              </button>
+              {customer && customer.current_debt > 0 && (
+                <p className="text-xs text-red-600 text-center mt-1">Qarz: {formatMoney(customer.current_debt)}</p>
+              )}
+            </div>
+
+            {/* Items */}
+            <div className="flex-1 overflow-y-auto">
+              {items.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-gray-400">
+                  <ShoppingCart className="w-10 h-10 mb-2 opacity-30" />
+                  <p className="text-sm">Savat bo'sh</p>
+                </div>
+              ) : (
+                <div className="p-3 space-y-2">
+                  {items.map((item, index) => (
+                    <div key={item.id} className="p-2 bg-gray-50 rounded-lg">
+                      <div className="flex items-start justify-between mb-1">
+                        <p className="text-sm font-medium flex-1 pr-2">{index + 1}. {item.product_name}</p>
+                        <button onClick={() => handleRemoveItem(item.id)} className="p-1 hover:bg-red-100 rounded">
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 mb-1">
+                        <button
+                          onClick={() => handleChangeItemUOM(item)}
+                          className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        >
+                          {item.uom_symbol}
+                        </button>
+                        <span className="text-sm text-green-600 font-medium">{formatMoney(item.unit_price, false)}</span>
+                        <button onClick={() => handleEditPrice(item)} className="p-1 hover:bg-gray-200 rounded ml-auto">
+                          <Edit3 className="w-3 h-3 text-blue-600" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleQuantityChange(item.id, -1)}
+                            className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-lg font-bold"
+                          >
+                            -
+                          </button>
+                          <button
+                            onClick={() => handleEditQuantity(item)}
+                            className="w-14 h-8 text-center text-sm font-medium bg-white border rounded"
+                          >
+                            {formatNumber(item.quantity, 1)}
+                          </button>
+                          <button
+                            onClick={() => handleQuantityChange(item.id, 1)}
+                            className="w-8 h-8 rounded bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-lg font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <p className="font-bold">{formatMoney(item.unit_price * item.quantity, false)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Totals */}
+            <div className="p-3 border-t bg-gray-50 space-y-2">
+              {items.length > 0 && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Jami:</span>
+                    <span className="font-medium">{formatMoney(subtotal, false)}</span>
+                  </div>
+                  {generalDiscount > 0 && (
+                    <div className="flex justify-between text-sm text-orange-600">
+                      <span>Chegirma:</span>
+                      <span>-{formatMoney(generalDiscount, false)}</span>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-gray-500">Yakuniy summa:</p>
+                  <p className="text-xl font-bold text-green-700">{formatMoney(finalTotal, false)}</p>
+                </div>
+                <button
+                  onClick={handleClearCart}
+                  disabled={items.length === 0}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded disabled:opacity-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+              
+              <button
+                onClick={() => { setMobileCartOpen(false); setShowPaymentDialog(true); }}
+                disabled={items.length === 0}
+                className="w-full h-12 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-base font-medium"
+              >
+                <Check className="w-5 h-5" />
+                To'lov
+              </button>
+              
+              <button
+                onClick={() => { setMobileCartOpen(false); setShowPrintPreview(true); }}
+                disabled={items.length === 0}
+                className="w-full h-10 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-lg text-sm font-medium border border-gray-300"
+              >
+                <Printer className="w-4 h-4" />
+                Chek chiqarish
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Product Dialog - NEW */}
+      <Dialog open={showAddProductDialog} onOpenChange={(open) => {
+        setShowAddProductDialog(open)
+        if (!open) {
+          setAddProductData({
+            product: null,
+            selectedUomId: 0,
+            selectedUomSymbol: '',
+            selectedUomName: '',
+            conversionFactor: 1,
+            unitPrice: 0,
+            costPrice: 0,
+            quantity: 1
+          })
+        }
+      }}>
+        <DialogContent className="max-w-[340px]">
+          <DialogHeader>
+            <DialogTitle className="text-base pr-6">Kassaga qo'shish</DialogTitle>
+            <DialogDescription className="font-semibold text-sm text-gray-800 line-clamp-2 pr-6">
+              {addProductData.product?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {addProductData.product && (
+            <div className="space-y-3 pt-2 w-full">
+              {/* Cost Price Info */}
+              <div className="bg-orange-50 px-3 py-2 rounded-lg border border-orange-200 w-full box-border">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-orange-600">Kelish narxi:</span>
+                  <span className="text-sm font-bold text-orange-700">
+                    {formatMoney(addProductData.costPrice)}
+                  </span>
+                </div>
+              </div>
+              
+              {/* UOM Selection */}
+              <div className="w-full">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">O'lchov birligi</label>
+                <div className="flex flex-wrap gap-2">
+                  {/* Base UOM */}
+                  <button
+                    type="button"
+                    onClick={() => handleAddProductUOMChange(null)}
+                    className={cn(
+                      "px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all",
+                      addProductData.selectedUomId === addProductData.product.base_uom_id
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-gray-200 hover:border-blue-300 text-gray-700"
+                    )}
+                  >
+                    {addProductData.product.base_uom_symbol}
+                  </button>
+                  
+                  {/* Other UOMs */}
+                  {addProductData.product.uom_conversions?.map((conv) => (
+                    <button
+                      key={conv.uom_id}
+                      type="button"
+                      onClick={() => handleAddProductUOMChange(conv)}
+                      className={cn(
+                        "px-3 py-2 rounded-lg border-2 text-sm font-medium transition-all",
+                        addProductData.selectedUomId === conv.uom_id
+                          ? "border-blue-500 bg-blue-50 text-blue-700"
+                          : "border-gray-200 hover:border-blue-300 text-gray-700"
+                      )}
+                    >
+                      {conv.uom_symbol}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Price Input */}
+              <div className="w-full">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Sotish narxi (so'm)</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={formatInputNumber(addProductData.unitPrice)}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\s/g, '')
+                    const num = parseFloat(value) || 0
+                    setAddProductData(prev => ({ ...prev, unitPrice: num }))
+                  }}
+                  className="w-full h-11 px-3 text-base font-bold text-center border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none box-border"
+                />
+                {addProductData.unitPrice < addProductData.costPrice * addProductData.conversionFactor && addProductData.unitPrice > 0 && (
+                  <p className="text-xs text-red-500 mt-1">⚠️ Narx tan narxdan past</p>
+                )}
+              </div>
+              
+              {/* Quantity Input */}
+              <div className="w-full">
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">Miqdor ({addProductData.selectedUomSymbol})</label>
+                <div className="flex items-center gap-2 w-full">
+                  <button
+                    type="button"
+                    onClick={() => setAddProductData(prev => ({ ...prev, quantity: Math.max(0.5, prev.quantity - 1) }))}
+                    className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95 transition-transform"
+                  >
+                    <Minus className="w-5 h-5" />
+                  </button>
+                  <input
+                    type="number"
+                    value={addProductData.quantity}
+                    onChange={(e) => setAddProductData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
+                    className="flex-1 min-w-0 h-11 px-3 text-center text-lg font-bold border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none box-border"
+                    min="0.1"
+                    step="0.5"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setAddProductData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                    className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95 transition-transform"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              
+              {/* Total */}
+              <div className="bg-green-50 px-3 py-2 rounded-lg border border-green-200 w-full box-border">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-green-700">Jami:</span>
+                  <span className="text-base font-bold text-green-700">
+                    {formatMoney(addProductData.unitPrice * addProductData.quantity)}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Confirm Button */}
+              <button
+                onClick={handleConfirmAddProduct}
+                disabled={addProductData.quantity <= 0 || addProductData.unitPrice <= 0}
+                className="w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors box-border"
+              >
+                <Check className="w-4 h-4" />
+                Kassaga qo'shish
+              </button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* UOM Dialog */}
+      <Dialog open={showUOMSelectDialog} onOpenChange={(open) => {
+        setShowUOMSelectDialog(open)
+        if (!open) { setChangingUOMItemId(null); setSelectedProductForUOM(null) }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>O'lchov birligi</DialogTitle>
+            <DialogDescription>{selectedProductForUOM?.name}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <button
+              onClick={() => handleSelectUOM(null)}
+              className="w-full flex items-center justify-between p-3 rounded-lg border-2 border-blue-500 bg-blue-50 hover:bg-blue-100"
+            >
+              <div className="flex items-center gap-2">
+                <Ruler className="w-5 h-5 text-blue-600" />
+                <div className="text-left">
+                  <p className="font-medium">{selectedProductForUOM?.base_uom_name || selectedProductForUOM?.base_uom_symbol}</p>
+                  <p className="text-xs text-gray-500">Asosiy</p>
+                </div>
+              </div>
+              <p className="font-bold text-green-600">{selectedProductForUOM && formatMoney(getSalePrice(selectedProductForUOM))}</p>
+            </button>
+            {selectedProductForUOM?.uom_conversions?.map((conv) => (
+              <button
+                key={conv.uom_id}
+                onClick={() => handleSelectUOM(conv)}
+                className="w-full flex items-center justify-between p-3 rounded-lg border-2 border-gray-200 hover:border-blue-500"
+              >
+                <div className="flex items-center gap-2">
+                  <Ruler className="w-5 h-5 text-gray-400" />
+                  <div className="text-left">
+                    <p className="font-medium">{conv.uom_name}</p>
+                    <p className="text-xs text-gray-500">1 {conv.uom_symbol} = {formatNumber(conv.conversion_factor)} {selectedProductForUOM?.base_uom_symbol}</p>
+                  </div>
+                </div>
+                <p className="font-bold text-green-600">{formatMoney(conv.sale_price || getSalePrice(selectedProductForUOM!, conv.conversion_factor))}</p>
+              </button>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer Dialog - Large and User Friendly */}
+      <Dialog open={showCustomerDialog} onOpenChange={(open) => {
+        setShowCustomerDialog(open)
+        if (!open) {
+          setCustomerSearchQuery('')
+          setCustomerSellerFilter('')
+        }
+      }}>
+        <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
+          <DialogHeader className="pb-2 border-b">
+            <DialogTitle className="text-xl pr-8">Mijoz tanlash</DialogTitle>
+            <p className="text-sm text-gray-500 mt-1">
+              Jami: {customersData?.data?.length || 0} ta mijoz | Ko'rsatilgan: {filteredCustomers.length} ta
+            </p>
+          </DialogHeader>
+          
+          {/* Filters Row */}
+          <div className="flex flex-col sm:flex-row gap-3 py-3 border-b bg-gray-50 -mx-4 px-4 sm:-mx-6 sm:px-6">
+            {/* Seller filter */}
+            <div className="flex-1 sm:max-w-[200px]">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Kassir bo'yicha</label>
+              <select
+                value={customerSellerFilter}
+                onChange={(e) => setCustomerSellerFilter(e.target.value ? Number(e.target.value) : '')}
+                className="w-full h-11 px-3 border-2 border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Barcha kassirlar</option>
+                {sellersData?.data?.map((seller: any) => (
+                  <option key={seller.id} value={seller.id}>
+                    {seller.first_name} {seller.last_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            {/* Search input */}
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1">Qidirish</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={customerSearchQuery}
+                  onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                  placeholder="Ism, kompaniya yoki telefon..."
+                  className="w-full h-11 pl-11 pr-4 border-2 border-gray-200 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  autoFocus
+                />
+              </div>
+            </div>
+          </div>
+          
+          {/* Customer List */}
+          <div className="flex-1 overflow-y-auto py-3 -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ maxHeight: 'calc(90vh - 220px)', minHeight: '300px' }}>
+            {/* Oddiy xaridor */}
+            <button
+              onClick={() => { setCustomer(null); setShowCustomerDialog(false); setCustomerSearchQuery(''); setCustomerSellerFilter('') }}
+              className="w-full p-4 mb-3 text-left rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
+                  <User className="w-6 h-6 text-gray-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-base">Oddiy xaridor</p>
+                  <p className="text-sm text-gray-500">Ro'yxatdan o'tmagan mijoz</p>
+                </div>
+              </div>
+            </button>
+            
+            {filteredCustomers.length === 0 ? (
+              <div className="text-center py-12">
+                <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500 text-lg">Mijoz topilmadi</p>
+                <p className="text-gray-400 text-sm mt-1">Qidiruv so'zini o'zgartiring</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {filteredCustomers.map((c: Customer) => (
+                  <button
+                    key={c.id}
+                    onClick={() => { setCustomer(c); setShowCustomerDialog(false); setCustomerSearchQuery(''); setCustomerSellerFilter('') }}
+                    className={cn(
+                      "w-full p-4 text-left rounded-xl border-2 hover:shadow-md transition-all",
+                      customer?.id === c.id 
+                        ? "border-blue-500 bg-blue-50 shadow-md" 
+                        : "border-gray-200 hover:border-blue-300"
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      <div className={cn(
+                        "w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0",
+                        c.customer_type?.toUpperCase() === 'VIP' ? "bg-yellow-100" : "bg-blue-100"
+                      )}>
+                        <User className={cn(
+                          "w-6 h-6",
+                          c.customer_type?.toUpperCase() === 'VIP' ? "text-yellow-600" : "text-blue-600"
+                        )} />
+                      </div>
+                      
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-base truncate">{c.name}</p>
+                            {c.company_name && (
+                              <p className="text-sm text-blue-600 truncate">{c.company_name}</p>
+                            )}
+                          </div>
+                          <div className="flex flex-col gap-1 flex-shrink-0">
+                            {c.customer_type?.toUpperCase() === 'VIP' && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-medium">VIP</span>
+                            )}
+                            {c.current_debt > 0 && (
+                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">Qarz</span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="mt-2 space-y-1">
+                          <p className="text-sm text-gray-600 flex items-center gap-1">
+                            <Phone className="w-3.5 h-3.5" />
+                            {c.phone}
+                          </p>
+                          {c.current_debt > 0 && (
+                            <p className="text-sm text-red-600 font-medium">
+                              Qarz: {formatMoney(c.current_debt)}
+                            </p>
+                          )}
+                          {c.manager_name && (
+                            <p className="text-xs text-gray-400">
+                              Kassir: {c.manager_name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Footer */}
+          <div className="pt-3 border-t -mx-4 px-4 sm:-mx-6 sm:px-6">
+            <button
+              onClick={() => setShowCustomerDialog(false)}
+              className="w-full h-12 border-2 border-gray-200 rounded-xl text-base font-medium hover:bg-gray-50 transition-colors"
+            >
+              Bekor qilish
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Price Dialog */}
+      <Dialog open={showEditPriceDialog} onOpenChange={setShowEditPriceDialog}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Narxni o'zgartirish</DialogTitle>
+          </DialogHeader>
+          <input
+            type="number"
+            value={editPriceValue}
+            onChange={(e) => setEditPriceValue(e.target.value)}
+            className="w-full h-12 px-4 text-lg border rounded-lg"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditPriceDialog(false)}>Bekor</Button>
+            <Button variant="primary" onClick={handleSavePrice}>Saqlash</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Quantity Dialog */}
+      <Dialog open={showEditQuantityDialog} onOpenChange={setShowEditQuantityDialog}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>Miqdorni o'zgartirish</DialogTitle>
+          </DialogHeader>
+          <input
+            type="number"
+            step="0.1"
+            value={editQuantityValue}
+            onChange={(e) => setEditQuantityValue(e.target.value)}
+            className="w-full h-12 px-4 text-lg border rounded-lg text-center"
+            autoFocus
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditQuantityDialog(false)}>Bekor</Button>
+            <Button variant="primary" onClick={handleSaveQuantity}>Saqlash</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-[340px]">
+          <DialogHeader>
+            <DialogTitle className="text-base pr-6">To'lov qilish</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2 w-full">
+            {/* Payment Types */}
+            <div className="grid grid-cols-2 gap-2 w-full">
+              {PAYMENT_TYPES.map((pt) => (
+                <button
+                  key={pt.type}
+                  onClick={() => setPaymentType(pt.type)}
+                  className={cn(
+                    'flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-all',
+                    paymentType === pt.type ? `${pt.color} text-white border-transparent` : 'border-gray-200 hover:border-blue-400'
+                  )}
+                >
+                  <pt.icon className="w-4 h-4" />
+                  {pt.label}
+                </button>
+              ))}
+            </div>
+            
+            {paymentType !== 'DEBT' && (
+              <>
+                {/* Currency Selection */}
+                <div className="flex gap-2 w-full">
+                  <button 
+                    onClick={() => setPaymentCurrency('UZS')} 
+                    className={cn(
+                      'flex-1 h-10 rounded-lg text-sm font-medium border-2 transition-all', 
+                      paymentCurrency === 'UZS' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 hover:border-blue-400'
+                    )}
+                  >
+                    So'm
+                  </button>
+                  <button 
+                    onClick={() => setPaymentCurrency('USD')} 
+                    className={cn(
+                      'flex-1 h-10 rounded-lg text-sm font-medium border-2 transition-all', 
+                      paymentCurrency === 'USD' ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 hover:border-green-400'
+                    )}
+                  >
+                    Dollar
+                  </button>
+                </div>
+                
+                {/* Amount Input */}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={paymentAmount}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\s/g, '')
+                    setPaymentAmount(value)
+                  }}
+                  placeholder={paymentCurrency === 'USD' ? `${(finalTotal / usdRate).toFixed(2)}` : formatNumber(finalTotal)}
+                  className="w-full h-11 px-3 text-base font-bold text-center border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none box-border"
+                />
+              </>
+            )}
+            
+            {/* Total Summary */}
+            <div className="bg-gray-50 px-3 py-2.5 rounded-lg space-y-1.5 w-full box-border">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-600">Jami summa:</span>
+                <span className="font-bold text-base">{formatMoney(finalTotal)}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs text-gray-500">
+                <span>Dollarda:</span>
+                <span>${formatNumber(finalTotal / usdRate, 2)}</span>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-1 w-full">
+              <button
+                onClick={() => setShowPaymentDialog(false)}
+                className="flex-1 h-10 border-2 border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              >
+                Bekor
+              </button>
+              <button
+                onClick={processSale}
+                disabled={isProcessing}
+                className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+              >
+                {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                Tasdiqlash
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Preview Dialog */}
+      <Dialog open={showPrintPreview} onOpenChange={setShowPrintPreview}>
+        <DialogContent className="max-w-md p-0 overflow-hidden">
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="flex items-center gap-2">
+              <Printer className="w-5 h-5" />
+              Chek ko'rinishi
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* Print Content */}
+          <div className="p-4 max-h-[70vh] overflow-y-auto">
+            <div 
+              ref={printRef}
+              className="bg-white p-4 border rounded-lg"
+            >
+              {/* Logo */}
+              <div className="text-center mb-4">
+                <img 
+                  src="/logo.png" 
+                  alt="Logo" 
+                  className="h-16 mx-auto mb-2"
+                />
+                <h2 className="font-bold text-lg">INTER PROFNASTIL</h2>
+                <p className="text-xs text-gray-500">
+                  {new Date().toLocaleDateString('uz-UZ')} {new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              
+              {/* Divider */}
+              <div className="border-t-2 border-gray-300 my-3" />
+              
+              {/* Customer info */}
+              {customer && (
+                <div className="mb-3 p-2 bg-gray-50 rounded text-sm">
+                  <p><strong>Mijoz:</strong> {customer.name}</p>
+                  {customer.phone && <p><strong>Tel:</strong> {customer.phone}</p>}
+                  {customer.company_name && <p><strong>Kompaniya:</strong> {customer.company_name}</p>}
+                </div>
+              )}
+              
+              {/* Items Table */}
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="border border-gray-300 px-2 py-1.5 text-left w-8">№</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-left">Mahsulot</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-center w-20">Miqdor</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-right w-24">Narx</th>
+                    <th className="border border-gray-300 px-2 py-1.5 text-right w-28">Summa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item, index) => (
+                    <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="border border-gray-300 px-2 py-1.5 text-center font-medium">{index + 1}</td>
+                      <td className="border border-gray-300 px-2 py-1.5 font-medium">{item.product_name}</td>
+                      <td className="border border-gray-300 px-2 py-1.5 text-center">
+                        {formatNumber(item.quantity)} {item.uom_symbol}
+                      </td>
+                      <td className="border border-gray-300 px-2 py-1.5 text-right">
+                        {formatMoney(item.unit_price)}
+                      </td>
+                      <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">
+                        {formatMoney(item.quantity * item.unit_price)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-gray-100 font-bold">
+                    <td colSpan={4} className="border border-gray-300 px-2 py-2 text-right">
+                      Jami ({items.length} ta mahsulot):
+                    </td>
+                    <td className="border border-gray-300 px-2 py-2 text-right">
+                      {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0))}
+                    </td>
+                  </tr>
+                  {generalDiscount > 0 && (
+                    <tr className="text-red-600 font-bold">
+                      <td colSpan={4} className="border border-gray-300 px-2 py-2 text-right">
+                        Chegirma:
+                      </td>
+                      <td className="border border-gray-300 px-2 py-2 text-right">
+                        -{formatMoney(generalDiscount)}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="bg-blue-600 text-white font-bold text-base">
+                    <td colSpan={4} className="border border-gray-300 px-2 py-2.5 text-right">
+                      YAKUNIY SUMMA:
+                    </td>
+                    <td className="border border-gray-300 px-2 py-2.5 text-right">
+                      {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+              
+              {/* Footer */}
+              <div className="mt-4 pt-3 border-t-2 border-gray-300 text-center text-xs text-gray-500">
+                <p className="font-medium">Xaridingiz uchun rahmat!</p>
+                <p className="mt-1">Tel: +998 XX XXX XX XX</p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Actions */}
+          <div className="p-4 border-t flex gap-3">
+            <button
+              onClick={() => setShowPrintPreview(false)}
+              className="flex-1 h-10 border-2 border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+            >
+              Yopish
+            </button>
+            <button
+              onClick={() => {
+                const printContent = printRef.current
+                if (!printContent) return
+                
+                const printWindow = window.open('', '_blank')
+                if (!printWindow) {
+                  toast.error('Popup bloklangan. Ruxsat bering.')
+                  return
+                }
+                
+                printWindow.document.write(`
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                    <title>Chek - INTER PROFNASTIL</title>
+                    <style>
+                      * { margin: 0; padding: 0; box-sizing: border-box; }
+                      body { 
+                        font-family: Arial, sans-serif; 
+                        padding: 15px;
+                        max-width: 210mm;
+                        margin: 0 auto;
+                      }
+                      .header { text-align: center; margin-bottom: 15px; }
+                      .header img { height: 60px; margin-bottom: 5px; }
+                      .header h2 { font-size: 18px; margin: 5px 0; }
+                      .header .date { font-size: 12px; color: #666; }
+                      .divider { border-top: 2px solid #333; margin: 10px 0; }
+                      .customer { 
+                        background: #f5f5f5; 
+                        padding: 8px 12px; 
+                        border-radius: 4px; 
+                        margin-bottom: 12px;
+                        font-size: 13px;
+                      }
+                      table { 
+                        width: 100%; 
+                        border-collapse: collapse; 
+                        font-size: 12px;
+                        margin-bottom: 10px;
+                      }
+                      th { 
+                        background: #e5e5e5; 
+                        border: 1px solid #ccc; 
+                        padding: 8px 6px; 
+                        text-align: left;
+                        font-weight: bold;
+                      }
+                      th.center { text-align: center; }
+                      th.right { text-align: right; }
+                      td { 
+                        border: 1px solid #ccc; 
+                        padding: 6px; 
+                      }
+                      td.center { text-align: center; }
+                      td.right { text-align: right; }
+                      tr:nth-child(even) { background: #fafafa; }
+                      .subtotal { background: #e5e5e5; font-weight: bold; }
+                      .discount { color: #dc2626; font-weight: bold; }
+                      .grand-total { 
+                        background: #2563eb; 
+                        color: white; 
+                        font-weight: bold; 
+                        font-size: 14px;
+                      }
+                      .footer { 
+                        text-align: center; 
+                        margin-top: 15px; 
+                        padding-top: 10px;
+                        border-top: 2px solid #333;
+                        font-size: 11px; 
+                        color: #666; 
+                      }
+                      @media print {
+                        body { padding: 10px; }
+                        @page { margin: 10mm; }
+                      }
+                    </style>
+                  </head>
+                  <body>
+                    <div class="header">
+                      <img src="/logo.png" alt="Logo" />
+                      <h2>INTER PROFNASTIL</h2>
+                      <p class="date">${new Date().toLocaleDateString('uz-UZ')} ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}</p>
+                    </div>
+                    
+                    <div class="divider"></div>
+                    
+                    ${customer ? `
+                      <div class="customer">
+                        <strong>Mijoz:</strong> ${customer.name}
+                        ${customer.phone ? ` | <strong>Tel:</strong> ${customer.phone}` : ''}
+                        ${customer.company_name ? ` | <strong>Kompaniya:</strong> ${customer.company_name}` : ''}
+                      </div>
+                    ` : ''}
+                    
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style="width: 30px;" class="center">№</th>
+                          <th>Mahsulot nomi</th>
+                          <th style="width: 80px;" class="center">Miqdor</th>
+                          <th style="width: 100px;" class="right">Narx</th>
+                          <th style="width: 120px;" class="right">Summa</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${items.map((item, index) => `
+                          <tr>
+                            <td class="center">${index + 1}</td>
+                            <td><strong>${item.product_name}</strong></td>
+                            <td class="center">${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}</td>
+                            <td class="right">${item.unit_price.toLocaleString('uz-UZ')} so'm</td>
+                            <td class="right"><strong>${(item.quantity * item.unit_price).toLocaleString('uz-UZ')} so'm</strong></td>
+                          </tr>
+                        `).join('')}
+                      </tbody>
+                      <tfoot>
+                        <tr class="subtotal">
+                          <td colspan="4" class="right">Jami (${items.length} ta mahsulot):</td>
+                          <td class="right">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')} so'm</td>
+                        </tr>
+                        ${generalDiscount > 0 ? `
+                          <tr class="discount">
+                            <td colspan="4" class="right">Chegirma:</td>
+                            <td class="right">-${generalDiscount.toLocaleString('uz-UZ')} so'm</td>
+                          </tr>
+                        ` : ''}
+                        <tr class="grand-total">
+                          <td colspan="4" class="right">YAKUNIY SUMMA:</td>
+                          <td class="right">${(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount).toLocaleString('uz-UZ')} so'm</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                    
+                    <div class="footer">
+                      <p><strong>Xaridingiz uchun rahmat!</strong></p>
+                      <p>Tel: +998 XX XXX XX XX</p>
+                    </div>
+                  </body>
+                  </html>
+                `)
+                
+                printWindow.document.close()
+                printWindow.focus()
+                
+                // Wait for images to load
+                setTimeout(() => {
+                  printWindow.print()
+                  printWindow.close()
+                }, 500)
+              }}
+              className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              Chop etish
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

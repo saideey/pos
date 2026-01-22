@@ -1,0 +1,101 @@
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: metall_basa_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-metall_basa}
+      TZ: Asia/Tashkent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-metall_basa}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./API
+      dockerfile: Dockerfile
+    container_name: metall_basa_api
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-metall_basa}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      DEBUG: ${DEBUG:-false}
+      SQL_ECHO: ${SQL_ECHO:-false}
+      TELEGRAM_BOT_URL: http://telegram_bot:8081
+      TZ: Asia/Tashkent
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./API:/app
+      - api_uploads:/app/uploads
+
+  telegram_bot:
+    build:
+      context: ./telegram_bot
+      dockerfile: Dockerfile
+    container_name: metall_basa_telegram_bot
+    restart: unless-stopped
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      DIRECTOR_TELEGRAM_IDS: ${DIRECTOR_TELEGRAM_IDS:-}
+      COMPANY_NAME: ${COMPANY_NAME:-Metall Baza}
+      COMPANY_PHONE: ${COMPANY_PHONE:-+998 90 123 45 67}
+      BOT_HTTP_HOST: 0.0.0.0
+      BOT_HTTP_PORT: 8081
+      TZ: Asia/Tashkent
+    ports:
+      - "${BOT_PORT:-8081}:8081"
+    volumes:
+      - ./telegram_bot:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: metall_basa_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:${API_PORT:-8000}
+      - TZ=Asia/Tashkent
+
+  # Optional: pgAdmin for database management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: metall_basa_pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@metall.uz}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    depends_on:
+      - db
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+  api_uploads:
+
+networks:
+  default:
+    name: metall_basa_network
