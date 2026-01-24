@@ -14,7 +14,7 @@ from database.models import (
     ProductPriceHistory, Stock, AuditLog, User
 )
 from schemas.product import ProductCreate, ProductUpdate, ProductSearchParams
-from utils.helpers import generate_slug
+from utils.helpers import generate_slug, get_tashkent_now
 
 
 class ProductService:
@@ -234,7 +234,7 @@ class ProductService:
             return False, "Omborda qoldiq bor, avval qoldiqni 0 ga tushiring"
         
         product.is_deleted = True
-        product.deleted_at = datetime.utcnow()
+        product.deleted_at = get_tashkent_now()
         product.is_active = False
         
         self._log_action(deleted_by_id, "delete", "products", product.id, f"Tovar o'chirildi: {product.name}")
@@ -390,7 +390,7 @@ class CategoryService:
         # Check slug uniqueness
         existing = self.db.query(Category).filter(Category.slug == slug).first()
         if existing:
-            slug = f"{slug}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            slug = f"{slug}-{get_tashkent_now().strftime('%Y%m%d%H%M%S')}"
         
         # Validate parent exists
         if parent_id:
@@ -457,7 +457,7 @@ class CategoryService:
             return False, f"Bu kategoriyada {products} ta tovar mavjud"
         
         category.is_deleted = True
-        category.deleted_at = datetime.utcnow()
+        category.deleted_at = get_tashkent_now()
         
         self.db.commit()
         return True, "Kategoriya o'chirildi"

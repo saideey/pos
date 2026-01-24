@@ -18,6 +18,7 @@ from schemas.warehouse import (
 )
 from schemas.base import SuccessResponse, DeleteResponse
 from services.warehouse import WarehouseService, StockService, StockTransferService
+from utils.helpers import get_tashkent_now
 
 
 router = APIRouter()
@@ -629,7 +630,7 @@ async def delete_movement(
     # Soft delete
     movement.is_deleted = True
     movement.deleted_by_id = current_user.id
-    movement.deleted_at = datetime.now().isoformat()
+    movement.deleted_at = get_tashkent_now().isoformat()
     movement.deleted_reason = reason
     
     db.commit()

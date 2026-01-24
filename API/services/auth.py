@@ -18,6 +18,7 @@ from core.security import (
 )
 from core.config import settings
 from schemas.auth import LoginRequest, TokenResponse, UserInfo
+from utils.helpers import get_tashkent_now
 
 
 class AuthService:
@@ -53,7 +54,7 @@ class AuthService:
         
         # Reset failed attempts on successful login
         user.failed_login_attempts = 0
-        user.last_login = datetime.utcnow().isoformat()
+        user.last_login = get_tashkent_now().isoformat()
         self.db.commit()
         
         return user
@@ -189,7 +190,7 @@ class AuthService:
             return False, "Joriy parol noto'g'ri"
         
         user.password_hash = get_password_hash(new_password)
-        user.password_changed_at = datetime.utcnow().isoformat()
+        user.password_changed_at = get_tashkent_now().isoformat()
         
         # Log password change
         self._log_action(user.id, "password_change", "users", user.id)
@@ -202,7 +203,7 @@ class AuthService:
         session = UserSession(
             user_id=user_id,
             token_hash=token[:50],  # Store partial hash for reference
-            expires_at=(datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)).isoformat(),
+            expires_at=(get_tashkent_now() + timedelta(days=settings.refresh_token_expire_days)).isoformat(),
             is_active=True
         )
         self.db.add(session)

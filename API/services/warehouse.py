@@ -15,7 +15,7 @@ from database.models import (
     InventoryCheck, InventoryCheckItem, StockTransfer, StockTransferItem,
     AuditLog
 )
-from utils.helpers import NumberGenerator
+from utils.helpers import NumberGenerator, get_tashkent_now, get_tashkent_today
 
 
 class WarehouseService:
@@ -238,7 +238,7 @@ class StockService:
         
         stock.quantity = new_quantity
         stock.last_purchase_cost = unit_cost
-        stock.last_stock_update = datetime.utcnow().isoformat()
+        stock.last_stock_update = get_tashkent_now().isoformat()
         
         # Store USD cost for dynamic exchange rate calculation
         if unit_price_usd:
@@ -307,7 +307,7 @@ class StockService:
         
         stock_before = stock.quantity
         stock.quantity -= base_quantity
-        stock.last_stock_update = datetime.utcnow().isoformat()
+        stock.last_stock_update = get_tashkent_now().isoformat()
         
         # Create movement record
         movement = StockMovement(
@@ -492,7 +492,7 @@ class StockTransferService:
         # Create transfer
         transfer = StockTransfer(
             transfer_number=self.num_gen.get_next_transfer_number(),
-            transfer_date=datetime.utcnow().date(),
+            transfer_date=get_tashkent_today(),
             from_warehouse_id=from_warehouse_id,
             to_warehouse_id=to_warehouse_id,
             status="PENDING",
@@ -594,7 +594,7 @@ class StockTransferService:
         
         transfer.status = "COMPLETED"
         transfer.received_by_id = received_by_id
-        transfer.received_at = datetime.utcnow().isoformat()
+        transfer.received_at = get_tashkent_now().isoformat()
         
         self.db.commit()
         return True, "Transfer bajarildi"

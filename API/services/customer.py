@@ -13,6 +13,7 @@ from database.models import Customer, CustomerDebt, CustomerType, AuditLog
 from core.security import get_password_hash, verify_password
 from schemas.customer import CustomerCreate, CustomerUpdate, CustomerSearchParams
 from services.telegram_notifier import send_payment_notification_sync
+from utils.helpers import get_tashkent_now, get_tashkent_today
 
 
 class CustomerService:
@@ -191,7 +192,7 @@ class CustomerService:
             return False, f"Mijozda {customer.current_debt:,.0f} so'm qarz mavjud"
         
         customer.is_deleted = True
-        customer.deleted_at = datetime.utcnow()
+        customer.deleted_at = get_tashkent_now()
         customer.is_active = False
         
         self._log_action(deleted_by_id, "delete", "customers", customer.id, f"Mijoz o'chirildi: {customer.name}")
@@ -461,7 +462,7 @@ class CustomerService:
         if customer:
             customer.total_purchases += sale_amount
             customer.total_purchases_count += 1
-            customer.last_purchase_date = datetime.utcnow().date()
+            customer.last_purchase_date = get_tashkent_today()
             self.db.commit()
     
     def _send_payment_notification(
@@ -493,7 +494,7 @@ class CustomerService:
                 customer_name=customer.name,
                 customer_phone=customer.phone,
                 customer_type=customer.customer_type.name,
-                payment_date=datetime.now(),
+                payment_date=get_tashkent_now(),
                 payment_amount=payment_amount,
                 payment_type=payment_type,
                 previous_debt=previous_debt,

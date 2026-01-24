@@ -5,9 +5,37 @@ Utility functions.
 import re
 import random
 import string
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from decimal import Decimal, ROUND_HALF_UP
+
+# Tashkent timezone (UTC+5)
+TASHKENT_TZ = timezone(timedelta(hours=5))
+
+
+def get_tashkent_now() -> datetime:
+    """Get current datetime in Tashkent timezone (naive datetime)."""
+    return datetime.now(TASHKENT_TZ).replace(tzinfo=None)
+
+
+def get_tashkent_today():
+    """Get current date in Tashkent timezone."""
+    return datetime.now(TASHKENT_TZ).date()
+
+
+def get_tashkent_time_str() -> str:
+    """Get current time as string in Tashkent timezone (HH:MM)."""
+    return datetime.now(TASHKENT_TZ).strftime('%H:%M')
+
+
+def get_tashkent_datetime_str() -> str:
+    """Get current datetime as string in Tashkent timezone (DD.MM.YYYY HH:MM)."""
+    return datetime.now(TASHKENT_TZ).strftime('%d.%m.%Y %H:%M')
+
+
+def get_tashkent_date_str() -> str:
+    """Get current date as string in Tashkent timezone (DD.MM.YYYY)."""
+    return datetime.now(TASHKENT_TZ).strftime('%d.%m.%Y')
 
 
 def generate_slug(text: str) -> str:
@@ -178,7 +206,7 @@ class NumberGenerator:
         """Generate next sale number."""
         from database.models import Sale
         
-        today = datetime.now().strftime("%Y%m%d")
+        today = datetime.now(TASHKENT_TZ).strftime("%Y%m%d")
         prefix = f"SAL-{today}"
         
         # Find last sale number for today
@@ -196,7 +224,7 @@ class NumberGenerator:
         """Generate next payment number."""
         from database.models import Payment
         
-        today = datetime.now().strftime("%Y%m%d")
+        today = datetime.now(TASHKENT_TZ).strftime("%Y%m%d")
         prefix = f"PAY-{today}"
         
         last_payment = self.db.query(Payment).filter(
@@ -213,7 +241,7 @@ class NumberGenerator:
         """Generate next purchase order number."""
         from database.models import PurchaseOrder
         
-        today = datetime.now().strftime("%Y%m%d")
+        today = datetime.now(TASHKENT_TZ).strftime("%Y%m%d")
         prefix = f"PO-{today}"
         
         last_po = self.db.query(PurchaseOrder).filter(
@@ -230,7 +258,7 @@ class NumberGenerator:
         """Generate next stock transfer number."""
         from database.models import StockTransfer
         
-        today = datetime.now().strftime("%Y%m%d")
+        today = datetime.now(TASHKENT_TZ).strftime("%Y%m%d")
         prefix = f"TRF-{today}"
         
         last_transfer = self.db.query(StockTransfer).filter(
@@ -247,7 +275,7 @@ class NumberGenerator:
         """Generate next inventory check number."""
         from database.models import InventoryCheck
         
-        today = datetime.now().strftime("%Y%m%d")
+        today = datetime.now(TASHKENT_TZ).strftime("%Y%m%d")
         prefix = f"INV-{today}"
         
         last_check = self.db.query(InventoryCheck).filter(

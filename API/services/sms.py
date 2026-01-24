@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from core.config import get_settings
 from database.models import Customer, Sale, SMSTemplate, SMSLog
+from utils.helpers import get_tashkent_now
 
 
 class SMSService:
@@ -129,7 +130,7 @@ class SMSService:
             logger.info("=" * 50)
             
             sms_log.status = "sent"
-            sms_log.sent_at = datetime.utcnow().isoformat()
+            sms_log.sent_at = get_tashkent_now().isoformat()
             self.db.commit()
             
             return True, "SMS yuborildi (test mode)"
@@ -159,7 +160,7 @@ class SMSService:
             if response.status_code == 200:
                 data = response.json()
                 sms_log.status = "sent"
-                sms_log.sent_at = datetime.utcnow().isoformat()
+                sms_log.sent_at = get_tashkent_now().isoformat()
                 sms_log.provider_message_id = str(data.get("id", ""))
                 self.db.commit()
                 

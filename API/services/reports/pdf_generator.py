@@ -18,6 +18,7 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from utils.helpers import get_tashkent_datetime_str, get_tashkent_date_str
 
 from database.models import (
     Sale, SaleItem, Product, Customer, Stock, 
@@ -203,7 +204,7 @@ class PDFReportGenerator:
         
         # Footer
         elements.append(Paragraph("Xaridingiz uchun rahmat!", self.styles['ReceiptText']))
-        elements.append(Paragraph(datetime.now().strftime('%d.%m.%Y %H:%M:%S'), self.styles['ReceiptText']))
+        elements.append(Paragraph(get_tashkent_datetime_str(), self.styles['ReceiptText']))
         
         doc.build(elements)
         buffer.seek(0)
@@ -299,7 +300,7 @@ class PDFReportGenerator:
         elements.append(Spacer(1, 1*cm))
         footer_style = ParagraphStyle('footer', parent=self.styles['Normal'], fontSize=8, textColor=colors.grey)
         elements.append(Paragraph(
-            f"Hisobot yaratilgan: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+            f"Hisobot yaratilgan: {get_tashkent_datetime_str()}",
             footer_style
         ))
         
@@ -323,7 +324,7 @@ class PDFReportGenerator:
         
         elements.append(Paragraph("QARZDORLAR HISOBOTI", self.styles['CustomTitle']))
         elements.append(Paragraph(
-            f"Sana: {datetime.now().strftime('%d.%m.%Y')}",
+            f"Sana: {get_tashkent_date_str()}",
             self.styles['CustomSubtitle']
         ))
         
@@ -386,7 +387,7 @@ class PDFReportGenerator:
         
         elements.append(Paragraph("OMBOR QOLDIQLARI", self.styles['CustomTitle']))
         elements.append(Paragraph(
-            f"Sana: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+            f"Sana: {get_tashkent_datetime_str()}",
             self.styles['CustomSubtitle']
         ))
         

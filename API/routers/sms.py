@@ -11,6 +11,7 @@ from database import get_db
 from database.models import User, PermissionType, Customer
 from core.dependencies import get_current_active_user, PermissionChecker
 from services.sms import SMSService
+from utils.helpers import get_tashkent_datetime_str
 
 
 router = APIRouter()
@@ -218,7 +219,7 @@ async def test_sms(
     """
     service = SMSService(db)
     
-    test_message = f"Test SMS. Sana: {__import__('datetime').datetime.now().strftime('%d.%m.%Y %H:%M')}"
+    test_message = f"Test SMS. Sana: {get_tashkent_datetime_str()}"
     
     success, message = service.send_sms(
         phone=phone,

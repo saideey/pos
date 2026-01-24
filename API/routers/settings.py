@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from database import get_db
 from database.models import User, PermissionType, SystemSetting
 from core.dependencies import get_current_active_user, PermissionChecker
+from utils.helpers import get_tashkent_time_str
 
 
 router = APIRouter()
@@ -949,7 +950,7 @@ async def send_daily_report_internal(
     report_lines.extend([
         "",
         "═══════════════════════════",
-        f"🕐 Hisobot vaqti: {datetime.now().strftime('%H:%M')}",
+        f"🕐 Hisobot vaqti: {get_tashkent_time_str()}",
         "═══════════════════════════",
         "",
         "🏭 <i>INTER PROFNASTIL</i>"

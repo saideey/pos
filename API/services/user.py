@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from database.models import User, Role, AuditLog
 from core.security import get_password_hash
 from schemas.user import UserCreate, UserUpdate, UserResponse
+from utils.helpers import get_tashkent_now
 
 
 class UserService:
@@ -218,7 +219,7 @@ class UserService:
             return False, "O'zingizni o'chira olmaysiz"
         
         user.is_deleted = True
-        user.deleted_at = datetime.utcnow()
+        user.deleted_at = get_tashkent_now()
         user.is_active = False
         
         # Log action
@@ -278,7 +279,7 @@ class UserService:
             return False, "Foydalanuvchi topilmadi"
         
         user.password_hash = get_password_hash(new_password)
-        user.password_changed_at = datetime.utcnow().isoformat()
+        user.password_changed_at = get_tashkent_now().isoformat()
         user.failed_login_attempts = 0
         
         self._log_action(reset_by_id, "password_reset", "users", user.id, "Admin tomonidan parol tiklandi")
@@ -383,7 +384,7 @@ class RoleService:
             return False, f"Bu rolga {users_count} ta foydalanuvchi biriktirilgan"
         
         role.is_deleted = True
-        role.deleted_at = datetime.utcnow()
+        role.deleted_at = get_tashkent_now()
         
         self.db.commit()
         

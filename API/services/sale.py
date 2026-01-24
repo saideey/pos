@@ -16,7 +16,7 @@ from database.models import (
 )
 from services.warehouse import StockService
 from services.customer import CustomerService
-from utils.helpers import NumberGenerator
+from utils.helpers import NumberGenerator, get_tashkent_now, get_tashkent_today
 from services.telegram_notifier import send_purchase_notification_sync
 
 
@@ -130,7 +130,7 @@ class SaleService:
         # Create sale
         sale = Sale(
             sale_number=self.num_gen.get_next_sale_number(),
-            sale_date=datetime.utcnow().date(),
+            sale_date=get_tashkent_today(),
             customer_id=customer_id,
             seller_id=seller_id,
             warehouse_id=warehouse_id,
@@ -239,7 +239,7 @@ class SaleService:
             
             payment = Payment(
                 payment_number=self.num_gen.get_next_payment_number(),
-                payment_date=datetime.utcnow().date(),
+                payment_date=get_tashkent_today(),
                 sale_id=sale.id,
                 customer_id=customer_id,
                 payment_type=payment_type,
@@ -405,7 +405,7 @@ class SaleService:
         
         payment = Payment(
             payment_number=self.num_gen.get_next_payment_number(),
-            payment_date=datetime.utcnow().date(),
+            payment_date=get_tashkent_today(),
             sale_id=sale_id,
             customer_id=sale.customer_id,
             payment_type=PaymentType(payment_type.lower()),
@@ -483,7 +483,7 @@ class SaleService:
         sale.is_cancelled = True
         sale.cancelled_reason = reason
         sale.cancelled_by_id = cancelled_by_id
-        sale.cancelled_at = datetime.utcnow().isoformat()
+        sale.cancelled_at = get_tashkent_now().isoformat()
         sale.payment_status = PaymentStatus.CANCELLED
         
         self._log_action(cancelled_by_id, "cancel", "sales", sale.id, f"Sotuv bekor qilindi: {reason}")
@@ -602,7 +602,7 @@ class SaleService:
                 customer_phone=customer.phone,
                 customer_type=customer.customer_type.name,
                 sale_number=sale.sale_number,
-                sale_date=sale.created_at or datetime.now(),
+                sale_date=sale.created_at or get_tashkent_now(),
                 items=items,
                 total_amount=float(sale.total_amount),
                 paid_amount=float(sale.paid_amount),

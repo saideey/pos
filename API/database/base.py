@@ -2,18 +2,25 @@
 Base model class and common mixins for all database models.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import Column, Integer, DateTime, Boolean
 from sqlalchemy.orm import declarative_base, declared_attr
 
 Base = declarative_base()
 
+# Tashkent timezone (UTC+5)
+TASHKENT_TZ = timezone(timedelta(hours=5))
+
+def get_tashkent_now():
+    """Get current time in Tashkent timezone (as naive datetime)."""
+    return datetime.now(TASHKENT_TZ).replace(tzinfo=None)
+
 
 class TimestampMixin:
     """Mixin for created_at and updated_at timestamps."""
     
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=get_tashkent_now, nullable=False)
+    updated_at = Column(DateTime, default=get_tashkent_now, onupdate=get_tashkent_now, nullable=False)
 
 
 class SoftDeleteMixin:

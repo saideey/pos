@@ -17,6 +17,7 @@ from database.models import (
     Sale, SaleItem, Product, Customer, Stock, StockMovement,
     Payment, Warehouse, Category
 )
+from utils.helpers import get_tashkent_datetime_str, get_tashkent_date_str
 
 
 class ExcelReportGenerator:
@@ -185,7 +186,7 @@ class ExcelReportGenerator:
         self._add_title(
             ws,
             "OMBOR QOLDIQLARI HISOBOTI",
-            f"Sana: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+            f"Sana: {get_tashkent_datetime_str()}"
         )
         
         # Query stock
@@ -262,7 +263,7 @@ class ExcelReportGenerator:
         self._add_title(
             ws,
             "QARZDORLAR HISOBOTI",
-            f"Sana: {datetime.now().strftime('%d.%m.%Y %H:%M')}"
+            f"Sana: {get_tashkent_datetime_str()}"
         )
         
         # Query debtors
@@ -415,7 +416,7 @@ class ExcelReportGenerator:
         ws = wb.active
         ws.title = "Narxlar"
         
-        self._add_title(ws, "TOVARLAR NARX RO'YXATI", f"Sana: {datetime.now().strftime('%d.%m.%Y')}")
+        self._add_title(ws, "TOVARLAR NARX RO'YXATI", f"Sana: {get_tashkent_date_str()}")
         
         query = self.db.query(Product).filter(
             Product.is_deleted == False,
