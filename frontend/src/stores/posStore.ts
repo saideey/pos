@@ -23,6 +23,11 @@ interface POSState {
   isCustomTotalEnabled: boolean
   customTotal: number | null
   
+  // Edit mode
+  editingSaleId: number | null
+  editingSaleNumber: string | null
+  originalSubtotal: number // Original subtotal for reference
+  
   // Actions
   addItem: (item: Omit<CartItem, 'id' | 'discount_percent' | 'discount_amount' | 'total_price'>) => void
   updateItemQuantity: (itemId: string, quantity: number) => void
@@ -41,6 +46,28 @@ interface POSState {
   addPayment: (payment: PaymentMethod) => void
   removePayment: (index: number) => void
   clearPayments: () => void
+  
+  // Edit mode
+  loadSaleForEdit: (saleData: {
+    id: number
+    sale_number: string
+    customer: Customer | null
+    warehouse_id: number
+    items: Array<{
+      product_id: number
+      product_name: string
+      quantity: number
+      uom_id: number
+      uom_symbol: string
+      unit_price: number
+      original_price: number
+    }>
+    subtotal: number
+    discount_amount: number
+    final_total: number
+    paid_amount: number
+  }) => void
+  clearEditMode: () => void
   
   // Reset
   resetPOS: () => void
@@ -71,6 +98,11 @@ export const usePOSStore = create<POSState>((set, get) => ({
   
   isCustomTotalEnabled: false,
   customTotal: null,
+  
+  // Edit mode
+  editingSaleId: null,
+  editingSaleNumber: null,
+  originalSubtotal: 0,
 
   // Add item to cart
   addItem: (item) => {
@@ -304,6 +336,54 @@ export const usePOSStore = create<POSState>((set, get) => ({
     })
   },
 
+  // Load sale for editing
+  loadSaleForEdit: (saleData) => {
+    const items: CartItem[] = saleData.items.map(item => ({
+      id: generateItemId(),
+      product_id: item.product_id,
+      product_name: item.product_name,
+      quantity: item.quantity,
+      uom_id: item.uom_id,
+      uom_symbol: item.uom_symbol,
+      unit_price: item.unit_price,
+      original_price: item.original_price,
+      discount_percent: 0,
+      discount_amount: 0,
+      total_price: item.quantity * item.unit_price,
+    }))
+
+    const subtotal = items.reduce((sum, item) => sum + item.total_price, 0)
+    const hasDiscount = saleData.discount_amount > 0
+    
+    set({
+      items,
+      customer: saleData.customer,
+      warehouseId: saleData.warehouse_id,
+      subtotal,
+      originalSubtotal: saleData.subtotal, // Store original for reference
+      discountAmount: saleData.discount_amount,
+      discountPercent: saleData.subtotal > 0 ? (saleData.discount_amount / saleData.subtotal) * 100 : 0,
+      finalTotal: saleData.final_total,
+      customTotal: hasDiscount ? saleData.final_total : null,
+      isCustomTotalEnabled: hasDiscount,
+      payments: [],
+      paidAmount: 0,
+      debtAmount: 0,
+      changeAmount: 0,
+      editingSaleId: saleData.id,
+      editingSaleNumber: saleData.sale_number,
+    })
+  },
+
+  // Clear edit mode
+  clearEditMode: () => {
+    set({
+      editingSaleId: null,
+      editingSaleNumber: null,
+      originalSubtotal: 0,
+    })
+  },
+
   // Reset entire POS state
   resetPOS: () => {
     set({
@@ -319,6 +399,9 @@ export const usePOSStore = create<POSState>((set, get) => ({
       changeAmount: 0,
       isCustomTotalEnabled: false,
       customTotal: null,
+      editingSaleId: null,
+      editingSaleNumber: null,
+      originalSubtotal: 0,
     })
   },
 }))

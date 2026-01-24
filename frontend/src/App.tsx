@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore'
 import LoginPage from '@/pages/Login'
 import Dashboard from '@/pages/Dashboard'
 import POSPage from '@/pages/POS'
+import SalesPage from '@/pages/Sales'
 import ProductsPage from '@/pages/Products'
 import CustomersPage from '@/pages/Customers'
 import WarehousePage from '@/pages/Warehouse'
@@ -40,6 +41,7 @@ function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/pos" element={<POSPage />} />
+        <Route path="/sales" element={<SalesPage />} />
         <Route path="/products" element={<ProductsPage />} />
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/warehouse" element={<WarehousePage />} />

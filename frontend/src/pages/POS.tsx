@@ -1,18 +1,21 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import {
   Search, Trash2, User, ShoppingCart, CreditCard,
   Banknote, Building, Check, AlertCircle, Edit3,
-  Loader2, Ruler, Star, Grid3X3, X, ChevronUp, GripVertical, Plus, Minus, Phone, Printer
+  Loader2, Ruler, Star, Grid3X3, X, ChevronUp, GripVertical, Plus, Minus, Phone, Printer, ArrowLeft
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { 
   Button, 
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
+  Input
 } from '@/components/ui'
 import { productsService, salesService, customersService } from '@/services'
 import api from '@/services/api'
 import { formatMoney, formatNumber, formatInputNumber, cn, debounce } from '@/lib/utils'
+import { usePOSStore } from '@/stores'
 import type { Product, Customer, UOMConversion } from '@/types'
 
 // Category order storage key
@@ -49,6 +52,23 @@ interface CartItem {
 
 export default function POSPage() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  
+  // Get edit mode state from posStore
+  const { 
+    editingSaleId, 
+    editingSaleNumber, 
+    items: editItems,
+    customer: editCustomer,
+    warehouseId: editWarehouseId,
+    subtotal: editSubtotal,
+    discountAmount: editDiscountAmount,
+    finalTotal: editFinalTotal,
+    clearEditMode,
+    resetPOS 
+  } = usePOSStore()
+  
+  const isEditMode = !!editingSaleId
   
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<number | 'favorites' | null>('favorites')
@@ -70,6 +90,9 @@ export default function POSPage() {
   // General discount
   const [generalDiscount, setGeneralDiscount] = useState<number>(0)
   const [showDiscountInput, setShowDiscountInput] = useState(false)
+  
+  // Edit mode reason
+  const [editReason, setEditReason] = useState('')
   
   // Drag and drop state
   const [draggedProduct, setDraggedProduct] = useState<Product | null>(null)
@@ -108,6 +131,9 @@ export default function POSPage() {
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [customerSellerFilter, setCustomerSellerFilter] = useState<number | ''>('')
   
+  // NEW: Driver phone for receipt
+  const [driverPhone, setDriverPhone] = useState('')
+  
   // NEW: Category ordering
   const [categoryOrder, setCategoryOrder] = useState<number[]>([])
   const [draggingCategoryId, setDraggingCategoryId] = useState<number | null>(null)
@@ -116,6 +142,39 @@ export default function POSPage() {
   const [items, setItems] = useState<CartItem[]>([])
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [warehouseId] = useState(1)
+  
+  // Load edit mode data
+  useEffect(() => {
+    if (isEditMode && editItems.length > 0) {
+      // Convert posStore items to CartItem format
+      const cartItems: CartItem[] = editItems.map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        uom_id: item.uom_id,
+        uom_symbol: item.uom_symbol || '',
+        uom_name: item.uom_symbol || '',
+        conversion_factor: 1,
+        base_uom_id: item.uom_id,
+        base_uom_symbol: item.uom_symbol || '',
+        cost_price: 0,
+        original_price: item.original_price || item.unit_price,
+        unit_price: item.unit_price,
+        available_stock: 999999, // Not tracked in edit mode
+      }))
+      setItems(cartItems)
+      
+      if (editCustomer) {
+        setCustomer(editCustomer)
+      }
+      
+      // Set general discount if there was one
+      if (editDiscountAmount > 0) {
+        setGeneralDiscount(editDiscountAmount)
+      }
+    }
+  }, [isEditMode, editItems, editCustomer, editDiscountAmount])
   
   const { data: exchangeRateData } = useQuery({
     queryKey: ['exchange-rate'],
@@ -241,6 +300,18 @@ export default function POSPage() {
     },
     staleTime: 60000,
   })
+
+  // Fetch company phones for receipt
+  const { data: companyPhonesData } = useQuery({
+    queryKey: ['company-phones'],
+    queryFn: async () => {
+      const response = await api.get('/settings/company-phones')
+      return response.data
+    },
+    staleTime: 60000,
+  })
+  const companyPhone1 = companyPhonesData?.data?.phone1 || '+998 XX XXX XX XX'
+  const companyPhone2 = companyPhonesData?.data?.phone2 || ''
 
   const debouncedSearch = useCallback(
     debounce((value: string) => setSearchQuery(value), 300),
@@ -647,6 +718,17 @@ export default function POSPage() {
       toast.error('Qarzga sotuv uchun mijoz tanlang!')
       return
     }
+    
+    // Edit mode validation
+    if (isEditMode && !editReason.trim()) {
+      toast.error('Tahrirlash sababini kiriting!')
+      return
+    }
+    
+    if (isEditMode && editReason.trim().length < 3) {
+      toast.error('Sabab kamida 3 ta belgidan iborat bo\'lishi kerak!')
+      return
+    }
 
     setIsProcessing(true)
 
@@ -673,30 +755,61 @@ export default function POSPage() {
           quantity: item.quantity,
           uom_id: item.uom_id,
           unit_price: item.unit_price,
+          original_price: item.original_price,
           discount_amount: perItemDiscount,
+          discount_percent: 0,
         }
       })
 
-      const saleData = {
-        customer_id: customer?.id || null,
-        warehouse_id: warehouseId,
-        items: saleItems,
-        payment_type: paymentType,
-        payment_amount: paymentType === 'DEBT' ? 0 : paymentInUZS,
-        notes: generalDiscount > 0 ? `Umumiy chegirma: ${formatMoney(generalDiscount)}` : '',
+      if (isEditMode && editingSaleId) {
+        // EDIT MODE - Update existing sale
+        const saleData = {
+          customer_id: customer?.id || null,
+          warehouse_id: editWarehouseId || warehouseId,
+          items: saleItems,
+          final_total: finalTotal,
+          payments: paymentType !== 'DEBT' && paymentInUZS > 0 ? [
+            { payment_type: paymentType, amount: paymentInUZS }
+          ] : [],
+          notes: generalDiscount > 0 ? `Umumiy chegirma: ${formatMoney(generalDiscount)}` : '',
+        }
+
+        await api.put(`/sales/${editingSaleId}/full?edit_reason=${encodeURIComponent(editReason)}`, saleData)
+        
+        toast.success(`Sotuv #${editingSaleNumber} muvaffaqiyatli tahrirlandi!`)
+        
+        // Clear edit mode and navigate back
+        handleClearCart()
+        clearEditMode()
+        resetPOS()
+        setShowPaymentDialog(false)
+        setEditReason('')
+        queryClient.invalidateQueries({ queryKey: ['sales'] })
+        navigate('/sales')
+        
+      } else {
+        // NEW SALE MODE
+        const saleData = {
+          customer_id: customer?.id || null,
+          warehouse_id: warehouseId,
+          items: saleItems,
+          payment_type: paymentType,
+          payment_amount: paymentType === 'DEBT' ? 0 : paymentInUZS,
+          notes: generalDiscount > 0 ? `Umumiy chegirma: ${formatMoney(generalDiscount)}` : '',
+        }
+
+        const result = await salesService.quickSale(saleData)
+        
+        toast.success(
+          paymentType === 'DEBT'
+            ? `Qarzga sotildi`
+            : `Sotuv yakunlandi ${result.change > 0 ? `Qaytim: ${formatMoney(result.change)}` : ''}`
+        )
+
+        handleClearCart()
+        setShowPaymentDialog(false)
+        queryClient.invalidateQueries({ queryKey: ['products-pos'] })
       }
-
-      const result = await salesService.quickSale(saleData)
-      
-      toast.success(
-        paymentType === 'DEBT'
-          ? `Qarzga sotildi`
-          : `Sotuv yakunlandi ${result.change > 0 ? `Qaytim: ${formatMoney(result.change)}` : ''}`
-      )
-
-      handleClearCart()
-      setShowPaymentDialog(false)
-      queryClient.invalidateQueries({ queryKey: ['products-pos'] })
 
     } catch (error: any) {
       toast.error(error.response?.data?.detail || 'Xatolik yuz berdi!')
@@ -1035,6 +1148,32 @@ export default function POSPage() {
 
       {/* RIGHT - Cart (Desktop) */}
       <div className="hidden lg:flex w-80 bg-white border-l flex-col shrink-0">
+        {/* Edit Mode Banner */}
+        {isEditMode && (
+          <div className="bg-warning/20 border-b border-warning p-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-warning text-sm">Tahrirlash rejimi</p>
+                <p className="text-xs text-gray-600">Sotuv #{editingSaleNumber}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  clearEditMode()
+                  resetPOS()
+                  handleClearCart()
+                  navigate('/sales')
+                }}
+                className="text-danger"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Bekor
+              </Button>
+            </div>
+          </div>
+        )}
+        
         {/* Customer */}
         <div className="p-3 border-b">
           <button
@@ -1053,6 +1192,17 @@ export default function POSPage() {
           {customer && customer.current_debt > 0 && (
             <p className="text-xs text-red-600 text-center mt-1">Qarz: {formatMoney(customer.current_debt)}</p>
           )}
+          
+          {/* Driver Phone Input */}
+          <div className="mt-2">
+            <input
+              type="tel"
+              value={driverPhone}
+              onChange={(e) => setDriverPhone(e.target.value)}
+              placeholder="Haydovchi tel: +998..."
+              className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+            />
+          </div>
         </div>
 
         {/* Items */}
@@ -1144,11 +1294,16 @@ export default function POSPage() {
                   <div className="mt-2 space-y-2">
                     <div className="flex gap-2">
                       <input
-                        type="number"
-                        value={generalDiscount || ''}
-                        onChange={(e) => applyGeneralDiscount(parseFloat(e.target.value) || 0)}
+                        type="text"
+                        inputMode="numeric"
+                        value={generalDiscount > 0 ? formatInputNumber(generalDiscount) : ''}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\s/g, '')
+                          applyGeneralDiscount(parseFloat(value) || 0)
+                        }}
+                        onFocus={(e) => e.target.select()}
                         placeholder="Chegirma summasi"
-                        className="flex-1 h-9 px-3 text-sm border rounded-lg"
+                        className="flex-1 h-9 px-3 text-sm font-medium border rounded-lg"
                       />
                       <button
                         onClick={() => { setGeneralDiscount(0); setShowDiscountInput(false) }}
@@ -1161,11 +1316,16 @@ export default function POSPage() {
                       Yoki yakuniy summani kiriting:
                     </div>
                     <input
-                      type="number"
-                      value={finalTotal > 0 ? finalTotal : ''}
-                      onChange={(e) => setFinalTotalDirectly(parseFloat(e.target.value) || 0)}
+                      type="text"
+                      inputMode="numeric"
+                      value={finalTotal > 0 ? formatInputNumber(finalTotal) : ''}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\s/g, '')
+                        setFinalTotalDirectly(parseFloat(value) || 0)
+                      }}
+                      onFocus={(e) => e.target.select()}
                       placeholder="Yakuniy summa"
-                      className="w-full h-9 px-3 text-sm border rounded-lg"
+                      className="w-full h-9 px-3 text-sm font-medium border rounded-lg"
                     />
                   </div>
                 )}
@@ -1256,6 +1416,17 @@ export default function POSPage() {
               {customer && customer.current_debt > 0 && (
                 <p className="text-xs text-red-600 text-center mt-1">Qarz: {formatMoney(customer.current_debt)}</p>
               )}
+              
+              {/* Driver Phone Input - Mobile */}
+              <div className="mt-2">
+                <input
+                  type="tel"
+                  value={driverPhone}
+                  onChange={(e) => setDriverPhone(e.target.value)}
+                  placeholder="Haydovchi tel: +998..."
+                  className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                />
+              </div>
             </div>
 
             {/* Items */}
@@ -1475,12 +1646,31 @@ export default function POSPage() {
                     <Minus className="w-5 h-5" />
                   </button>
                   <input
-                    type="number"
-                    value={addProductData.quantity}
-                    onChange={(e) => setAddProductData(prev => ({ ...prev, quantity: parseFloat(e.target.value) || 1 }))}
+                    type="text"
+                    inputMode="decimal"
+                    value={addProductData.quantity === 0 ? '' : addProductData.quantity}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      // Allow empty input
+                      if (value === '' || value === '0') {
+                        setAddProductData(prev => ({ ...prev, quantity: 0 }))
+                        return
+                      }
+                      // Parse and set number
+                      const num = parseFloat(value)
+                      if (!isNaN(num) && num >= 0) {
+                        setAddProductData(prev => ({ ...prev, quantity: num }))
+                      }
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    onBlur={(e) => {
+                      // Set minimum value on blur if empty or zero
+                      if (!e.target.value || parseFloat(e.target.value) <= 0) {
+                        setAddProductData(prev => ({ ...prev, quantity: 1 }))
+                      }
+                    }}
                     className="flex-1 min-w-0 h-11 px-3 text-center text-lg font-bold border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none box-border"
-                    min="0.1"
-                    step="0.5"
+                    placeholder="1"
                   />
                   <button
                     type="button"
@@ -1723,10 +1913,15 @@ export default function POSPage() {
             <DialogTitle>Narxni o'zgartirish</DialogTitle>
           </DialogHeader>
           <input
-            type="number"
-            value={editPriceValue}
-            onChange={(e) => setEditPriceValue(e.target.value)}
-            className="w-full h-12 px-4 text-lg border rounded-lg"
+            type="text"
+            inputMode="numeric"
+            value={formatInputNumber(parseFloat(editPriceValue) || 0)}
+            onChange={(e) => {
+              const value = e.target.value.replace(/\s/g, '')
+              setEditPriceValue(value)
+            }}
+            onFocus={(e) => e.target.select()}
+            className="w-full h-12 px-4 text-lg font-bold text-center border rounded-lg"
             autoFocus
           />
           <DialogFooter>
@@ -1761,9 +1956,25 @@ export default function POSPage() {
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent className="max-w-[340px]">
           <DialogHeader>
-            <DialogTitle className="text-base pr-6">To'lov qilish</DialogTitle>
+            <DialogTitle className="text-base pr-6">
+              {isEditMode ? `Sotuv #${editingSaleNumber} tahrirlash` : 'To\'lov qilish'}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2 w-full">
+            {/* Edit Reason - Only in Edit Mode */}
+            {isEditMode && (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-gray-700">Tahrirlash sababi *</label>
+                <input
+                  type="text"
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  placeholder="Sabab kiriting (kamida 3 ta belgi)"
+                  className="w-full h-10 px-3 text-sm border-2 border-warning/50 rounded-lg focus:border-warning focus:ring-2 focus:ring-warning/20 outline-none"
+                />
+              </div>
+            )}
+            
             {/* Payment Types */}
             <div className="grid grid-cols-2 gap-2 w-full">
               {PAYMENT_TYPES.map((pt) => (
@@ -1809,12 +2020,13 @@ export default function POSPage() {
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={paymentAmount}
+                  value={paymentAmount ? formatInputNumber(parseFloat(paymentAmount.replace(/\s/g, '')) || 0) : ''}
                   onChange={(e) => {
                     const value = e.target.value.replace(/\s/g, '')
                     setPaymentAmount(value)
                   }}
-                  placeholder={paymentCurrency === 'USD' ? `${(finalTotal / usdRate).toFixed(2)}` : formatNumber(finalTotal)}
+                  onFocus={(e) => e.target.select()}
+                  placeholder={paymentCurrency === 'USD' ? `${(finalTotal / usdRate).toFixed(2)}` : formatInputNumber(finalTotal)}
                   className="w-full h-11 px-3 text-base font-bold text-center border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none box-border"
                 />
               </>
@@ -1842,11 +2054,14 @@ export default function POSPage() {
               </button>
               <button
                 onClick={processSale}
-                disabled={isProcessing}
-                className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                disabled={isProcessing || (isEditMode && editReason.trim().length < 3)}
+                className={cn(
+                  "flex-1 h-10 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors",
+                  isEditMode ? "bg-warning hover:bg-warning/90" : "bg-blue-600 hover:bg-blue-700"
+                )}
               >
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                Tasdiqlash
+                {isEditMode ? 'Saqlash' : 'Tasdiqlash'}
               </button>
             </div>
           </div>
@@ -1867,96 +2082,105 @@ export default function POSPage() {
           <div className="p-4 max-h-[70vh] overflow-y-auto">
             <div 
               ref={printRef}
-              className="bg-white p-4 border rounded-lg"
+              className="bg-white p-3 border-2 border-black rounded-lg"
+              style={{ maxWidth: '80mm', fontFamily: 'Arial, sans-serif' }}
             >
-              {/* Logo */}
-              <div className="text-center mb-4">
+              {/* Header */}
+              <div className="text-center mb-2">
                 <img 
                   src="/logo.png" 
                   alt="Logo" 
-                  className="h-16 mx-auto mb-2"
+                  className="h-24 mx-auto mb-1"
                 />
-                <h2 className="font-bold text-lg">INTER PROFNASTIL</h2>
-                <p className="text-xs text-gray-500">
+                <h2 className="font-black text-xl tracking-tight">INTER PROFNASTIL</h2>
+                <p className="text-sm font-bold mt-1">
                   {new Date().toLocaleDateString('uz-UZ')} {new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
               
               {/* Divider */}
-              <div className="border-t-2 border-gray-300 my-3" />
+              <div className="border-t-2 border-black my-2" />
               
               {/* Customer info */}
-              {customer && (
-                <div className="mb-3 p-2 bg-gray-50 rounded text-sm">
-                  <p><strong>Mijoz:</strong> {customer.name}</p>
-                  {customer.phone && <p><strong>Tel:</strong> {customer.phone}</p>}
-                  {customer.company_name && <p><strong>Kompaniya:</strong> {customer.company_name}</p>}
+              {(customer || driverPhone) && (
+                <div className="mb-2 py-1 border-y-2 border-black text-sm">
+                  {customer && (
+                    <>
+                      <p className="font-black">Mijoz: {customer.name}</p>
+                      {customer.phone && <p className="font-bold">Tel: {customer.phone}</p>}
+                      {customer.company_name && <p className="font-bold">Kompaniya: {customer.company_name}</p>}
+                    </>
+                  )}
+                  {driverPhone && (
+                    <p className="font-bold">Haydovchi: {driverPhone}</p>
+                  )}
                 </div>
               )}
               
               {/* Items Table */}
-              <table className="w-full text-sm border-collapse">
+              <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr className="bg-gray-100">
-                    <th className="border border-gray-300 px-2 py-1.5 text-left w-8">№</th>
-                    <th className="border border-gray-300 px-2 py-1.5 text-left">Mahsulot</th>
-                    <th className="border border-gray-300 px-2 py-1.5 text-center w-20">Miqdor</th>
-                    <th className="border border-gray-300 px-2 py-1.5 text-right w-24">Narx</th>
-                    <th className="border border-gray-300 px-2 py-1.5 text-right w-28">Summa</th>
+                  <tr>
+                    <th className="border-2 border-black p-1 text-left font-black">Mahsulot</th>
+                    <th className="border-2 border-black p-1 text-center font-black w-16">Soni</th>
+                    <th className="border-2 border-black p-1 text-right font-black w-20">Summa</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
-                    <tr key={item.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                      <td className="border border-gray-300 px-2 py-1.5 text-center font-medium">{index + 1}</td>
-                      <td className="border border-gray-300 px-2 py-1.5 font-medium">{item.product_name}</td>
-                      <td className="border border-gray-300 px-2 py-1.5 text-center">
+                    <tr key={item.id}>
+                      <td className="border-2 border-black p-1">
+                        <div className="font-bold">{index + 1}. {item.product_name}</div>
+                        <div className="font-bold text-xs">({formatMoney(item.unit_price, false)} x)</div>
+                      </td>
+                      <td className="border-2 border-black p-1 text-center font-black">
                         {formatNumber(item.quantity)} {item.uom_symbol}
                       </td>
-                      <td className="border border-gray-300 px-2 py-1.5 text-right">
-                        {formatMoney(item.unit_price)}
-                      </td>
-                      <td className="border border-gray-300 px-2 py-1.5 text-right font-semibold">
-                        {formatMoney(item.quantity * item.unit_price)}
+                      <td className="border-2 border-black p-1 text-right font-black">
+                        {formatMoney(item.quantity * item.unit_price, false)}
                       </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-gray-100 font-bold">
-                    <td colSpan={4} className="border border-gray-300 px-2 py-2 text-right">
-                      Jami ({items.length} ta mahsulot):
+                  <tr>
+                    <td colSpan={2} className="border-2 border-black p-1 text-right font-black">
+                      Jami ({items.length} ta):
                     </td>
-                    <td className="border border-gray-300 px-2 py-2 text-right">
-                      {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0))}
+                    <td className="border-2 border-black p-1 text-right font-black">
+                      {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0), false)}
                     </td>
                   </tr>
                   {generalDiscount > 0 && (
-                    <tr className="text-red-600 font-bold">
-                      <td colSpan={4} className="border border-gray-300 px-2 py-2 text-right">
+                    <tr>
+                      <td colSpan={2} className="border-2 border-black p-1 text-right font-black">
                         Chegirma:
                       </td>
-                      <td className="border border-gray-300 px-2 py-2 text-right">
-                        -{formatMoney(generalDiscount)}
+                      <td className="border-2 border-black p-1 text-right font-black">
+                        -{formatMoney(generalDiscount, false)}
                       </td>
                     </tr>
                   )}
-                  <tr className="bg-blue-600 text-white font-bold text-base">
-                    <td colSpan={4} className="border border-gray-300 px-2 py-2.5 text-right">
-                      YAKUNIY SUMMA:
-                    </td>
-                    <td className="border border-gray-300 px-2 py-2.5 text-right">
-                      {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount)}
-                    </td>
-                  </tr>
                 </tfoot>
               </table>
               
-              {/* Footer */}
-              <div className="mt-4 pt-3 border-t-2 border-gray-300 text-center text-xs text-gray-500">
-                <p className="font-medium">Xaridingiz uchun rahmat!</p>
-                <p className="mt-1">Tel: +998 XX XXX XX XX</p>
+              {/* Grand Total Box */}
+              <div className="border-4 border-black my-2 p-2 text-center bg-white">
+                <div className="text-sm font-black">YAKUNIY SUMMA:</div>
+                <div className="text-2xl font-black">
+                  {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount, false)}
+                </div>
               </div>
+              
+              {/* Footer */}
+              <div className="border-t-2 border-black pt-2 text-center">
+                <p className="text-base font-black">★ RAHMAT! ★</p>
+                <p className="text-sm font-bold mt-1">{companyPhone1}</p>
+                {companyPhone2 && <p className="text-sm font-bold">{companyPhone2}</p>}
+              </div>
+              
+              {/* Bottom spacing for tear line */}
+              <div className="h-10"></div>
             </div>
           </div>
           
@@ -1984,130 +2208,196 @@ export default function POSPage() {
                   <html>
                   <head>
                     <title>Chek - INTER PROFNASTIL</title>
+                    <meta charset="UTF-8">
                     <style>
                       * { margin: 0; padding: 0; box-sizing: border-box; }
                       body { 
-                        font-family: Arial, sans-serif; 
-                        padding: 15px;
-                        max-width: 210mm;
-                        margin: 0 auto;
+                        font-family: Arial, Helvetica, sans-serif;
+                        font-size: 14px;
+                        width: 80mm;
+                        padding: 3mm;
+                        color: #000;
+                        background: #fff;
+                        -webkit-print-color-adjust: exact;
+                        print-color-adjust: exact;
                       }
-                      .header { text-align: center; margin-bottom: 15px; }
-                      .header img { height: 60px; margin-bottom: 5px; }
-                      .header h2 { font-size: 18px; margin: 5px 0; }
-                      .header .date { font-size: 12px; color: #666; }
-                      .divider { border-top: 2px solid #333; margin: 10px 0; }
-                      .customer { 
-                        background: #f5f5f5; 
-                        padding: 8px 12px; 
-                        border-radius: 4px; 
-                        margin-bottom: 12px;
-                        font-size: 13px;
+                      
+                      /* Header */
+                      .header { 
+                        text-align: center; 
+                        padding-bottom: 5px;
                       }
-                      table { 
-                        width: 100%; 
-                        border-collapse: collapse; 
-                        font-size: 12px;
-                        margin-bottom: 10px;
+                      .header img { 
+                        height: 70px;
+                        max-width: 70mm;
                       }
-                      th { 
-                        background: #e5e5e5; 
-                        border: 1px solid #ccc; 
-                        padding: 8px 6px; 
-                        text-align: left;
+                      .header h1 { 
+                        font-size: 20px; 
+                        font-weight: 900;
+                        margin: 5px 0;
+                        letter-spacing: 1px;
+                      }
+                      .header .date { 
+                        font-size: 14px; 
                         font-weight: bold;
                       }
-                      th.center { text-align: center; }
-                      th.right { text-align: right; }
-                      td { 
-                        border: 1px solid #ccc; 
-                        padding: 6px; 
+                      
+                      /* Divider */
+                      .divider { 
+                        border-top: 2px solid #000; 
+                        margin: 5px 0; 
                       }
-                      td.center { text-align: center; }
-                      td.right { text-align: right; }
-                      tr:nth-child(even) { background: #fafafa; }
-                      .subtotal { background: #e5e5e5; font-weight: bold; }
-                      .discount { color: #dc2626; font-weight: bold; }
-                      .grand-total { 
-                        background: #2563eb; 
-                        color: white; 
-                        font-weight: bold; 
+                      
+                      /* Customer */
+                      .customer { 
+                        padding: 5px 0;
+                        border-top: 2px solid #000;
+                        border-bottom: 2px solid #000;
+                        font-size: 13px;
+                        margin: 5px 0;
+                      }
+                      .customer p { margin: 2px 0; font-weight: bold; }
+                      
+                      /* Table */
+                      table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        margin: 5px 0;
+                      }
+                      th, td {
+                        border: 2px solid #000;
+                        padding: 4px 3px;
+                        font-size: 12px;
+                      }
+                      th {
+                        font-weight: 900;
+                        text-align: left;
+                      }
+                      .text-center { text-align: center; }
+                      .text-right { text-align: right; }
+                      .font-bold { font-weight: 900; }
+                      .product-name { font-weight: bold; }
+                      .product-price { font-size: 11px; font-weight: bold; }
+                      .qty-cell { font-weight: 900; font-size: 13px; }
+                      .sum-cell { font-weight: 900; font-size: 13px; }
+                      
+                      /* Grand Total Box */
+                      .grand-total-box {
+                        border: 4px solid #000;
+                        padding: 8px;
+                        margin: 8px 0;
+                        text-align: center;
+                      }
+                      .grand-total-label {
                         font-size: 14px;
+                        font-weight: 900;
                       }
-                      .footer { 
-                        text-align: center; 
-                        margin-top: 15px; 
-                        padding-top: 10px;
-                        border-top: 2px solid #333;
-                        font-size: 11px; 
-                        color: #666; 
+                      .grand-total-amount {
+                        font-size: 24px;
+                        font-weight: 900;
+                        letter-spacing: 1px;
                       }
+                      
+                      /* Footer */
+                      .footer {
+                        text-align: center;
+                        padding-top: 8px;
+                        border-top: 2px solid #000;
+                      }
+                      .footer .thanks {
+                        font-size: 16px;
+                        font-weight: 900;
+                        margin-bottom: 5px;
+                      }
+                      .footer .contact {
+                        font-size: 13px;
+                        font-weight: bold;
+                      }
+                      
+                      /* Bottom spacing for tearing */
+                      .tear-space {
+                        height: 15mm;
+                      }
+                      
                       @media print {
-                        body { padding: 10px; }
-                        @page { margin: 10mm; }
+                        body { 
+                          width: 80mm;
+                          padding: 2mm;
+                        }
+                        @page { 
+                          size: 80mm auto;
+                          margin: 0; 
+                        }
                       }
                     </style>
                   </head>
                   <body>
                     <div class="header">
-                      <img src="/logo.png" alt="Logo" />
-                      <h2>INTER PROFNASTIL</h2>
+                      <img src="/logo.png" alt="Logo" onerror="this.style.display='none'" />
+                      <h1>INTER PROFNASTIL</h1>
                       <p class="date">${new Date().toLocaleDateString('uz-UZ')} ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}</p>
                     </div>
                     
                     <div class="divider"></div>
                     
-                    ${customer ? `
+                    ${(customer || driverPhone) ? `
                       <div class="customer">
-                        <strong>Mijoz:</strong> ${customer.name}
-                        ${customer.phone ? ` | <strong>Tel:</strong> ${customer.phone}` : ''}
-                        ${customer.company_name ? ` | <strong>Kompaniya:</strong> ${customer.company_name}` : ''}
+                        ${customer ? `
+                          <p>Mijoz: ${customer.name}</p>
+                          ${customer.phone ? `<p>Tel: ${customer.phone}</p>` : ''}
+                          ${customer.company_name ? `<p>Kompaniya: ${customer.company_name}</p>` : ''}
+                        ` : ''}
+                        ${driverPhone ? `<p>Haydovchi: ${driverPhone}</p>` : ''}
                       </div>
                     ` : ''}
                     
                     <table>
                       <thead>
                         <tr>
-                          <th style="width: 30px;" class="center">№</th>
-                          <th>Mahsulot nomi</th>
-                          <th style="width: 80px;" class="center">Miqdor</th>
-                          <th style="width: 100px;" class="right">Narx</th>
-                          <th style="width: 120px;" class="right">Summa</th>
+                          <th>Mahsulot</th>
+                          <th class="text-center" style="width:55px;">Soni</th>
+                          <th class="text-right" style="width:70px;">Summa</th>
                         </tr>
                       </thead>
                       <tbody>
                         ${items.map((item, index) => `
                           <tr>
-                            <td class="center">${index + 1}</td>
-                            <td><strong>${item.product_name}</strong></td>
-                            <td class="center">${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}</td>
-                            <td class="right">${item.unit_price.toLocaleString('uz-UZ')} so'm</td>
-                            <td class="right"><strong>${(item.quantity * item.unit_price).toLocaleString('uz-UZ')} so'm</strong></td>
+                            <td>
+                              <div class="product-name">${index + 1}. ${item.product_name}</div>
+                              <div class="product-price">(${item.unit_price.toLocaleString('uz-UZ')} x)</div>
+                            </td>
+                            <td class="text-center qty-cell">${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}</td>
+                            <td class="text-right sum-cell">${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</td>
                           </tr>
                         `).join('')}
                       </tbody>
                       <tfoot>
-                        <tr class="subtotal">
-                          <td colspan="4" class="right">Jami (${items.length} ta mahsulot):</td>
-                          <td class="right">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')} so'm</td>
+                        <tr>
+                          <td colspan="2" class="text-right font-bold">Jami (${items.length} ta):</td>
+                          <td class="text-right font-bold">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
                         </tr>
                         ${generalDiscount > 0 ? `
-                          <tr class="discount">
-                            <td colspan="4" class="right">Chegirma:</td>
-                            <td class="right">-${generalDiscount.toLocaleString('uz-UZ')} so'm</td>
+                          <tr>
+                            <td colspan="2" class="text-right font-bold">Chegirma:</td>
+                            <td class="text-right font-bold">-${generalDiscount.toLocaleString('uz-UZ')}</td>
                           </tr>
                         ` : ''}
-                        <tr class="grand-total">
-                          <td colspan="4" class="right">YAKUNIY SUMMA:</td>
-                          <td class="right">${(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount).toLocaleString('uz-UZ')} so'm</td>
-                        </tr>
                       </tfoot>
                     </table>
                     
-                    <div class="footer">
-                      <p><strong>Xaridingiz uchun rahmat!</strong></p>
-                      <p>Tel: +998 XX XXX XX XX</p>
+                    <div class="grand-total-box">
+                      <div class="grand-total-label">YAKUNIY SUMMA:</div>
+                      <div class="grand-total-amount">${(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount).toLocaleString('uz-UZ')}</div>
                     </div>
+                    
+                    <div class="footer">
+                      <p class="thanks">★ RAHMAT! ★</p>
+                      <p class="contact">${companyPhone1}</p>
+                      ${companyPhone2 ? `<p class="contact">${companyPhone2}</p>` : ''}
+                    </div>
+                    
+                    <!-- Bottom spacing for tearing -->
+                    <div class="tear-space"></div>
                   </body>
                   </html>
                 `)

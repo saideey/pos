@@ -20,6 +20,9 @@ class SaleItemCreate(BaseSchema):
     quantity: Decimal
     uom_id: int
     unit_price: Optional[Decimal] = None  # If None, use catalog price
+    original_price: Optional[Decimal] = None  # Original catalog price before discount
+    discount_percent: Optional[Decimal] = Decimal("0")
+    discount_amount: Optional[Decimal] = Decimal("0")
     notes: Optional[str] = None
     
     @field_validator("quantity")

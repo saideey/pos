@@ -237,7 +237,9 @@ async def get_movements(
         "supplier_name": getattr(m, 'supplier_name', None),
         "notes": m.notes,
         "created_at": m.created_at.isoformat(),
-        "created_by_name": m.created_by.first_name + " " + m.created_by.last_name if m.created_by else None
+        "updated_at": m.updated_at.isoformat() if m.updated_at else None,
+        "created_by_name": m.created_by.first_name + " " + m.created_by.last_name if m.created_by else None,
+        "updated_by_name": m.updated_by.first_name + " " + m.updated_by.last_name if getattr(m, 'updated_by', None) else None
     } for m in movements]
     
     return {
@@ -423,3 +425,220 @@ async def cancel_transfer(
         raise HTTPException(status_code=400, detail=message)
     
     return SuccessResponse(message=message)
+
+
+# ==================== STOCK MOVEMENT EDIT/DELETE (DIRECTOR ONLY) ====================
+
+@router.get(
+    "/movements/{movement_id}",
+    summary="Bitta harakatni olish"
+)
+async def get_movement(
+    movement_id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get single stock movement by ID."""
+    from database.models import StockMovement
+    
+    movement = db.query(StockMovement).filter(
+        StockMovement.id == movement_id,
+        StockMovement.is_deleted == False
+    ).first()
+    
+    if not movement:
+        raise HTTPException(status_code=404, detail="Harakat topilmadi")
+    
+    return {
+        "success": True,
+        "data": {
+            "id": movement.id,
+            "product_id": movement.product_id,
+            "product_name": movement.product.name,
+            "warehouse_id": movement.warehouse_id,
+            "warehouse_name": movement.warehouse.name,
+            "movement_type": movement.movement_type.value,
+            "quantity": float(movement.quantity),
+            "uom_id": movement.uom_id,
+            "uom_symbol": movement.uom.symbol,
+            "unit_price": float(movement.unit_cost or 0),
+            "unit_price_usd": float(movement.unit_price_usd) if movement.unit_price_usd else None,
+            "exchange_rate": float(movement.exchange_rate) if movement.exchange_rate else None,
+            "total_price": float(movement.total_cost or 0),
+            "document_number": movement.document_number,
+            "supplier_name": movement.supplier_name,
+            "notes": movement.notes,
+            "created_at": movement.created_at.isoformat(),
+            "updated_at": movement.updated_at.isoformat() if movement.updated_at else None,
+            "created_by_name": f"{movement.created_by.first_name} {movement.created_by.last_name}" if movement.created_by else None,
+            "updated_by_name": f"{movement.updated_by.first_name} {movement.updated_by.last_name}" if movement.updated_by else None
+        }
+    }
+
+
+@router.put(
+    "/movements/{movement_id}",
+    summary="Harakatni tahrirlash (faqat Director)",
+    dependencies=[Depends(PermissionChecker([PermissionType.DIRECTOR_OVERRIDE]))]
+)
+async def update_movement(
+    movement_id: int,
+    quantity: Optional[Decimal] = None,
+    unit_price: Optional[Decimal] = None,
+    unit_price_usd: Optional[Decimal] = None,
+    exchange_rate: Optional[Decimal] = None,
+    document_number: Optional[str] = None,
+    supplier_name: Optional[str] = None,
+    notes: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Edit stock movement. Only Director can do this.
+    This will also update the stock quantity accordingly.
+    """
+    from database.models import StockMovement, Stock
+    from datetime import datetime
+    
+    movement = db.query(StockMovement).filter(
+        StockMovement.id == movement_id,
+        StockMovement.is_deleted == False
+    ).first()
+    
+    if not movement:
+        raise HTTPException(status_code=404, detail="Harakat topilmadi")
+    
+    # Only allow editing PURCHASE type movements
+    if movement.movement_type.value not in ['purchase', 'adjustment_plus', 'adjustment_minus']:
+        raise HTTPException(status_code=400, detail="Faqat kirim va tuzatish harakatlarini tahrirlash mumkin")
+    
+    # Get current stock
+    stock = db.query(Stock).filter(
+        Stock.product_id == movement.product_id,
+        Stock.warehouse_id == movement.warehouse_id
+    ).first()
+    
+    old_quantity = movement.base_quantity
+    
+    # Update fields
+    if quantity is not None:
+        # Calculate new base quantity using ProductUOMConversion
+        from database.models import ProductUOMConversion
+        product_uom = db.query(ProductUOMConversion).filter(
+            ProductUOMConversion.product_id == movement.product_id,
+            ProductUOMConversion.uom_id == movement.uom_id
+        ).first()
+        
+        if product_uom:
+            new_base_quantity = quantity * Decimal(str(product_uom.conversion_factor))
+        else:
+            # If no conversion found, assume 1:1 (same as base UOM)
+            new_base_quantity = quantity
+        
+        # Update stock
+        if stock:
+            quantity_diff = new_base_quantity - old_quantity
+            stock.quantity = Decimal(str(stock.quantity)) + quantity_diff
+            movement.stock_after = stock.quantity
+        
+        movement.quantity = quantity
+        movement.base_quantity = new_base_quantity
+    
+    if unit_price is not None:
+        movement.unit_cost = unit_price
+        movement.total_cost = unit_price * movement.quantity
+    
+    if unit_price_usd is not None:
+        movement.unit_price_usd = unit_price_usd
+    
+    if exchange_rate is not None:
+        movement.exchange_rate = exchange_rate
+    
+    if document_number is not None:
+        movement.document_number = document_number
+    
+    if supplier_name is not None:
+        movement.supplier_name = supplier_name
+    
+    if notes is not None:
+        movement.notes = notes
+    
+    # Track who edited
+    movement.updated_by_id = current_user.id
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Harakat muvaffaqiyatli tahrirlandi",
+        "data": {
+            "id": movement.id,
+            "updated_at": movement.updated_at.isoformat() if movement.updated_at else None
+        }
+    }
+
+
+@router.delete(
+    "/movements/{movement_id}",
+    summary="Harakatni o'chirish (faqat Director)",
+    dependencies=[Depends(PermissionChecker([PermissionType.DIRECTOR_OVERRIDE]))]
+)
+async def delete_movement(
+    movement_id: int,
+    reason: str = Query(..., min_length=3, description="O'chirish sababi"),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Soft delete stock movement. Only Director can do this.
+    This will also reverse the stock quantity change.
+    """
+    from database.models import StockMovement, Stock
+    from datetime import datetime
+    
+    movement = db.query(StockMovement).filter(
+        StockMovement.id == movement_id,
+        StockMovement.is_deleted == False
+    ).first()
+    
+    if not movement:
+        raise HTTPException(status_code=404, detail="Harakat topilmadi")
+    
+    # Only allow deleting PURCHASE type movements
+    if movement.movement_type.value not in ['purchase', 'adjustment_plus', 'adjustment_minus']:
+        raise HTTPException(status_code=400, detail="Faqat kirim va tuzatish harakatlarini o'chirish mumkin")
+    
+    # Get current stock and reverse the change
+    stock = db.query(Stock).filter(
+        Stock.product_id == movement.product_id,
+        Stock.warehouse_id == movement.warehouse_id
+    ).first()
+    
+    if stock:
+        if movement.movement_type.value in ['purchase', 'adjustment_plus']:
+            # Reverse addition
+            stock.quantity = Decimal(str(stock.quantity)) - movement.base_quantity
+        else:
+            # Reverse subtraction
+            stock.quantity = Decimal(str(stock.quantity)) + movement.base_quantity
+        
+        # Ensure stock doesn't go negative
+        if stock.quantity < 0:
+            stock.quantity = 0
+    
+    # Soft delete
+    movement.is_deleted = True
+    movement.deleted_by_id = current_user.id
+    movement.deleted_at = datetime.now().isoformat()
+    movement.deleted_reason = reason
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Harakat o'chirildi",
+        "data": {
+            "id": movement.id,
+            "deleted_at": movement.deleted_at
+        }
+    }

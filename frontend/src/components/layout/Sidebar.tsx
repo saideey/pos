@@ -15,6 +15,7 @@ import {
   Send,
   UsersRound,
   Key,
+  Receipt,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -30,6 +31,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { name: 'Bosh sahifa', href: '/', icon: LayoutDashboard },
   { name: 'Kassa', href: '/pos', icon: ShoppingCart },
+  { name: 'Sotuvlar', href: '/sales', icon: Receipt },
   { name: 'Tovarlar', href: '/products', icon: Package },
   { name: 'Mijozlar', href: '/customers', icon: Users },
   { name: 'Ombor', href: '/warehouse', icon: Warehouse },

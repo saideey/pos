@@ -1,6 +1,7 @@
 export { default as LoginPage } from './Login'
 export { default as Dashboard } from './Dashboard'
 export { default as POSPage } from './POS'
+export { default as SalesPage } from './Sales'
 export { default as ProductsPage } from './Products'
 export { default as CustomersPage } from './Customers'
 export { default as WarehousePage } from './Warehouse'

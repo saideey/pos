@@ -157,6 +157,15 @@ class StockMovement(BaseModel):
     approved_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     approved_at = Column(String(50), nullable=True)
     
+    # Edit tracking
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    
+    # Delete tracking (soft delete)
+    is_deleted = Column(Boolean, default=False)
+    deleted_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    deleted_at = Column(String(50), nullable=True)
+    deleted_reason = Column(Text, nullable=True)
+    
     # Relationships
     product = relationship("Product")
     warehouse = relationship("Warehouse", foreign_keys=[warehouse_id])
@@ -164,6 +173,8 @@ class StockMovement(BaseModel):
     uom = relationship("UnitOfMeasure")
     created_by = relationship("User", foreign_keys=[created_by_id])
     approved_by = relationship("User", foreign_keys=[approved_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+    deleted_by = relationship("User", foreign_keys=[deleted_by_id])
     
     __table_args__ = (
         Index('ix_stock_movements_product_id', 'product_id'),

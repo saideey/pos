@@ -378,10 +378,17 @@ class StockService:
         start_date: datetime = None,
         end_date: datetime = None,
         page: int = 1,
-        per_page: int = 20
+        per_page: int = 20,
+        include_deleted: bool = False
     ) -> Tuple[List[StockMovement], int]:
         """Get stock movements with filters."""
         query = self.db.query(StockMovement)
+        
+        # Exclude deleted by default
+        if not include_deleted:
+            query = query.filter(
+                (StockMovement.is_deleted == False) | (StockMovement.is_deleted == None)
+            )
         
         if product_id:
             query = query.filter(StockMovement.product_id == product_id)

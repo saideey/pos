@@ -12,6 +12,10 @@ export default function SettingsPage() {
   const [newDirectorId, setNewDirectorId] = useState('')
   const [testingId, setTestingId] = useState<string | null>(null)
   
+  // Company phone settings
+  const [companyPhone1, setCompanyPhone1] = useState('')
+  const [companyPhone2, setCompanyPhone2] = useState('')
+  
   // Telegram group settings state
   const [groupChatId, setGroupChatId] = useState('')
   const [reportTime, setReportTime] = useState('19:00')
@@ -33,6 +37,23 @@ export default function SettingsPage() {
       setUsdRate(exchangeRateData.usd_rate.toString())
     }
   }, [exchangeRateData])
+
+  // Fetch company phones
+  const { data: companyPhonesData } = useQuery({
+    queryKey: ['company-phones'],
+    queryFn: async () => {
+      const response = await api.get('/settings/company-phones')
+      return response.data
+    }
+  })
+  
+  // Set company phones when data loads
+  useEffect(() => {
+    if (companyPhonesData?.data) {
+      setCompanyPhone1(companyPhonesData.data.phone1 || '')
+      setCompanyPhone2(companyPhonesData.data.phone2 || '')
+    }
+  }, [companyPhonesData])
 
   // Fetch director telegram IDs
   const { data: telegramData, isLoading: telegramLoading } = useQuery({
@@ -97,6 +118,21 @@ export default function SettingsPage() {
     },
     onSettled: () => {
       setSendingReport(false)
+    }
+  })
+
+  // Update company phones mutation
+  const updateCompanyPhones = useMutation({
+    mutationFn: async () => {
+      const response = await api.put(`/settings/company-phones?phone1=${encodeURIComponent(companyPhone1)}&phone2=${encodeURIComponent(companyPhone2)}`)
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Telefon raqamlari saqlandi!')
+      queryClient.invalidateQueries({ queryKey: ['company-phones'] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Xatolik yuz berdi')
     }
   })
 
@@ -287,39 +323,51 @@ export default function SettingsPage() {
                 <SettingsIcon className="w-6 h-6 lg:w-8 lg:h-8 text-primary" />
               </div>
               <div>
-                <h2 className="text-base lg:text-pos-lg font-bold">Kompaniya ma'lumotlari</h2>
-                <p className="text-xs lg:text-sm text-text-secondary">Chek va hisobotlar uchun</p>
+                <h2 className="text-base lg:text-pos-lg font-bold">Kompaniya telefon raqamlari</h2>
+                <p className="text-xs lg:text-sm text-text-secondary">Chekda ko'rsatiladigan raqamlar</p>
               </div>
             </div>
 
             <div className="space-y-3 lg:space-y-4">
               <div className="space-y-2">
-                <label className="font-medium text-sm lg:text-base">Kompaniya nomi</label>
+                <label className="font-medium text-sm lg:text-base">Telefon 1 (asosiy)</label>
                 <Input
-                  defaultValue="Metall Basa"
-                  placeholder="Kompaniya nomi"
+                  value={companyPhone1}
+                  onChange={(e) => setCompanyPhone1(e.target.value)}
+                  placeholder="+998 90 123 45 67"
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="font-medium">Manzil</label>
+                <label className="font-medium text-sm lg:text-base">Telefon 2 (qo'shimcha)</label>
                 <Input
-                  defaultValue="Toshkent sh."
-                  placeholder="To'liq manzil"
+                  value={companyPhone2}
+                  onChange={(e) => setCompanyPhone2(e.target.value)}
+                  placeholder="+998 90 765 43 21"
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="font-medium">Telefon</label>
-                <Input
-                  defaultValue="+998 90 123 45 67"
-                  placeholder="Telefon raqam"
-                />
+              <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800">
+                <p>Bu telefon raqamlari chek chiqarilganda pastki qismida ko'rsatiladi.</p>
               </div>
 
-              <Button variant="primary" className="w-full">
-                <Save className="w-5 h-5 mr-2" />
-                Saqlash
+              <Button 
+                variant="primary" 
+                className="w-full"
+                onClick={() => updateCompanyPhones.mutate()}
+                disabled={updateCompanyPhones.isPending}
+              >
+                {updateCompanyPhones.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2 animate-spin" />
+                    Saqlanmoqda...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
+                    Saqlash
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>

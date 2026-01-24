@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { 
   Search, Plus, Package, Warehouse as WarehouseIcon, AlertTriangle, 
-  TrendingUp, Trash2, Calendar, DollarSign, History, Loader2, Filter, Download
+  TrendingUp, Trash2, Calendar, DollarSign, History, Loader2, Filter, Download,
+  Pencil, X, Info
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { 
@@ -13,6 +14,7 @@ import {
 import { warehouseService, productsService } from '@/services'
 import api from '@/services/api'
 import { formatMoney, formatNumber, cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores'
 import type { Stock, Warehouse, Product } from '@/types'
 
 interface IncomeItem {
@@ -30,10 +32,24 @@ interface IncomeFormData {
   items: IncomeItem[]
 }
 
+interface MovementEditData {
+  id: number
+  product_name: string
+  quantity: number
+  unit_price: number
+  unit_price_usd: number | null
+  document_number: string
+  supplier_name: string
+  notes: string
+}
+
 type MovementFilter = 'all' | 'income' | 'outcome'
 
 export default function WarehousePage() {
   const queryClient = useQueryClient()
+  const { user } = useAuthStore()
+  const isDirector = user?.role_type === 'director'
+  
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedWarehouse, setSelectedWarehouse] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
@@ -47,6 +63,11 @@ export default function WarehousePage() {
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [showFilters, setShowFilters] = useState(false)
+  
+  // Edit/Delete state
+  const [editingMovement, setEditingMovement] = useState<MovementEditData | null>(null)
+  const [deletingMovement, setDeletingMovement] = useState<{id: number, name: string} | null>(null)
+  const [deleteReason, setDeleteReason] = useState('')
 
   const { register, control, handleSubmit, reset, watch } = useForm<IncomeFormData>({
     defaultValues: {
@@ -181,6 +202,49 @@ export default function WarehousePage() {
         toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
       }
     },
+  })
+
+  // Edit movement mutation (Director only)
+  const editMovement = useMutation({
+    mutationFn: async (data: { id: number, quantity?: number, unit_price?: number, unit_price_usd?: number, document_number?: string, supplier_name?: string, notes?: string }) => {
+      const params = new URLSearchParams()
+      if (data.quantity !== undefined) params.append('quantity', data.quantity.toString())
+      if (data.unit_price !== undefined) params.append('unit_price', data.unit_price.toString())
+      if (data.unit_price_usd !== undefined) params.append('unit_price_usd', data.unit_price_usd.toString())
+      if (data.document_number !== undefined) params.append('document_number', data.document_number)
+      if (data.supplier_name !== undefined) params.append('supplier_name', data.supplier_name)
+      if (data.notes !== undefined) params.append('notes', data.notes)
+      
+      const response = await api.put(`/warehouse/movements/${data.id}?${params}`)
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Harakat muvaffaqiyatli tahrirlandi!')
+      queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
+      queryClient.invalidateQueries({ queryKey: ['stock'] })
+      setEditingMovement(null)
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Tahrirlashda xatolik')
+    }
+  })
+
+  // Delete movement mutation (Director only)
+  const deleteMovement = useMutation({
+    mutationFn: async ({ id, reason }: { id: number, reason: string }) => {
+      const response = await api.delete(`/warehouse/movements/${id}?reason=${encodeURIComponent(reason)}`)
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success('Harakat o\'chirildi!')
+      queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
+      queryClient.invalidateQueries({ queryKey: ['stock'] })
+      setDeletingMovement(null)
+      setDeleteReason('')
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'O\'chirishda xatolik')
+    }
   })
 
   const onSubmit = (data: IncomeFormData) => {
@@ -328,7 +392,12 @@ export default function WarehousePage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {stockData?.data?.map((stock: Stock) => (
+                    {stockData?.data?.map((stock: Stock) => {
+                      // Mahsulotni topish va UOM konversiyalarini olish
+                      const product = productsList.find((p: Product) => p.id === stock.product_id)
+                      const uomConversions = product?.uom_conversions || []
+                      
+                      return (
                       <tr key={stock.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <p className="font-medium">{stock.product_name}</p>
@@ -336,8 +405,21 @@ export default function WarehousePage() {
                         <td className="px-4 py-3 text-sm text-text-secondary">
                           {stock.product_article || '-'}
                         </td>
-                        <td className="px-4 py-3 text-right font-semibold">
-                          {formatNumber(stock.quantity)} {stock.base_uom_symbol}
+                        <td className="px-4 py-3 text-right">
+                          {/* Asosiy UOM dagi qoldiq */}
+                          <div className="font-semibold">
+                            {formatNumber(stock.quantity, stock.quantity < 1 && stock.quantity > 0 ? 3 : 1)} {stock.base_uom_symbol}
+                          </div>
+                          {/* Boshqa UOM lardagi qoldiq */}
+                          {uomConversions.length > 0 && stock.quantity > 0 && (
+                            <div className="text-xs text-gray-500 mt-0.5 space-y-0.5">
+                              {uomConversions.map((conv: any) => (
+                                <div key={conv.uom_id}>
+                                  ≈ {formatNumber(stock.quantity / conv.conversion_factor, 1)} {conv.uom_symbol}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right text-sm">
                           ${formatNumber(stock.average_cost / usdRate, 2)}
@@ -361,7 +443,7 @@ export default function WarehousePage() {
                           )}
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -480,10 +562,13 @@ export default function WarehousePage() {
                         <th className="px-4 py-3 text-left text-sm font-medium">Hujjat №</th>
                         <th className="px-4 py-3 text-left text-sm font-medium">Yetkazuvchi</th>
                         <th className="px-4 py-3 text-center text-sm font-medium">Tur</th>
+                        {isDirector && <th className="px-4 py-3 text-center text-sm font-medium">Amallar</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {movementsData.data.map((movement: any) => (
+                    {movementsData.data.map((movement: any) => {
+                      const canEdit = ['purchase', 'adjustment_plus', 'adjustment_minus'].includes(movement.movement_type)
+                      return (
                       <tr key={movement.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm">
                           <div className="flex items-center gap-1">
@@ -493,6 +578,12 @@ export default function WarehousePage() {
                           <div className="text-xs text-text-secondary">
                             {new Date(movement.created_at).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
                           </div>
+                          {movement.updated_at && movement.updated_by_name && (
+                            <div className="text-xs text-warning mt-1 flex items-center gap-1">
+                              <Pencil className="w-3 h-3" />
+                              {movement.updated_by_name}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-medium">{movement.product_name}</p>
@@ -529,8 +620,43 @@ export default function WarehousePage() {
                              movement.movement_type === 'write_off' ? 'Zarar' : movement.movement_type}
                           </Badge>
                         </td>
+                        {isDirector && (
+                          <td className="px-4 py-3 text-center">
+                            {canEdit ? (
+                              <div className="flex items-center justify-center gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="p-1 h-8 w-8"
+                                  onClick={() => setEditingMovement({
+                                    id: movement.id,
+                                    product_name: movement.product_name,
+                                    quantity: movement.quantity,
+                                    unit_price: movement.unit_price,
+                                    unit_price_usd: movement.unit_price_usd,
+                                    document_number: movement.document_number || '',
+                                    supplier_name: movement.supplier_name || '',
+                                    notes: movement.notes || ''
+                                  })}
+                                >
+                                  <Pencil className="w-4 h-4 text-primary" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="p-1 h-8 w-8"
+                                  onClick={() => setDeletingMovement({ id: movement.id, name: movement.product_name })}
+                                >
+                                  <Trash2 className="w-4 h-4 text-danger" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-text-secondary">-</span>
+                            )}
+                          </td>
+                        )}
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               </div>
@@ -713,6 +839,158 @@ export default function WarehousePage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Movement Dialog (Director only) */}
+      <Dialog open={!!editingMovement} onOpenChange={() => setEditingMovement(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-primary" />
+              Harakatni tahrirlash
+            </DialogTitle>
+            <DialogDescription>
+              {editingMovement?.product_name}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingMovement && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="font-medium text-sm">Miqdor</label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editingMovement.quantity}
+                  onChange={(e) => setEditingMovement({...editingMovement, quantity: parseFloat(e.target.value) || 0})}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="font-medium text-sm">Narx (USD)</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editingMovement.unit_price_usd || ''}
+                    onChange={(e) => setEditingMovement({
+                      ...editingMovement, 
+                      unit_price_usd: parseFloat(e.target.value) || 0,
+                      unit_price: (parseFloat(e.target.value) || 0) * usdRate
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="font-medium text-sm">Narx (UZS)</label>
+                  <Input
+                    type="number"
+                    value={editingMovement.unit_price}
+                    onChange={(e) => setEditingMovement({...editingMovement, unit_price: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-medium text-sm">Hujjat raqami</label>
+                <Input
+                  value={editingMovement.document_number}
+                  onChange={(e) => setEditingMovement({...editingMovement, document_number: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-medium text-sm">Yetkazuvchi</label>
+                <Input
+                  value={editingMovement.supplier_name}
+                  onChange={(e) => setEditingMovement({...editingMovement, supplier_name: e.target.value})}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-medium text-sm">Izoh</label>
+                <Input
+                  value={editingMovement.notes}
+                  onChange={(e) => setEditingMovement({...editingMovement, notes: e.target.value})}
+                />
+              </div>
+
+              <div className="bg-warning/10 p-3 rounded-lg text-sm">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-warning mt-0.5" />
+                  <p>Miqdorni o'zgartirsangiz, ombor qoldig'i avtomatik yangilanadi.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingMovement(null)}>Bekor qilish</Button>
+            <Button
+              variant="primary"
+              onClick={() => editingMovement && editMovement.mutate({
+                id: editingMovement.id,
+                quantity: editingMovement.quantity,
+                unit_price: editingMovement.unit_price,
+                unit_price_usd: editingMovement.unit_price_usd || undefined,
+                document_number: editingMovement.document_number,
+                supplier_name: editingMovement.supplier_name,
+                notes: editingMovement.notes
+              })}
+              disabled={editMovement.isPending}
+            >
+              {editMovement.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
+              Saqlash
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Movement Dialog (Director only) */}
+      <Dialog open={!!deletingMovement} onOpenChange={() => { setDeletingMovement(null); setDeleteReason(''); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-danger">
+              <Trash2 className="w-5 h-5" />
+              Harakatni o'chirish
+            </DialogTitle>
+            <DialogDescription>
+              <span className="font-semibold">{deletingMovement?.name}</span> kirimini o'chirmoqchimisiz?
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="bg-danger/10 p-3 rounded-lg text-sm">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-danger mt-0.5" />
+                <div>
+                  <p className="font-medium text-danger">Diqqat!</p>
+                  <p>Bu harakat ombor qoldig'ini teskari o'zgartiradi. Kirim o'chirilsa, tovar qoldig'i kamayadi.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="font-medium text-sm">O'chirish sababi *</label>
+              <Input
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Sabab kiriting (majburiy)"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeletingMovement(null); setDeleteReason(''); }}>Bekor qilish</Button>
+            <Button
+              variant="danger"
+              onClick={() => deletingMovement && deleteMovement.mutate({ id: deletingMovement.id, reason: deleteReason })}
+              disabled={deleteMovement.isPending || !deleteReason.trim()}
+            >
+              {deleteMovement.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              O'chirish
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

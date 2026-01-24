@@ -86,6 +86,9 @@ class PermissionType(PyEnum):
     # Finance permissions
     FINANCE_VIEW = "finance_view"
     FINANCE_MANAGE = "finance_manage"
+    
+    # Director special permissions
+    DIRECTOR_OVERRIDE = "director_override"  # Full edit/delete access
 
 
 class Role(BaseModel, SoftDeleteMixin):

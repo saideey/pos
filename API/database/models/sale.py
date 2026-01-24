@@ -90,6 +90,10 @@ class Sale(BaseModel):
     cancelled_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     cancelled_at = Column(String(50), nullable=True)
     
+    # Edit tracking
+    updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
+    edit_reason = Column(Text, nullable=True)
+    
     # Approval for large discounts
     discount_approved_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     
@@ -101,6 +105,7 @@ class Sale(BaseModel):
     seller = relationship("User", foreign_keys=[seller_id], back_populates="sales")
     warehouse = relationship("Warehouse")
     cancelled_by = relationship("User", foreign_keys=[cancelled_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
     discount_approved_by = relationship("User", foreign_keys=[discount_approved_by_id])
     items = relationship("SaleItem", back_populates="sale", lazy="dynamic", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="sale", lazy="dynamic")

@@ -155,6 +155,83 @@ async def update_exchange_rate(
 
 
 @router.get(
+    "/company-phones",
+    summary="Kompaniya telefon raqamlari"
+)
+async def get_company_phones(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get company phone numbers for receipts."""
+    setting = db.query(SystemSetting).filter(
+        SystemSetting.key == "company_phones"
+    ).first()
+    
+    if not setting or not setting.value:
+        return {
+            "success": True,
+            "data": {
+                "phone1": "+998 XX XXX XX XX",
+                "phone2": ""
+            }
+        }
+    
+    import json
+    try:
+        phones = json.loads(setting.value)
+    except:
+        phones = {"phone1": "+998 XX XXX XX XX", "phone2": ""}
+    
+    return {
+        "success": True,
+        "data": phones
+    }
+
+
+@router.put(
+    "/company-phones",
+    summary="Kompaniya telefon raqamlarini yangilash",
+    dependencies=[Depends(PermissionChecker([PermissionType.SETTINGS_MANAGE]))]
+)
+async def update_company_phones(
+    phone1: str = "",
+    phone2: str = "",
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Update company phone numbers for receipts."""
+    import json
+    
+    setting = db.query(SystemSetting).filter(
+        SystemSetting.key == "company_phones"
+    ).first()
+    
+    phones_data = json.dumps({"phone1": phone1, "phone2": phone2})
+    
+    if not setting:
+        setting = SystemSetting(
+            key="company_phones",
+            value=phones_data,
+            value_type="json",
+            category="company",
+            description="Kompaniya telefon raqamlari (chek uchun)",
+            is_public=True,
+            is_editable=True
+        )
+        db.add(setting)
+    else:
+        setting.value = phones_data
+    
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": "Telefon raqamlari saqlandi",
+        "data": {"phone1": phone1, "phone2": phone2}
+    }
+
+
+@router.get(
     "/telegram/directors",
     summary="Direktor Telegram ID lari"
 )
