@@ -13,7 +13,7 @@ import {
 } from '@/components/ui'
 import { warehouseService, productsService } from '@/services'
 import api from '@/services/api'
-import { formatMoney, formatNumber, cn } from '@/lib/utils'
+import { formatMoney, formatNumber, cn, formatDateTashkent, formatTimeTashkent } from '@/lib/utils'
 import { useAuthStore } from '@/stores'
 import type { Stock, Warehouse, Product } from '@/types'
 
@@ -573,10 +573,10 @@ export default function WarehousePage() {
                         <td className="px-4 py-3 text-sm">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4 text-text-secondary" />
-                            {new Date(movement.created_at).toLocaleDateString('uz-UZ')}
+                            {formatDateTashkent(movement.created_at)}
                           </div>
                           <div className="text-xs text-text-secondary">
-                            {new Date(movement.created_at).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                            {formatTimeTashkent(movement.created_at)}
                           </div>
                           {movement.updated_at && movement.updated_by_name && (
                             <div className="text-xs text-warning mt-1 flex items-center gap-1">

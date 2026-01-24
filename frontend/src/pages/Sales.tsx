@@ -12,7 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription 
 } from '@/components/ui'
 import api from '@/services/api'
-import { formatMoney, formatNumber, cn } from '@/lib/utils'
+import { formatMoney, formatNumber, cn, formatDateTashkent, formatTimeTashkent, formatDateTimeTashkent } from '@/lib/utils'
 import { useAuthStore, usePOSStore } from '@/stores'
 
 interface Sale {
@@ -386,9 +386,9 @@ export default function SalesPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm">
-                        <div>{new Date(sale.sale_date).toLocaleDateString('uz-UZ')}</div>
+                        <div>{formatDateTashkent(sale.sale_date)}</div>
                         <div className="text-xs text-text-secondary">
-                          {new Date(sale.created_at).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                          {formatTimeTashkent(sale.created_at)}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -496,7 +496,7 @@ export default function SalesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <p className="text-sm text-text-secondary">Sana</p>
-                  <p className="font-medium">{new Date(viewingSale.sale_date).toLocaleDateString('uz-UZ')}</p>
+                  <p className="font-medium">{formatDateTashkent(viewingSale.sale_date)}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-text-secondary">Sotuvchi</p>
@@ -579,7 +579,7 @@ export default function SalesPage() {
                     <div>
                       <p className="font-medium text-warning">Tahrirlangan</p>
                       <p>Kim: {viewingSale.updated_by}</p>
-                      <p>Qachon: {viewingSale.updated_at ? new Date(viewingSale.updated_at).toLocaleString('uz-UZ') : '-'}</p>
+                      <p>Qachon: {formatDateTimeTashkent(viewingSale.updated_at)}</p>
                       {viewingSale.edit_reason && <p>Sabab: {viewingSale.edit_reason}</p>}
                     </div>
                   </div>
@@ -594,7 +594,7 @@ export default function SalesPage() {
                     <div>
                       <p className="font-medium text-danger">Bekor qilingan</p>
                       <p>Kim: {viewingSale.cancelled_by}</p>
-                      <p>Qachon: {viewingSale.cancelled_at ? new Date(viewingSale.cancelled_at).toLocaleString('uz-UZ') : '-'}</p>
+                      <p>Qachon: {formatDateTimeTashkent(viewingSale.cancelled_at)}</p>
                       {viewingSale.cancelled_reason && <p>Sabab: {viewingSale.cancelled_reason}</p>}
                     </div>
                   </div>

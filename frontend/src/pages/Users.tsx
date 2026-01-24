@@ -23,6 +23,7 @@ import {
 import toast from 'react-hot-toast'
 import { Button, Input, Card, CardContent, Badge } from '@/components/ui'
 import usersService, { User, Role, CreateUserData, UpdateUserData } from '@/services/usersService'
+import { formatDateTimeTashkent } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 
 export default function UsersPage() {
@@ -372,7 +373,7 @@ export default function UsersPage() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {user.last_login 
-                          ? new Date(user.last_login).toLocaleString('uz')
+                          ? formatDateTimeTashkent(user.last_login)
                           : 'Hech qachon'}
                       </td>
                       <td className="px-6 py-4">

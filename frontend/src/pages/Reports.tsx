@@ -7,7 +7,7 @@ import {
 import toast from 'react-hot-toast'
 import { Button, Input, Card, CardContent, Badge } from '@/components/ui'
 import api from '@/services/api'
-import { formatMoney, formatNumber, cn } from '@/lib/utils'
+import { formatMoney, formatNumber, cn, formatDateTashkent, formatDateTimeTashkent } from '@/lib/utils'
 
 export default function ReportsPage() {
   // Date filters
@@ -744,7 +744,7 @@ export default function ReportsPage() {
                           {sellerStats.daily_breakdown?.map((day: any) => (
                             <div key={day.date} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <div>
-                                <p className="font-medium">{new Date(day.date).toLocaleDateString('uz-UZ')}</p>
+                                <p className="font-medium">{formatDateTashkent(day.date)}</p>
                                 <p className="text-sm text-gray-500">{day.sales_count} ta sotuv</p>
                               </div>
                               <div className="text-right">
@@ -867,7 +867,7 @@ export default function ReportsPage() {
                                 <p className="font-medium">#{sale.sale_number}</p>
                                 <p className="text-sm text-gray-600">{sale.customer_name}</p>
                                 <p className="text-xs text-gray-400">
-                                  {new Date(sale.created_at).toLocaleString('uz-UZ')}
+                                  {formatDateTimeTashkent(sale.created_at)}
                                 </p>
                               </div>
                               <div className="text-right">

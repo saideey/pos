@@ -78,7 +78,8 @@ export default function Dashboard() {
               weekday: 'long', 
               year: 'numeric', 
               month: 'long', 
-              day: 'numeric' 
+              day: 'numeric',
+              timeZone: 'Asia/Tashkent'
             })}
           </p>
         </div>

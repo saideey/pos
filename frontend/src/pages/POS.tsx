@@ -14,7 +14,7 @@ import {
 } from '@/components/ui'
 import { productsService, salesService, customersService } from '@/services'
 import api from '@/services/api'
-import { formatMoney, formatNumber, formatInputNumber, cn, debounce } from '@/lib/utils'
+import { formatMoney, formatNumber, formatInputNumber, cn, debounce, formatDateTashkent, formatTimeTashkent } from '@/lib/utils'
 import { usePOSStore } from '@/stores'
 import type { Product, Customer, UOMConversion } from '@/types'
 
@@ -2094,7 +2094,7 @@ export default function POSPage() {
                 />
                 <h2 className="font-black text-xl tracking-tight">INTER PROFNASTIL</h2>
                 <p className="text-sm font-bold mt-1">
-                  {new Date().toLocaleDateString('uz-UZ')} {new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                  {formatDateTashkent(new Date())} {formatTimeTashkent(new Date())}
                 </p>
               </div>
               
@@ -2335,7 +2335,7 @@ export default function POSPage() {
                     <div class="header">
                       <img src="/logo.png" alt="Logo" onerror="this.style.display='none'" />
                       <h1>INTER PROFNASTIL</h1>
-                      <p class="date">${new Date().toLocaleDateString('uz-UZ')} ${new Date().toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p class="date">${formatDateTashkent(new Date())} ${formatTimeTashkent(new Date())}</p>
                     </div>
                     
                     <div class="divider"></div>

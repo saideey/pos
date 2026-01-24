@@ -12,7 +12,7 @@ import {
 } from '@/components/ui'
 import { customersService } from '@/services'
 import api from '@/services/api'
-import { formatMoney, formatPhone, formatInputNumber, cn } from '@/lib/utils'
+import { formatMoney, formatPhone, formatInputNumber, cn, formatDateTashkent } from '@/lib/utils'
 import type { Customer, Sale, User as UserType } from '@/types'
 
 interface CustomerFormData {
@@ -160,7 +160,7 @@ export default function CustomersPage() {
       // Prepare data
       const data = customerDebtHistory.data.map((record: DebtRecord, index: number) => ({
         '№': index + 1,
-        'Sana': new Date(record.created_at).toLocaleDateString('uz-UZ'),
+        'Sana': formatDateTashkent(record.created_at),
         'Turi': record.transaction_type === 'SALE' || record.transaction_type === 'DEBT_INCREASE' ? 'Xarid' : 
           record.transaction_type === 'PAYMENT' || record.transaction_type === 'DEBT_PAYMENT' ? "To'lov" : record.transaction_type,
         'Summa': Math.abs(record.amount),
@@ -181,7 +181,7 @@ export default function CustomersPage() {
         ['Telegram:', selectedCustomer.telegram_id || '-'],
         ['Kompaniya:', selectedCustomer.company_name || '-'],
         ['Joriy qarz:', formatMoney(selectedCustomer.current_debt)],
-        ['Hisobot sanasi:', new Date().toLocaleDateString('uz-UZ')],
+        ['Hisobot sanasi:', formatDateTashkent(new Date())],
         ['']
       ]
       
@@ -223,7 +223,7 @@ export default function CustomersPage() {
       // Prepare sales data
       const salesData = customerSales.data.map((sale: Sale, index: number) => ({
         '№': index + 1,
-        'Sana': new Date(sale.created_at).toLocaleDateString('uz-UZ'),
+        'Sana': formatDateTashkent(sale.created_at),
         'Chek raqami': sale.sale_number,
         'Tovarlar soni': sale.items_count || '-',
         'Umumiy summa': sale.total_amount,
@@ -250,7 +250,7 @@ export default function CustomersPage() {
         ['Telegram:', selectedCustomer.telegram_id || '-'],
         ['Kompaniya:', selectedCustomer.company_name || '-'],
         ['Jami xaridlar:', customerSales.data.length + ' ta'],
-        ['Hisobot sanasi:', new Date().toLocaleDateString('uz-UZ')],
+        ['Hisobot sanasi:', formatDateTashkent(new Date())],
         ['']
       ]
       
@@ -1015,7 +1015,7 @@ export default function CustomersPage() {
                               <td className="px-4 py-3 text-sm">
                                 <div className="flex items-center gap-1">
                                   <Calendar className="w-4 h-4 text-text-secondary" />
-                                  {new Date(sale.created_at).toLocaleDateString('uz-UZ')}
+                                  {formatDateTashkent(sale.created_at)}
                                 </div>
                               </td>
                               <td className="px-4 py-3 text-sm font-medium">{sale.sale_number}</td>
@@ -1124,7 +1124,7 @@ export default function CustomersPage() {
                           return (
                             <tr key={record.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm">
-                                {new Date(record.created_at).toLocaleDateString('uz-UZ')}
+                                {formatDateTashkent(record.created_at)}
                               </td>
                               <td className="px-4 py-3 text-sm">
                                 <Badge variant={isPayment ? 'success' : isSale ? 'warning' : 'secondary'}>

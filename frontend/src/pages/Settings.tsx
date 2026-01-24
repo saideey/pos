@@ -4,7 +4,7 @@ import { Settings as SettingsIcon, DollarSign, Save, RefreshCw, Loader2, Send, P
 import toast from 'react-hot-toast'
 import { Button, Input, Card, CardContent, Badge } from '@/components/ui'
 import api from '@/services/api'
-import { formatNumber } from '@/lib/utils'
+import { formatNumber, formatDateTimeTashkent } from '@/lib/utils'
 
 export default function SettingsPage() {
   const queryClient = useQueryClient()
@@ -259,7 +259,7 @@ export default function SettingsPage() {
                   </p>
                   {exchangeRateData?.updated_at && (
                     <p className="text-[10px] lg:text-xs text-text-secondary mt-1">
-                      Oxirgi yangilanish: {new Date(exchangeRateData.updated_at).toLocaleString('uz')}
+                      Oxirgi yangilanish: {formatDateTimeTashkent(exchangeRateData.updated_at)}
                     </p>
                   )}
                 </div>

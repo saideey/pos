@@ -56,6 +56,7 @@ export function formatDate(date: string | Date, includeTime = false): string {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'Asia/Tashkent',
   }
   
   if (includeTime) {
@@ -64,6 +65,52 @@ export function formatDate(date: string | Date, includeTime = false): string {
   }
   
   return d.toLocaleDateString('uz-UZ', options)
+}
+
+/**
+ * Format date in Tashkent timezone (DD.MM.YYYY)
+ */
+export function formatDateTashkent(date: string | Date | null | undefined): string {
+  if (!date) return '-'
+  const d = typeof date === 'string' ? new Date(date) : date
+  
+  return d.toLocaleDateString('uz-UZ', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'Asia/Tashkent',
+  })
+}
+
+/**
+ * Format time in Tashkent timezone (HH:MM)
+ */
+export function formatTimeTashkent(date: string | Date | null | undefined): string {
+  if (!date) return '-'
+  const d = typeof date === 'string' ? new Date(date) : date
+  
+  return d.toLocaleTimeString('uz-UZ', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Tashkent',
+  })
+}
+
+/**
+ * Format date and time in Tashkent timezone (DD.MM.YYYY HH:MM)
+ */
+export function formatDateTimeTashkent(date: string | Date | null | undefined): string {
+  if (!date) return '-'
+  const d = typeof date === 'string' ? new Date(date) : date
+  
+  return d.toLocaleString('uz-UZ', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Tashkent',
+  })
 }
 
 /**
