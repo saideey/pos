@@ -12,7 +12,7 @@ import {
 } from '@/components/ui'
 import { customersService } from '@/services'
 import api from '@/services/api'
-import { formatMoney, formatPhone, formatInputNumber, cn, formatDateTashkent } from '@/lib/utils'
+import { formatMoney, formatPhone, formatInputNumber, cn, formatDateTashkent, formatTimeTashkent, formatDateTimeTashkent } from '@/lib/utils'
 import type { Customer, Sale, User as UserType } from '@/types'
 
 interface CustomerFormData {
@@ -71,6 +71,7 @@ export default function CustomersPage() {
   const [expandedSaleId, setExpandedSaleId] = useState<number | null>(null)
   const [saleItems, setSaleItems] = useState<Record<number, SaleItem[]>>({})
   const [loadingSaleItems, setLoadingSaleItems] = useState<number | null>(null)
+  const [paymentAmountDisplay, setPaymentAmountDisplay] = useState('')
 
   const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<CustomerFormData>({
     defaultValues: { customer_type: 'REGULAR', credit_limit: 0 }
@@ -161,6 +162,7 @@ export default function CustomersPage() {
       const data = customerDebtHistory.data.map((record: DebtRecord, index: number) => ({
         '№': index + 1,
         'Sana': formatDateTashkent(record.created_at),
+        'Vaqt': formatTimeTashkent(record.created_at),
         'Turi': record.transaction_type === 'SALE' || record.transaction_type === 'DEBT_INCREASE' ? 'Xarid' : 
           record.transaction_type === 'PAYMENT' || record.transaction_type === 'DEBT_PAYMENT' ? "To'lov" : record.transaction_type,
         'Summa': Math.abs(record.amount),
@@ -181,19 +183,20 @@ export default function CustomersPage() {
         ['Telegram:', selectedCustomer.telegram_id || '-'],
         ['Kompaniya:', selectedCustomer.company_name || '-'],
         ['Joriy qarz:', formatMoney(selectedCustomer.current_debt)],
-        ['Hisobot sanasi:', formatDateTashkent(new Date())],
+        ['Hisobot sanasi:', formatDateTimeTashkent(new Date())],
         ['']
       ]
       
       const ws = XLSX.utils.aoa_to_sheet(headerData)
       
-      // Add data table starting from row 9
-      XLSX.utils.sheet_add_json(ws, data, { origin: 'A9' })
+      // Add data table starting from row 10
+      XLSX.utils.sheet_add_json(ws, data, { origin: 'A10' })
       
       // Set column widths
       ws['!cols'] = [
         { wch: 5 },   // №
         { wch: 12 },  // Sana
+        { wch: 8 },   // Vaqt
         { wch: 10 },  // Turi
         { wch: 18 },  // Summa
         { wch: 18 },  // Qarz oldin
@@ -213,19 +216,34 @@ export default function CustomersPage() {
     }
   }
 
-  // Export sales history to Excel (XLSX)
+  // Export sales history to Excel (XLSX) - with detailed items
   const exportSalesToExcel = async () => {
     if (!customerSales?.data || !selectedCustomer) return
     
     try {
       const XLSX = await import('xlsx')
       
-      // Prepare sales data
-      const salesData = customerSales.data.map((sale: Sale, index: number) => ({
+      // Fetch all sale details with items
+      const salesWithItems = await Promise.all(
+        customerSales.data.map(async (sale: Sale) => {
+          try {
+            const response = await api.get(`/sales/${sale.id}`)
+            return { ...sale, items: response.data.data.items || [] }
+          } catch {
+            return { ...sale, items: [] }
+          }
+        })
+      )
+      
+      const wb = XLSX.utils.book_new()
+      
+      // ===== SHEET 1: Summary =====
+      const summaryData = salesWithItems.map((sale: any, index: number) => ({
         '№': index + 1,
         'Sana': formatDateTashkent(sale.created_at),
+        'Vaqt': formatTimeTashkent(sale.created_at),
         'Chek raqami': sale.sale_number,
-        'Tovarlar soni': sale.items_count || '-',
+        'Tovarlar soni': sale.items?.length || sale.items_count || 0,
         'Umumiy summa': sale.total_amount,
         'To\'langan': sale.paid_amount,
         'Qarz': sale.debt_amount,
@@ -234,14 +252,10 @@ export default function CustomersPage() {
                  sale.payment_status === 'PARTIAL' ? 'Qisman' : sale.payment_status
       }))
       
-      // Calculate totals
       const totalAmount = customerSales.data.reduce((sum: number, s: Sale) => sum + Number(s.total_amount), 0)
       const totalPaid = customerSales.data.reduce((sum: number, s: Sale) => sum + Number(s.paid_amount), 0)
       const totalDebt = customerSales.data.reduce((sum: number, s: Sale) => sum + Number(s.debt_amount), 0)
       
-      const wb = XLSX.utils.book_new()
-      
-      // Header info
       const headerData = [
         ['MIJOZ SOTUVLAR TARIXI'],
         [''],
@@ -250,23 +264,22 @@ export default function CustomersPage() {
         ['Telegram:', selectedCustomer.telegram_id || '-'],
         ['Kompaniya:', selectedCustomer.company_name || '-'],
         ['Jami xaridlar:', customerSales.data.length + ' ta'],
-        ['Hisobot sanasi:', formatDateTashkent(new Date())],
+        ['Hisobot sanasi:', formatDateTimeTashkent(new Date())],
         ['']
       ]
       
-      const ws = XLSX.utils.aoa_to_sheet(headerData)
-      XLSX.utils.sheet_add_json(ws, salesData, { origin: 'A9' })
+      const ws1 = XLSX.utils.aoa_to_sheet(headerData)
+      XLSX.utils.sheet_add_json(ws1, summaryData, { origin: 'A10' })
       
-      // Add totals row
-      const lastRow = 9 + salesData.length + 1
-      XLSX.utils.sheet_add_aoa(ws, [
-        ['', '', '', 'JAMI:', totalAmount, totalPaid, totalDebt, '']
+      const lastRow = 10 + summaryData.length + 1
+      XLSX.utils.sheet_add_aoa(ws1, [
+        ['', '', '', '', 'JAMI:', totalAmount, totalPaid, totalDebt, '']
       ], { origin: `A${lastRow}` })
       
-      // Set column widths
-      ws['!cols'] = [
+      ws1['!cols'] = [
         { wch: 5 },   // №
         { wch: 12 },  // Sana
+        { wch: 8 },   // Vaqt
         { wch: 20 },  // Chek raqami
         { wch: 12 },  // Tovarlar soni
         { wch: 18 },  // Umumiy summa
@@ -274,8 +287,60 @@ export default function CustomersPage() {
         { wch: 18 },  // Qarz
         { wch: 12 },  // Holat
       ]
+      XLSX.utils.book_append_sheet(wb, ws1, 'Xulosa')
       
-      XLSX.utils.book_append_sheet(wb, ws, 'Sotuvlar tarixi')
+      // ===== SHEET 2: Detailed Items =====
+      const detailedItems: any[] = []
+      let itemNo = 1
+      
+      salesWithItems.forEach((sale: any) => {
+        if (sale.items && sale.items.length > 0) {
+          sale.items.forEach((item: any) => {
+            detailedItems.push({
+              '№': itemNo++,
+              'Sana': formatDateTashkent(sale.created_at),
+              'Vaqt': formatTimeTashkent(sale.created_at),
+              'Chek raqami': sale.sale_number,
+              'Tovar nomi': item.product_name || item.name || '-',
+              'Artikul': item.product_article || item.article || '-',
+              'Miqdor': item.quantity,
+              'O\'lchov': item.uom_symbol || item.uom || '-',
+              'Narx': item.unit_price || item.price || 0,
+              'Chegirma': item.discount || 0,
+              'Summa': item.total || (item.quantity * (item.unit_price || item.price || 0))
+            })
+          })
+        }
+      })
+      
+      const headerData2 = [
+        ['BATAFSIL TOVARLAR RO\'YXATI'],
+        [''],
+        ['Mijoz:', selectedCustomer.name],
+        ['Telefon:', selectedCustomer.phone],
+        ['Jami pozitsiyalar:', detailedItems.length + ' ta'],
+        ['Hisobot sanasi:', formatDateTimeTashkent(new Date())],
+        ['']
+      ]
+      
+      const ws2 = XLSX.utils.aoa_to_sheet(headerData2)
+      XLSX.utils.sheet_add_json(ws2, detailedItems, { origin: 'A8' })
+      
+      ws2['!cols'] = [
+        { wch: 5 },   // №
+        { wch: 12 },  // Sana
+        { wch: 8 },   // Vaqt
+        { wch: 18 },  // Chek raqami
+        { wch: 35 },  // Tovar nomi
+        { wch: 15 },  // Artikul
+        { wch: 10 },  // Miqdor
+        { wch: 8 },   // O'lchov
+        { wch: 15 },  // Narx
+        { wch: 12 },  // Chegirma
+        { wch: 15 },  // Summa
+      ]
+      XLSX.utils.book_append_sheet(wb, ws2, 'Batafsil')
+      
       XLSX.writeFile(wb, `${selectedCustomer.name.replace(/\s+/g, '_')}_sotuvlar_tarixi.xlsx`)
       toast.success('Excel fayl yuklab olindi')
     } catch (error) {
@@ -396,6 +461,7 @@ export default function CustomersPage() {
       queryClient.invalidateQueries({ queryKey: ['debtors-summary'] })
       queryClient.invalidateQueries({ queryKey: ['customer-payments'] })
       setShowPaymentDialog(false)
+      setPaymentAmountDisplay('')
       resetPayment()
     },
     onError: (error: any) => {
@@ -421,6 +487,7 @@ export default function CustomersPage() {
   const handlePayClick = (customer: Customer) => {
     setSelectedCustomer(customer)
     setPaymentValue('amount', customer.current_debt)
+    setPaymentAmountDisplay(formatInputNumber(customer.current_debt))
     setShowPaymentDialog(true)
   }
 
@@ -816,7 +883,13 @@ export default function CustomersPage() {
               <input
                 type="text"
                 inputMode="numeric"
-                {...registerPayment('amount', { required: true, valueAsNumber: true })}
+                value={paymentAmountDisplay}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\s/g, '')
+                  const num = parseFloat(raw) || 0
+                  setPaymentAmountDisplay(num > 0 ? formatInputNumber(num) : '')
+                  setPaymentValue('amount', num)
+                }}
                 placeholder="Summa kiriting"
                 className="w-full h-11 px-3 text-base font-bold text-center border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
               />
@@ -1017,6 +1090,9 @@ export default function CustomersPage() {
                                   <Calendar className="w-4 h-4 text-text-secondary" />
                                   {formatDateTashkent(sale.created_at)}
                                 </div>
+                                <div className="text-xs text-text-secondary ml-5">
+                                  {formatTimeTashkent(sale.created_at)}
+                                </div>
                               </td>
                               <td className="px-4 py-3 text-sm font-medium">{sale.sale_number}</td>
                               <td className="px-4 py-3 text-sm text-center">
@@ -1124,7 +1200,8 @@ export default function CustomersPage() {
                           return (
                             <tr key={record.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm">
-                                {formatDateTashkent(record.created_at)}
+                                <div>{formatDateTashkent(record.created_at)}</div>
+                                <div className="text-xs text-text-secondary">{formatTimeTashkent(record.created_at)}</div>
                               </td>
                               <td className="px-4 py-3 text-sm">
                                 <Badge variant={isPayment ? 'success' : isSale ? 'warning' : 'secondary'}>

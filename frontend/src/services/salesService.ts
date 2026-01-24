@@ -57,10 +57,11 @@ export const salesService = {
     await api.post(`/sales/${saleId}/cancel`, data)
   },
 
-  async getDailySummary(date?: string, warehouseId?: number): Promise<DailySummary> {
+  async getDailySummary(date?: string, warehouseId?: number, sellerId?: number): Promise<DailySummary> {
     const params: any = {}
     if (date) params.sale_date = date
     if (warehouseId) params.warehouse_id = warehouseId
+    if (sellerId) params.seller_id = sellerId
     const response = await api.get('/sales/daily-summary', { params })
     return response.data.data
   },

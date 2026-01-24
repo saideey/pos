@@ -16,24 +16,31 @@ import { formatMoney, formatNumber } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
 
 export default function Dashboard() {
-  const { user } = useAuthStore()
+  const { user, token } = useAuthStore()
+  const isDirector = user?.role_type === 'director'
+  
+  // For sellers, pass their ID to filter data
+  const sellerId = isDirector ? undefined : user?.id
 
-  // Fetch daily summary
+  // Fetch daily summary - only when authenticated
   const { data: dailySummary, isLoading: loadingSummary } = useQuery({
-    queryKey: ['daily-summary'],
-    queryFn: () => salesService.getDailySummary(),
+    queryKey: ['daily-summary', sellerId],
+    queryFn: () => salesService.getDailySummary(undefined, undefined, sellerId),
+    enabled: !!token,
   })
 
   // Fetch low stock products
   const { data: lowStock } = useQuery({
     queryKey: ['low-stock'],
     queryFn: () => warehouseService.getLowStock(),
+    enabled: !!token,
   })
 
-  // Fetch debtors
+  // Fetch debtors - filtered by seller for non-directors
   const { data: debtorsData } = useQuery({
-    queryKey: ['debtors'],
-    queryFn: () => customersService.getDebtors(),
+    queryKey: ['debtors', sellerId],
+    queryFn: () => customersService.getDebtors(undefined, sellerId),
+    enabled: !!token,
   })
 
   const stats = [
@@ -81,6 +88,7 @@ export default function Dashboard() {
               day: 'numeric',
               timeZone: 'Asia/Tashkent'
             })}
+            {!isDirector && <span className="ml-2 text-primary">• Sizning statistikangiz</span>}
           </p>
         </div>
         <Link to="/pos" className="w-full sm:w-auto">
@@ -158,7 +166,7 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between p-4 lg:p-6">
             <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
               <Users className="w-5 h-5 lg:w-6 lg:h-6 text-danger" />
-              Qarzdorlar
+              {isDirector ? 'Qarzdorlar' : 'Sizning qarzdorlaringiz'}
             </CardTitle>
             <Link to="/customers">
               <Button variant="ghost" size="sm" className="text-sm">

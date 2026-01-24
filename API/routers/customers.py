@@ -88,13 +88,14 @@ async def get_customers(
 )
 async def get_debtors(
     min_debt: Optional[Decimal] = None,
+    seller_id: Optional[int] = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Get all customers with debt."""
+    """Get all customers with debt. If seller_id is provided, returns only that seller's customers."""
     service = CustomerService(db)
-    debtors = service.get_debtors(min_debt)
-    total_debt = service.get_total_debt()
+    debtors = service.get_debtors(min_debt, manager_id=seller_id)
+    total_debt = service.get_total_debt(manager_id=seller_id)
     
     data = [{
         "id": c.id,

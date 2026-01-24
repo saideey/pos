@@ -389,7 +389,7 @@ class CustomerService:
         
         return records, total
     
-    def get_debtors(self, min_debt: Decimal = None) -> List[Customer]:
+    def get_debtors(self, min_debt: Decimal = None, manager_id: int = None) -> List[Customer]:
         """Get all customers with debt."""
         query = self.db.query(Customer).filter(
             Customer.is_deleted == False,
@@ -399,13 +399,21 @@ class CustomerService:
         if min_debt:
             query = query.filter(Customer.current_debt >= min_debt)
         
+        if manager_id:
+            query = query.filter(Customer.manager_id == manager_id)
+        
         return query.order_by(Customer.current_debt.desc()).all()
     
-    def get_total_debt(self) -> Decimal:
+    def get_total_debt(self, manager_id: int = None) -> Decimal:
         """Get total debt from all customers."""
-        result = self.db.query(func.sum(Customer.current_debt)).filter(
+        query = self.db.query(func.sum(Customer.current_debt)).filter(
             Customer.is_deleted == False
-        ).scalar()
+        )
+        
+        if manager_id:
+            query = query.filter(Customer.manager_id == manager_id)
+        
+        result = query.scalar()
         return result or Decimal("0")
     
     # VIP Customer methods

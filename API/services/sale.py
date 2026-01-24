@@ -491,7 +491,7 @@ class SaleService:
         self.db.commit()
         return True, "Sotuv bekor qilindi"
     
-    def get_daily_summary(self, sale_date: date, warehouse_id: int = None) -> dict:
+    def get_daily_summary(self, sale_date: date, warehouse_id: int = None, seller_id: int = None) -> dict:
         """Get daily sales summary."""
         query = self.db.query(Sale).filter(
             Sale.sale_date == sale_date,
@@ -500,6 +500,9 @@ class SaleService:
         
         if warehouse_id:
             query = query.filter(Sale.warehouse_id == warehouse_id)
+        
+        if seller_id:
+            query = query.filter(Sale.seller_id == seller_id)
         
         sales = query.all()
         
@@ -517,14 +520,21 @@ class SaleService:
         
         gross_profit = total_amount - total_cost
         
-        # Payment breakdown
-        payments = self.db.query(
+        # Payment breakdown - also filter by seller if specified
+        payment_query = self.db.query(
             Payment.payment_type,
             func.sum(Payment.amount)
         ).filter(
             Payment.payment_date == sale_date,
             Payment.is_cancelled == False
-        ).group_by(Payment.payment_type).all()
+        )
+        
+        if seller_id:
+            # Filter payments by sales that belong to this seller
+            sale_ids = [s.id for s in sales]
+            payment_query = payment_query.filter(Payment.sale_id.in_(sale_ids))
+        
+        payments = payment_query.group_by(Payment.payment_type).all()
         
         payment_breakdown = {pt.value: amount for pt, amount in payments}
         

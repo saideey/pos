@@ -116,6 +116,7 @@ async def get_sales(
 async def get_daily_summary(
     sale_date: Optional[date] = None,
     warehouse_id: Optional[int] = None,
+    seller_id: Optional[int] = None,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -125,7 +126,7 @@ async def get_daily_summary(
     if not sale_date:
         sale_date = date.today()
     
-    summary = service.get_daily_summary(sale_date, warehouse_id)
+    summary = service.get_daily_summary(sale_date, warehouse_id, seller_id)
     
     return {"success": True, "data": summary}
 

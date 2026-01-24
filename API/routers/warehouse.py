@@ -485,6 +485,7 @@ async def get_movement(
 async def update_movement(
     movement_id: int,
     quantity: Optional[Decimal] = None,
+    uom_id: Optional[int] = None,
     unit_price: Optional[Decimal] = None,
     unit_price_usd: Optional[Decimal] = None,
     exchange_rate: Optional[Decimal] = None,
@@ -498,7 +499,7 @@ async def update_movement(
     Edit stock movement. Only Director can do this.
     This will also update the stock quantity accordingly.
     """
-    from database.models import StockMovement, Stock
+    from database.models import StockMovement, Stock, ProductUOMConversion, UnitOfMeasure
     from datetime import datetime
     
     movement = db.query(StockMovement).filter(
@@ -521,29 +522,39 @@ async def update_movement(
     
     old_quantity = movement.base_quantity
     
-    # Update fields
-    if quantity is not None:
-        # Calculate new base quantity using ProductUOMConversion
-        from database.models import ProductUOMConversion
-        product_uom = db.query(ProductUOMConversion).filter(
-            ProductUOMConversion.product_id == movement.product_id,
-            ProductUOMConversion.uom_id == movement.uom_id
-        ).first()
-        
-        if product_uom:
-            new_base_quantity = quantity * Decimal(str(product_uom.conversion_factor))
-        else:
-            # If no conversion found, assume 1:1 (same as base UOM)
-            new_base_quantity = quantity
-        
-        # Update stock
-        if stock:
-            quantity_diff = new_base_quantity - old_quantity
-            stock.quantity = Decimal(str(stock.quantity)) + quantity_diff
-            movement.stock_after = stock.quantity
-        
-        movement.quantity = quantity
+    # Handle UOM change
+    target_uom_id = uom_id if uom_id is not None else movement.uom_id
+    target_quantity = quantity if quantity is not None else movement.quantity
+    
+    # Calculate new base quantity
+    product_uom = db.query(ProductUOMConversion).filter(
+        ProductUOMConversion.product_id == movement.product_id,
+        ProductUOMConversion.uom_id == target_uom_id
+    ).first()
+    
+    if product_uom:
+        new_base_quantity = target_quantity * Decimal(str(product_uom.conversion_factor))
+    else:
+        # If no conversion found, assume 1:1 (same as base UOM)
+        new_base_quantity = target_quantity
+    
+    # Update stock if quantity changed
+    if stock and (quantity is not None or uom_id is not None):
+        quantity_diff = new_base_quantity - old_quantity
+        stock.quantity = Decimal(str(stock.quantity)) + quantity_diff
+        movement.stock_after = stock.quantity
+    
+    # Update movement fields
+    if quantity is not None or uom_id is not None:
+        movement.quantity = target_quantity
         movement.base_quantity = new_base_quantity
+    
+    if uom_id is not None:
+        movement.uom_id = uom_id
+        # Get UOM symbol for response
+        uom = db.query(UnitOfMeasure).filter(UnitOfMeasure.id == uom_id).first()
+        if uom:
+            movement.uom_symbol = uom.symbol
     
     if unit_price is not None:
         movement.unit_cost = unit_price

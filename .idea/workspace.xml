@@ -7,22 +7,22 @@
     <list default="true" id="4410bd95-49ec-437f-95cf-eb7c109e8a00" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/database/base.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/database/base.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/routers/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/settings.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/routers/sms.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/sms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/database/connection.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/database/connection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/routers/customers.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/customers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/routers/sales.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/sales.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/API/routers/warehouse.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/warehouse.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/services/auth.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/auth.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/API/services/customer.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/customer.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/services/product.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/product.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/services/reports/excel_generator.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/reports/excel_generator.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/services/reports/pdf_generator.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/reports/pdf_generator.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/API/services/sale.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/sale.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/services/sms.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/sms.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/services/user.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/user.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/services/warehouse.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/warehouse.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/utils/helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/utils/helpers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/lib/utils.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/lib/utils.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/App.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/App.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Customers.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Customers.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Dashboard.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Warehouse.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Warehouse.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/services/customersService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/services/customersService.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/services/productsService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/services/productsService.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/services/salesService.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/services/salesService.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/stores/authStore.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/stores/authStore.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

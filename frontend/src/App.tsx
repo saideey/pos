@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { MainLayout } from '@/components/layout'
 import { useAuthStore } from '@/stores/authStore'
+import { Loader2 } from 'lucide-react'
 
 // Pages
 import LoginPage from '@/pages/Login'
@@ -16,7 +17,16 @@ import UsersPage from '@/pages/Users'
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore()
+  const { isAuthenticated, _hasHydrated } = useAuthStore()
+  
+  // Wait for hydration to complete
+  if (!_hasHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
+  }
   
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />

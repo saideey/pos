@@ -111,10 +111,11 @@ async def root():
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check endpoint for Docker/Kubernetes."""
+    from sqlalchemy import text
     try:
         # Test database connection
         with db.get_session() as session:
-            session.execute("SELECT 1")
+            session.execute(text("SELECT 1"))
         
         return {
             "status": "healthy",

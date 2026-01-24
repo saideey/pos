@@ -34,8 +34,11 @@ interface IncomeFormData {
 
 interface MovementEditData {
   id: number
+  product_id: number
   product_name: string
   quantity: number
+  uom_id: number
+  uom_symbol: string
   unit_price: number
   unit_price_usd: number | null
   document_number: string
@@ -68,6 +71,18 @@ export default function WarehousePage() {
   const [editingMovement, setEditingMovement] = useState<MovementEditData | null>(null)
   const [deletingMovement, setDeletingMovement] = useState<{id: number, name: string} | null>(null)
   const [deleteReason, setDeleteReason] = useState('')
+
+  // Fetch product UOMs for editing
+  const { data: productUomsData } = useQuery({
+    queryKey: ['product-uoms', editingMovement?.product_id],
+    queryFn: async () => {
+      if (!editingMovement?.product_id) return []
+      const response = await productsService.getProductUOMs(editingMovement.product_id)
+      return response
+    },
+    enabled: !!editingMovement?.product_id
+  })
+  const productUoms = Array.isArray(productUomsData) ? productUomsData : []
 
   const { register, control, handleSubmit, reset, watch } = useForm<IncomeFormData>({
     defaultValues: {
@@ -206,9 +221,10 @@ export default function WarehousePage() {
 
   // Edit movement mutation (Director only)
   const editMovement = useMutation({
-    mutationFn: async (data: { id: number, quantity?: number, unit_price?: number, unit_price_usd?: number, document_number?: string, supplier_name?: string, notes?: string }) => {
+    mutationFn: async (data: { id: number, quantity?: number, uom_id?: number, unit_price?: number, unit_price_usd?: number, document_number?: string, supplier_name?: string, notes?: string }) => {
       const params = new URLSearchParams()
       if (data.quantity !== undefined) params.append('quantity', data.quantity.toString())
+      if (data.uom_id !== undefined) params.append('uom_id', data.uom_id.toString())
       if (data.unit_price !== undefined) params.append('unit_price', data.unit_price.toString())
       if (data.unit_price_usd !== undefined) params.append('unit_price_usd', data.unit_price_usd.toString())
       if (data.document_number !== undefined) params.append('document_number', data.document_number)
@@ -630,8 +646,11 @@ export default function WarehousePage() {
                                   className="p-1 h-8 w-8"
                                   onClick={() => setEditingMovement({
                                     id: movement.id,
+                                    product_id: movement.product_id,
                                     product_name: movement.product_name,
                                     quantity: movement.quantity,
+                                    uom_id: movement.uom_id,
+                                    uom_symbol: movement.uom_symbol,
                                     unit_price: movement.unit_price,
                                     unit_price_usd: movement.unit_price_usd,
                                     document_number: movement.document_number || '',
@@ -857,14 +876,44 @@ export default function WarehousePage() {
 
           {editingMovement && (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="font-medium text-sm">Miqdor</label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={editingMovement.quantity}
-                  onChange={(e) => setEditingMovement({...editingMovement, quantity: parseFloat(e.target.value) || 0})}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="font-medium text-sm">Miqdor</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={editingMovement.quantity}
+                    onChange={(e) => setEditingMovement({...editingMovement, quantity: parseFloat(e.target.value) || 0})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="font-medium text-sm">O'lchov birligi</label>
+                  <select
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                    value={editingMovement.uom_id}
+                    onChange={(e) => {
+                      const availableUoms = productUoms.length > 0 ? productUoms : uoms
+                      const selectedUom = availableUoms.find((u: any) => u.uom_id === parseInt(e.target.value) || u.id === parseInt(e.target.value))
+                      setEditingMovement({
+                        ...editingMovement, 
+                        uom_id: parseInt(e.target.value),
+                        uom_symbol: selectedUom?.uom_symbol || selectedUom?.symbol || ''
+                      })
+                    }}
+                  >
+                    {productUoms.length > 0 ? (
+                      productUoms.map((uom: any) => (
+                        <option key={uom.uom_id} value={uom.uom_id}>
+                          {uom.uom_name} ({uom.uom_symbol}) - koef: {uom.conversion_factor}
+                        </option>
+                      ))
+                    ) : (
+                      uoms.map((uom: any) => (
+                        <option key={uom.id} value={uom.id}>{uom.name} ({uom.symbol})</option>
+                      ))
+                    )}
+                  </select>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
@@ -931,6 +980,7 @@ export default function WarehousePage() {
               onClick={() => editingMovement && editMovement.mutate({
                 id: editingMovement.id,
                 quantity: editingMovement.quantity,
+                uom_id: editingMovement.uom_id,
                 unit_price: editingMovement.unit_price,
                 unit_price_usd: editingMovement.unit_price_usd || undefined,
                 document_number: editingMovement.document_number,

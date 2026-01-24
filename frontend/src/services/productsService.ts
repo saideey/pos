@@ -67,4 +67,11 @@ export const productsService = {
     const result = response.data?.data || response.data || []
     return Array.isArray(result) ? result : []
   },
+
+  // Get product-specific UOM conversions
+  async getProductUOMs(productId: number): Promise<any[]> {
+    const response = await api.get(`/products/${productId}/uom-conversions`)
+    const result = response.data?.data || response.data || []
+    return Array.isArray(result) ? result : []
+  },
 }

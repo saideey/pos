@@ -35,9 +35,10 @@ export const customersService = {
     await api.delete(`/customers/${id}`)
   },
 
-  async getDebtors(minDebt?: number): Promise<{ data: Customer[]; total_debt: number }> {
+  async getDebtors(minDebt?: number, sellerId?: number): Promise<{ data: Customer[]; total_debt: number }> {
     const params: any = {}
     if (minDebt) params.min_debt = minDebt
+    if (sellerId) params.seller_id = sellerId
     const response = await api.get('/customers/debtors', { params })
     return response.data
   },
