@@ -9,12 +9,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     PIP_ROOT_USER_ACTION=ignore
 
-# Install system dependencies
+# Install system dependencies including PostgreSQL client
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
     curl \
     tzdata \
+    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
 # Set timezone
@@ -32,6 +33,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+# Make startup script executable
+RUN chmod +x /app/scripts/start.sh
+
 # Create uploads directory
 RUN mkdir -p /app/uploads
 
@@ -39,8 +43,8 @@ RUN mkdir -p /app/uploads
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run migrations and start the application
-CMD ["sh", "-c", "alembic upgrade head && python -c 'from database.seed import seed_all; from database import db; seed_all(db.get_session_direct())' && uvicorn app:app --host 0.0.0.0 --port 8000 --reload"]
+# Run startup script
+CMD ["/app/scripts/start.sh"]

@@ -103,6 +103,52 @@ docker-compose up -d
 docker-compose --profile dev up -d
 ```
 
+## 🔧 Muammolarni hal qilish (Troubleshooting)
+
+### Database "password authentication failed" xatosi
+
+Agar `password authentication failed for user "postgres"` xatosi chiqsa:
+
+#### 1-usul: fix_db_password.sh skriptini ishlatish
+```bash
+chmod +x fix_db_password.sh
+./fix_db_password.sh
+```
+
+#### 2-usul: Qo'lda tuzatish
+```bash
+# 1. PostgreSQL parolini yangilash
+docker exec -it metall_basa_db psql -U postgres -c "ALTER USER postgres WITH PASSWORD 'postgres';"
+
+# 2. API ni qayta ishga tushirish
+docker restart metall_basa_api
+```
+
+#### 3-usul: Ma'lumotlarni o'chirmasdan to'liq reset
+```bash
+docker-compose down
+docker-compose build --no-cache api
+docker-compose up -d
+```
+
+#### 4-usul: To'liq reset (⚠️ Ma'lumotlar o'chadi!)
+```bash
+docker-compose down -v
+docker-compose up -d
+```
+
+### Health check
+```bash
+curl http://localhost:8000/health
+# Javob: {"status": "healthy", "database": "connected"}
+```
+
+### Loglarni ko'rish
+```bash
+docker logs -f metall_basa_api
+docker logs -f metall_basa_db
+```
+
 ## 📁 Loyiha strukturasi
 
 ```
