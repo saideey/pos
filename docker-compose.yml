@@ -46,6 +46,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       DEBUG: ${DEBUG:-false}
       SQL_ECHO: ${SQL_ECHO:-false}
+      USE_NULL_POOL: "true"
       TELEGRAM_BOT_URL: http://telegram_bot:8081
       TZ: Asia/Tashkent
     ports:
