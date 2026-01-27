@@ -5,7 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4410bd95-49ec-437f-95cf-eb7c109e8a00" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/db/Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/db/docker-entrypoint-wrapper.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/db/sync-password.sh" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/index.html" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/public/favicon.svg" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/public/favicon.svg" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/public/logo.png" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/public/logo.png" afterDir="false" />
@@ -55,15 +59,15 @@
     "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "main",
     "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "C:/Users/i.saidov/PycharmProjects/metall_basa/frontend/public",
+    "last_opened_file_path": "C:/Users/i.saidov/PycharmProjects/metall_basa",
     "settings.editor.selected.configurable": "preferences.pluginManager",
     "to.speed.mode.migration.done": "true"
   }
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa\frontend\public" />
       <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa" />
+      <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa\frontend\public" />
       <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa\api" />
     </key>
   </component>

@@ -1,6 +1,9 @@
 services:
   db:
-    image: postgres:15-alpine
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+    image: metall_basa_db:latest
     container_name: metall_basa_db
     restart: unless-stopped
     environment:
