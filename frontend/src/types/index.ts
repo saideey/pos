@@ -14,6 +14,7 @@ export interface User {
   max_discount_percent: number
   assigned_warehouse_id?: number
   assigned_warehouse_name?: string
+  language?: string  // uz, ru, uz_cyrl
 }
 
 export interface Role {

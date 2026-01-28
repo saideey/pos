@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { 
   Search, Plus, Phone, CreditCard, User, Banknote, Calendar,
-  ShoppingCart, Eye, Loader2, Building, Mail, MapPin, ChevronDown, ChevronRight, Download, Package, Edit, Trash2, AlertTriangle, Users
+  ShoppingCart, Eye, Loader2, Building, Mail, MapPin, ChevronDown, ChevronRight, Download, Package, Edit, Trash2, AlertTriangle, Users, FileSpreadsheet
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { 
@@ -13,6 +13,7 @@ import {
 import { customersService } from '@/services'
 import api from '@/services/api'
 import { formatMoney, formatPhone, formatInputNumber, cn, formatDateTashkent, formatTimeTashkent, formatDateTimeTashkent } from '@/lib/utils'
+import { useLanguage } from '@/contexts/LanguageContext'
 import type { Customer, Sale, User as UserType } from '@/types'
 
 interface CustomerFormData {
@@ -57,6 +58,7 @@ interface DebtRecord {
 
 export default function CustomersPage() {
   const queryClient = useQueryClient()
+  const { t } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<string>('')
   const [filterSellerId, setFilterSellerId] = useState<number | ''>('')
@@ -150,202 +152,487 @@ export default function CustomersPage() {
     }
   }
 
-  // Export debt history to Excel (XLSX)
-  const exportPaymentsToExcel = async () => {
-    if (!customerDebtHistory?.data || !selectedCustomer) return
+  // Export ALL customer data to single professional Excel file
+  const exportCustomerDataToExcel = async () => {
+    if (!selectedCustomer) return
     
     try {
-      // Dynamically import xlsx library
-      const XLSX = await import('xlsx')
+      toast.loading('Hisobot tayyorlanmoqda...')
       
-      // Prepare data
-      const data = customerDebtHistory.data.map((record: DebtRecord, index: number) => ({
-        '№': index + 1,
-        'Sana': formatDateTashkent(record.created_at),
-        'Vaqt': formatTimeTashkent(record.created_at),
-        'Turi': record.transaction_type === 'SALE' || record.transaction_type === 'DEBT_INCREASE' ? 'Xarid' : 
-          record.transaction_type === 'PAYMENT' || record.transaction_type === 'DEBT_PAYMENT' ? "To'lov" : record.transaction_type,
-        'Summa': Math.abs(record.amount),
-        'Qarz oldin': record.balance_before,
-        'Qarz keyin': record.balance_after,
-        'Izoh': record.description || ''
-      }))
+      // Dynamic imports
+      const ExcelJS = await import('exceljs')
+      const { saveAs } = await import('file-saver')
       
-      // Create workbook and worksheet
-      const wb = XLSX.utils.book_new()
+      // Use already fetched data or fetch if not available
+      let salesData = customerSales?.data || []
+      let debtData = customerDebtHistory?.data || []
       
-      // Add header info
-      const headerData = [
-        ['MIJOZ QARZ VA TO\'LOVLAR TARIXI'],
-        [''],
-        ['Mijoz:', selectedCustomer.name],
-        ['Telefon:', selectedCustomer.phone],
-        ['Telegram:', selectedCustomer.telegram_id || '-'],
-        ['Kompaniya:', selectedCustomer.company_name || '-'],
-        ['Joriy qarz:', formatMoney(selectedCustomer.current_debt)],
-        ['Hisobot sanasi:', formatDateTimeTashkent(new Date())],
-        ['']
-      ]
+      // If data not available, fetch it
+      if (salesData.length === 0) {
+        try {
+          const res = await api.get(`/customers/${selectedCustomer.id}/sales`)
+          salesData = res.data?.data || []
+        } catch (e) {
+          console.log('Sales fetch failed', e)
+        }
+      }
       
-      const ws = XLSX.utils.aoa_to_sheet(headerData)
+      if (debtData.length === 0) {
+        try {
+          const res = await api.get(`/customers/${selectedCustomer.id}/debt-history`)
+          debtData = res.data?.data || []
+        } catch (e) {
+          console.log('Debt fetch failed', e)
+        }
+      }
       
-      // Add data table starting from row 10
-      XLSX.utils.sheet_add_json(ws, data, { origin: 'A10' })
-      
-      // Set column widths
-      ws['!cols'] = [
-        { wch: 5 },   // №
-        { wch: 12 },  // Sana
-        { wch: 8 },   // Vaqt
-        { wch: 10 },  // Turi
-        { wch: 18 },  // Summa
-        { wch: 18 },  // Qarz oldin
-        { wch: 18 },  // Qarz keyin
-        { wch: 35 },  // Izoh
-      ]
-      
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(wb, ws, 'Qarz tarixi')
-      
-      // Download
-      XLSX.writeFile(wb, `${selectedCustomer.name.replace(/\s+/g, '_')}_qarz_tarixi.xlsx`)
-      toast.success('Excel fayl yuklab olindi')
-    } catch (error) {
-      toast.error('Xatolik yuz berdi')
-      console.error(error)
-    }
-  }
-
-  // Export sales history to Excel (XLSX) - with detailed items
-  const exportSalesToExcel = async () => {
-    if (!customerSales?.data || !selectedCustomer) return
-    
-    try {
-      const XLSX = await import('xlsx')
-      
-      // Fetch all sale details with items
+      // Fetch detailed items for each sale
       const salesWithItems = await Promise.all(
-        customerSales.data.map(async (sale: Sale) => {
+        salesData.map(async (sale: any) => {
           try {
             const response = await api.get(`/sales/${sale.id}`)
-            return { ...sale, items: response.data.data.items || [] }
+            return { ...sale, items: response.data?.data?.items || response.data?.items || [] }
           } catch {
             return { ...sale, items: [] }
           }
         })
       )
       
-      const wb = XLSX.utils.book_new()
+      // Create workbook
+      const workbook = new ExcelJS.Workbook()
+      workbook.creator = 'Inter Profnastil ERP'
+      workbook.created = new Date()
       
-      // ===== SHEET 1: Summary =====
-      const summaryData = salesWithItems.map((sale: any, index: number) => ({
-        '№': index + 1,
-        'Sana': formatDateTashkent(sale.created_at),
-        'Vaqt': formatTimeTashkent(sale.created_at),
-        'Chek raqami': sale.sale_number,
-        'Tovarlar soni': sale.items?.length || sale.items_count || 0,
-        'Umumiy summa': sale.total_amount,
-        'To\'langan': sale.paid_amount,
-        'Qarz': sale.debt_amount,
-        'Holat': sale.payment_status === 'PAID' ? 'To\'langan' :
-                 sale.payment_status === 'DEBT' ? 'Qarzga' :
-                 sale.payment_status === 'PARTIAL' ? 'Qisman' : sale.payment_status
-      }))
-      
-      const totalAmount = customerSales.data.reduce((sum: number, s: Sale) => sum + Number(s.total_amount), 0)
-      const totalPaid = customerSales.data.reduce((sum: number, s: Sale) => sum + Number(s.paid_amount), 0)
-      const totalDebt = customerSales.data.reduce((sum: number, s: Sale) => sum + Number(s.debt_amount), 0)
-      
-      const headerData = [
-        ['MIJOZ SOTUVLAR TARIXI'],
-        [''],
-        ['Mijoz:', selectedCustomer.name],
-        ['Telefon:', selectedCustomer.phone],
-        ['Telegram:', selectedCustomer.telegram_id || '-'],
-        ['Kompaniya:', selectedCustomer.company_name || '-'],
-        ['Jami xaridlar:', customerSales.data.length + ' ta'],
-        ['Hisobot sanasi:', formatDateTimeTashkent(new Date())],
-        ['']
-      ]
-      
-      const ws1 = XLSX.utils.aoa_to_sheet(headerData)
-      XLSX.utils.sheet_add_json(ws1, summaryData, { origin: 'A10' })
-      
-      const lastRow = 10 + summaryData.length + 1
-      XLSX.utils.sheet_add_aoa(ws1, [
-        ['', '', '', '', 'JAMI:', totalAmount, totalPaid, totalDebt, '']
-      ], { origin: `A${lastRow}` })
-      
-      ws1['!cols'] = [
-        { wch: 5 },   // №
-        { wch: 12 },  // Sana
-        { wch: 8 },   // Vaqt
-        { wch: 20 },  // Chek raqami
-        { wch: 12 },  // Tovarlar soni
-        { wch: 18 },  // Umumiy summa
-        { wch: 18 },  // To'langan
-        { wch: 18 },  // Qarz
-        { wch: 12 },  // Holat
-      ]
-      XLSX.utils.book_append_sheet(wb, ws1, 'Xulosa')
-      
-      // ===== SHEET 2: Detailed Items =====
-      const detailedItems: any[] = []
-      let itemNo = 1
-      
-      salesWithItems.forEach((sale: any) => {
-        if (sale.items && sale.items.length > 0) {
-          sale.items.forEach((item: any) => {
-            detailedItems.push({
-              '№': itemNo++,
-              'Sana': formatDateTashkent(sale.created_at),
-              'Vaqt': formatTimeTashkent(sale.created_at),
-              'Chek raqami': sale.sale_number,
-              'Tovar nomi': item.product_name || item.name || '-',
-              'Artikul': item.product_article || item.article || '-',
-              'Miqdor': item.quantity,
-              'O\'lchov': item.uom_symbol || item.uom || '-',
-              'Narx': item.unit_price || item.price || 0,
-              'Chegirma': item.discount || 0,
-              'Summa': item.total || (item.quantity * (item.unit_price || item.price || 0))
-            })
-          })
-        }
+      const ws = workbook.addWorksheet('Mijoz hisoboti', {
+        pageSetup: { paperSize: 9, orientation: 'landscape' }
       })
       
-      const headerData2 = [
-        ['BATAFSIL TOVARLAR RO\'YXATI'],
-        [''],
-        ['Mijoz:', selectedCustomer.name],
-        ['Telefon:', selectedCustomer.phone],
-        ['Jami pozitsiyalar:', detailedItems.length + ' ta'],
-        ['Hisobot sanasi:', formatDateTimeTashkent(new Date())],
-        ['']
+      // Define colors
+      const colors = {
+        header: '1F4E79',      // Dark blue
+        subHeader: '2E75B6',   // Medium blue
+        tableHeader: '4472C4', // Light blue
+        success: '70AD47',     // Green
+        danger: 'C00000',      // Red
+        warning: 'FFC000',     // Yellow/Orange
+        lightBlue: 'D6DCE4',   // Light gray-blue
+        lightGreen: 'E2EFDA',  // Light green
+        lightRed: 'FCE4D6',    // Light red/peach
+        white: 'FFFFFF',
+        black: '000000',
+        gray: '808080'
+      }
+      
+      // Helper function for border style
+      const thinBorder = {
+        top: { style: 'thin' as const, color: { argb: 'FF000000' } },
+        left: { style: 'thin' as const, color: { argb: 'FF000000' } },
+        bottom: { style: 'thin' as const, color: { argb: 'FF000000' } },
+        right: { style: 'thin' as const, color: { argb: 'FF000000' } }
+      }
+      
+      let currentRow = 1
+      
+      // ═══════════════════════════════════════════════════════════════
+      // SECTION 1: HEADER - Company and Report Title
+      // ═══════════════════════════════════════════════════════════════
+      ws.mergeCells(`A${currentRow}:K${currentRow}`)
+      const titleCell = ws.getCell(`A${currentRow}`)
+      titleCell.value = '🏢 INTER PROFNASTIL - MIJOZ HISOBOTI'
+      titleCell.font = { bold: true, size: 18, color: { argb: 'FF' + colors.white } }
+      titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.header } }
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+      ws.getRow(currentRow).height = 35
+      currentRow += 2
+      
+      // ═══════════════════════════════════════════════════════════════
+      // SECTION 2: CUSTOMER INFO
+      // ═══════════════════════════════════════════════════════════════
+      ws.mergeCells(`A${currentRow}:E${currentRow}`)
+      const custHeader = ws.getCell(`A${currentRow}`)
+      custHeader.value = '👤 MIJOZ MA\'LUMOTLARI'
+      custHeader.font = { bold: true, size: 12, color: { argb: 'FF' + colors.white } }
+      custHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.subHeader } }
+      custHeader.alignment = { horizontal: 'center' }
+      
+      ws.mergeCells(`F${currentRow}:K${currentRow}`)
+      const statsHeader = ws.getCell(`F${currentRow}`)
+      statsHeader.value = '📊 MOLIYAVIY STATISTIKA'
+      statsHeader.font = { bold: true, size: 12, color: { argb: 'FF' + colors.white } }
+      statsHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.success } }
+      statsHeader.alignment = { horizontal: 'center' }
+      currentRow++
+      
+      // Calculate statistics
+      const totalSalesCount = salesData.length
+      const totalAmount = salesData.reduce((sum: number, s: any) => sum + Number(s.total_amount || 0), 0)
+      const totalPaid = salesData.reduce((sum: number, s: any) => sum + Number(s.paid_amount || 0), 0)
+      const totalDebtFromSales = salesData.reduce((sum: number, s: any) => sum + Number(s.debt_amount || 0), 0)
+      const totalPayments = debtData
+        .filter((r: any) => r.transaction_type === 'PAYMENT' || r.transaction_type === 'DEBT_PAYMENT')
+        .reduce((sum: number, r: any) => sum + Math.abs(Number(r.amount || 0)), 0)
+      const totalItemsCount = salesWithItems.reduce((sum: number, s: any) => sum + (s.items?.length || 0), 0)
+      
+      // Customer info rows
+      const customerInfo = [
+        ['Mijoz ismi:', selectedCustomer.name, '', '', '', 'Jami xaridlar:', `${totalSalesCount} ta`],
+        ['Telefon:', selectedCustomer.phone, '', '', '', 'Jami summa:', formatMoney(totalAmount)],
+        ['Telegram:', selectedCustomer.telegram_id || '-', '', '', '', 'To\'langan:', formatMoney(totalPaid)],
+        ['Kompaniya:', selectedCustomer.company_name || '-', '', '', '', 'Qarz (sotuvlardan):', formatMoney(totalDebtFromSales)],
+        ['Manzil:', selectedCustomer.address || '-', '', '', '', 'To\'lovlar (alohida):', formatMoney(totalPayments)],
+        ['Mijoz turi:', selectedCustomer.customer_type === 'VIP' ? '⭐ VIP Mijoz' : 'Oddiy mijoz', '', '', '', 'Sotib olingan tovarlar:', `${totalItemsCount} ta`],
       ]
       
-      const ws2 = XLSX.utils.aoa_to_sheet(headerData2)
-      XLSX.utils.sheet_add_json(ws2, detailedItems, { origin: 'A8' })
+      customerInfo.forEach((row) => {
+        const r = ws.addRow(row)
+        r.getCell(1).font = { bold: true, color: { argb: 'FF' + colors.subHeader } }
+        r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightBlue } }
+        r.getCell(2).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.white } }
+        r.getCell(6).font = { bold: true, color: { argb: 'FF' + colors.success } }
+        r.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightGreen } }
+        r.getCell(7).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.white } }
+        r.getCell(7).alignment = { horizontal: 'right' }
+        currentRow++
+      })
       
-      ws2['!cols'] = [
-        { wch: 5 },   // №
-        { wch: 12 },  // Sana
-        { wch: 8 },   // Vaqt
-        { wch: 18 },  // Chek raqami
-        { wch: 35 },  // Tovar nomi
-        { wch: 15 },  // Artikul
-        { wch: 10 },  // Miqdor
-        { wch: 8 },   // O'lchov
-        { wch: 15 },  // Narx
-        { wch: 12 },  // Chegirma
-        { wch: 15 },  // Summa
+      // Current debt highlight
+      currentRow++
+      ws.mergeCells(`A${currentRow}:C${currentRow}`)
+      const debtLabelCell = ws.getCell(`A${currentRow}`)
+      debtLabelCell.value = '💰 JORIY QARZ:'
+      debtLabelCell.font = { bold: true, size: 14, color: { argb: 'FF' + colors.white } }
+      debtLabelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (selectedCustomer.current_debt > 0 ? colors.danger : colors.success) } }
+      debtLabelCell.alignment = { horizontal: 'center', vertical: 'middle' }
+      
+      ws.mergeCells(`D${currentRow}:F${currentRow}`)
+      const debtValueCell = ws.getCell(`D${currentRow}`)
+      debtValueCell.value = formatMoney(selectedCustomer.current_debt)
+      debtValueCell.font = { bold: true, size: 14, color: { argb: 'FF' + (selectedCustomer.current_debt > 0 ? colors.danger : colors.success) } }
+      debtValueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + (selectedCustomer.current_debt > 0 ? colors.lightRed : colors.lightGreen) } }
+      debtValueCell.alignment = { horizontal: 'center', vertical: 'middle' }
+      
+      ws.mergeCells(`G${currentRow}:K${currentRow}`)
+      const dateCell = ws.getCell(`G${currentRow}`)
+      dateCell.value = `📅 Hisobot sanasi: ${formatDateTimeTashkent(new Date())}`
+      dateCell.font = { italic: true, color: { argb: 'FF' + colors.gray } }
+      dateCell.alignment = { horizontal: 'right' }
+      
+      ws.getRow(currentRow).height = 25
+      currentRow += 2
+      
+      // ═══════════════════════════════════════════════════════════════
+      // SECTION 3: SALES HISTORY TABLE
+      // ═══════════════════════════════════════════════════════════════
+      ws.mergeCells(`A${currentRow}:K${currentRow}`)
+      const salesTitle = ws.getCell(`A${currentRow}`)
+      salesTitle.value = `🛒 SOTUVLAR TARIXI (${totalSalesCount} ta xarid)`
+      salesTitle.font = { bold: true, size: 12, color: { argb: 'FF' + colors.white } }
+      salesTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.tableHeader } }
+      salesTitle.alignment = { horizontal: 'center' }
+      ws.getRow(currentRow).height = 22
+      currentRow++
+      
+      // Sales table header
+      const salesHeaders = ['№', 'Sana', 'Vaqt', 'Chek raqami', 'Tovarlar soni', 'Umumiy summa', 'To\'langan', 'Qarz', 'Holat', '', '']
+      const salesHeaderRow = ws.addRow(salesHeaders)
+      salesHeaderRow.eachCell((cell, colNumber) => {
+        if (colNumber <= 9) {
+          cell.font = { bold: true, color: { argb: 'FF' + colors.white } }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.subHeader } }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+          cell.border = thinBorder
+        }
+      })
+      ws.getRow(currentRow).height = 20
+      currentRow++
+      
+      // Sales data rows
+      if (salesWithItems.length > 0) {
+        salesWithItems.forEach((sale: any, index: number) => {
+          const status = sale.payment_status === 'PAID' ? '✅ To\'langan' :
+                        sale.payment_status === 'DEBT' ? '❌ Qarzga' :
+                        sale.payment_status === 'PARTIAL' ? '⚠️ Qisman' : sale.payment_status
+          
+          const rowData = [
+            index + 1,
+            formatDateTashkent(sale.created_at),
+            formatTimeTashkent(sale.created_at),
+            sale.sale_number || '-',
+            `${sale.items?.length || sale.items_count || 0} ta`,
+            Number(sale.total_amount || 0),
+            Number(sale.paid_amount || 0),
+            Number(sale.debt_amount || 0),
+            status,
+            '',
+            ''
+          ]
+          
+          const dataRow = ws.addRow(rowData)
+          dataRow.eachCell((cell, colNumber) => {
+            if (colNumber <= 9) {
+              cell.border = thinBorder
+              cell.alignment = { horizontal: colNumber <= 5 ? 'center' : 'right', vertical: 'middle' }
+              
+              // Alternate row colors
+              if (index % 2 === 0) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightBlue } }
+              }
+              
+              // Format numbers
+              if (colNumber >= 6 && colNumber <= 8) {
+                cell.numFmt = '#,##0'
+              }
+              
+              // Color status
+              if (colNumber === 9) {
+                cell.alignment = { horizontal: 'center' }
+                if (sale.payment_status === 'PAID') {
+                  cell.font = { color: { argb: 'FF' + colors.success } }
+                } else if (sale.payment_status === 'DEBT') {
+                  cell.font = { color: { argb: 'FF' + colors.danger } }
+                } else {
+                  cell.font = { color: { argb: 'FF' + colors.warning } }
+                }
+              }
+            }
+          })
+          currentRow++
+        })
+        
+        // Sales totals row
+        const salesTotalRow = ws.addRow(['', '', '', '', 'JAMI:', totalAmount, totalPaid, totalDebtFromSales, '', '', ''])
+        salesTotalRow.eachCell((cell, colNumber) => {
+          if (colNumber >= 5 && colNumber <= 8) {
+            cell.font = { bold: true }
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.warning } }
+            cell.border = thinBorder
+            if (colNumber >= 6) {
+              cell.numFmt = '#,##0'
+              cell.alignment = { horizontal: 'right' }
+            }
+          }
+        })
+        currentRow++
+      } else {
+        const noDataRow = ws.addRow(['', '', '', '', 'Ma\'lumot yo\'q', '', '', '', '', '', ''])
+        noDataRow.getCell(5).font = { italic: true, color: { argb: 'FF' + colors.gray } }
+        currentRow++
+      }
+      
+      currentRow++
+      
+      // ═══════════════════════════════════════════════════════════════
+      // SECTION 4: DETAILED ITEMS TABLE
+      // ═══════════════════════════════════════════════════════════════
+      ws.mergeCells(`A${currentRow}:K${currentRow}`)
+      const itemsTitle = ws.getCell(`A${currentRow}`)
+      itemsTitle.value = `📦 SOTIB OLINGAN TOVARLAR BATAFSIL (${totalItemsCount} ta tovar)`
+      itemsTitle.font = { bold: true, size: 12, color: { argb: 'FF' + colors.white } }
+      itemsTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.success } }
+      itemsTitle.alignment = { horizontal: 'center' }
+      ws.getRow(currentRow).height = 22
+      currentRow++
+      
+      // Items table header
+      const itemsHeaders = ['№', 'Sana', 'Chek №', 'Tovar nomi', 'Artikul', 'Miqdor', 'O\'lchov', 'Narx', 'Chegirma', 'Summa', '']
+      const itemsHeaderRow = ws.addRow(itemsHeaders)
+      itemsHeaderRow.eachCell((cell, colNumber) => {
+        if (colNumber <= 10) {
+          cell.font = { bold: true, color: { argb: 'FF' + colors.white } }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF70AD47' } }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+          cell.border = thinBorder
+        }
+      })
+      ws.getRow(currentRow).height = 20
+      currentRow++
+      
+      // Items data
+      let itemNo = 0
+      let totalItemsSum = 0
+      
+      if (salesWithItems.length > 0) {
+        salesWithItems.forEach((sale: any) => {
+          if (sale.items && sale.items.length > 0) {
+            sale.items.forEach((item: any) => {
+              itemNo++
+              const itemSum = Number(item.total || item.total_price || (item.quantity * (item.unit_price || item.price || 0)) || 0)
+              totalItemsSum += itemSum
+              
+              const itemRowData = [
+                itemNo,
+                formatDateTashkent(sale.created_at),
+                sale.sale_number || '-',
+                item.product_name || item.name || '-',
+                item.product_article || item.article || '-',
+                Number(item.quantity || 0),
+                item.uom_symbol || item.uom || '-',
+                Number(item.unit_price || item.price || 0),
+                Number(item.discount || 0),
+                itemSum,
+                ''
+              ]
+              
+              const itemRow = ws.addRow(itemRowData)
+              itemRow.eachCell((cell, colNumber) => {
+                if (colNumber <= 10) {
+                  cell.border = thinBorder
+                  cell.alignment = { horizontal: colNumber <= 5 ? 'left' : (colNumber <= 7 ? 'center' : 'right'), vertical: 'middle' }
+                  
+                  if (itemNo % 2 === 0) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightGreen } }
+                  }
+                  
+                  if (colNumber >= 6 && colNumber !== 7) {
+                    cell.numFmt = '#,##0'
+                  }
+                }
+              })
+              currentRow++
+            })
+          }
+        })
+        
+        // Items total row
+        if (totalItemsCount > 0) {
+          const itemsTotalRow = ws.addRow(['', '', '', '', '', '', '', '', 'JAMI:', totalItemsSum, ''])
+          itemsTotalRow.eachCell((cell, colNumber) => {
+            if (colNumber >= 9 && colNumber <= 10) {
+              cell.font = { bold: true }
+              cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.success } }
+              cell.border = thinBorder
+              if (colNumber === 10) {
+                cell.numFmt = '#,##0'
+                cell.alignment = { horizontal: 'right' }
+              }
+            }
+          })
+          currentRow++
+        }
+      } else {
+        const noItemsRow = ws.addRow(['', '', '', 'Tovarlar ma\'lumoti yo\'q', '', '', '', '', '', '', ''])
+        noItemsRow.getCell(4).font = { italic: true, color: { argb: 'FF' + colors.gray } }
+        currentRow++
+      }
+      
+      currentRow++
+      
+      // ═══════════════════════════════════════════════════════════════
+      // SECTION 5: DEBT & PAYMENTS HISTORY
+      // ═══════════════════════════════════════════════════════════════
+      ws.mergeCells(`A${currentRow}:K${currentRow}`)
+      const debtTitle = ws.getCell(`A${currentRow}`)
+      debtTitle.value = `💳 QARZ VA TO'LOVLAR TARIXI (${debtData.length} ta yozuv)`
+      debtTitle.font = { bold: true, size: 12, color: { argb: 'FF' + colors.white } }
+      debtTitle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.danger } }
+      debtTitle.alignment = { horizontal: 'center' }
+      ws.getRow(currentRow).height = 22
+      currentRow++
+      
+      // Debt table header
+      const debtHeaders = ['№', 'Sana', 'Vaqt', 'Turi', 'Summa', 'Qarz oldin', 'Qarz keyin', 'O\'zgarish', '', 'Izoh', '']
+      const debtHeaderRow = ws.addRow(debtHeaders)
+      debtHeaderRow.eachCell((cell, colNumber) => {
+        if (colNumber <= 8 || colNumber === 10) {
+          cell.font = { bold: true, color: { argb: 'FF' + colors.white } }
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC00000' } }
+          cell.alignment = { horizontal: 'center', vertical: 'middle' }
+          cell.border = thinBorder
+        }
+      })
+      ws.getRow(currentRow).height = 20
+      currentRow++
+      
+      // Debt data
+      if (debtData.length > 0) {
+        debtData.forEach((record: any, index: number) => {
+          const isPayment = record.transaction_type === 'PAYMENT' || record.transaction_type === 'DEBT_PAYMENT'
+          const typeLabel = isPayment ? '💰 To\'lov' : '📦 Xarid'
+          const change = Number(record.balance_after || 0) - Number(record.balance_before || 0)
+          
+          const debtRowData = [
+            index + 1,
+            formatDateTashkent(record.created_at),
+            formatTimeTashkent(record.created_at),
+            typeLabel,
+            Math.abs(Number(record.amount || 0)),
+            Number(record.balance_before || 0),
+            Number(record.balance_after || 0),
+            change,
+            '',
+            record.description || '-',
+            ''
+          ]
+          
+          const debtRow = ws.addRow(debtRowData)
+          debtRow.eachCell((cell, colNumber) => {
+            if (colNumber <= 8 || colNumber === 10) {
+              cell.border = thinBorder
+              cell.alignment = { horizontal: colNumber <= 4 || colNumber === 10 ? 'left' : 'right', vertical: 'middle' }
+              
+              // Alternate colors based on type
+              if (isPayment) {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightGreen } }
+              } else {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.lightRed } }
+              }
+              
+              if (colNumber >= 5 && colNumber <= 8) {
+                cell.numFmt = '#,##0'
+              }
+              
+              // Color change column
+              if (colNumber === 8) {
+                cell.font = { bold: true, color: { argb: 'FF' + (change < 0 ? colors.success : colors.danger) } }
+              }
+            }
+          })
+          currentRow++
+        })
+      } else {
+        const noDebtRow = ws.addRow(['', '', '', 'Ma\'lumot yo\'q', '', '', '', '', '', '', ''])
+        noDebtRow.getCell(4).font = { italic: true, color: { argb: 'FF' + colors.gray } }
+        currentRow++
+      }
+      
+      currentRow++
+      
+      // ═══════════════════════════════════════════════════════════════
+      // FOOTER
+      // ═══════════════════════════════════════════════════════════════
+      ws.mergeCells(`A${currentRow}:K${currentRow}`)
+      const footerCell = ws.getCell(`A${currentRow}`)
+      footerCell.value = '© Inter Profnastil ERP System | Hisobot avtomatik tarzda yaratildi'
+      footerCell.font = { italic: true, size: 10, color: { argb: 'FF' + colors.gray } }
+      footerCell.alignment = { horizontal: 'center' }
+      
+      // Set column widths - YANADA KENGAYTIRILGAN
+      ws.columns = [
+        { width: 6 },   // A - №
+        { width: 14 },  // B - Sana
+        { width: 22 },  // C - Vaqt / Chek № (items) - KENGAYTIRILDI
+        { width: 28 },  // D - Chek raqami (sales) / Tovar nomi (items) / Turi (debt) - KENGAYTIRILDI
+        { width: 35 },  // E - Tovarlar soni (sales) / Artikul (items) / Summa (debt)
+        { width: 22 },  // F - Umumiy summa (sales) / Miqdor (items) / Qarz oldin (debt) - KENGAYTIRILDI
+        { width: 20 },  // G - To'langan (sales) / O'lchov (items) / Qarz keyin (debt) - KENGAYTIRILDI
+        { width: 20 },  // H - Qarz (sales) / Narx (items) / O'zgarish (debt) - KENGAYTIRILDI
+        { width: 18 },  // I - Holat (sales) / Chegirma (items)
+        { width: 50 },  // J - Summa (items) / Izoh (debt) - JUDA KENGAYTIRILDI
+        { width: 5 },   // K - Extra
       ]
-      XLSX.utils.book_append_sheet(wb, ws2, 'Batafsil')
       
-      XLSX.writeFile(wb, `${selectedCustomer.name.replace(/\s+/g, '_')}_sotuvlar_tarixi.xlsx`)
-      toast.success('Excel fayl yuklab olindi')
+      // Generate and download file
+      const buffer = await workbook.xlsx.writeBuffer()
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+      const fileName = `${selectedCustomer.name.replace(/\s+/g, '_')}_hisobot_${formatDateTashkent(new Date()).replace(/\./g, '-')}.xlsx`
+      saveAs(blob, fileName)
+      
+      toast.dismiss()
+      toast.success('Hisobot muvaffaqiyatli yuklandi!')
     } catch (error) {
+      toast.dismiss()
       toast.error('Xatolik yuz berdi')
-      console.error(error)
+      console.error('Excel export error:', error)
     }
   }
 
@@ -374,7 +661,7 @@ export default function CustomersPage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Mijoz muvaffaqiyatli qo\'shildi!')
+      toast.success(t('customerAdded'))
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       setShowAddDialog(false)
       reset()
@@ -386,13 +673,13 @@ export default function CustomersPage() {
         const messages = detail.map((e: any) => {
           if (typeof e === 'string') return e
           if (typeof e.msg === 'string') return e.msg
-          return 'Validatsiya xatosi'
+          return t('validationError')
         })
         toast.error(messages.join(', '))
       } else if (typeof detail === 'string') {
         toast.error(detail)
       } else {
-        toast.error('Xatolik yuz berdi')
+        toast.error(t('errorOccurred'))
       }
     },
   })
@@ -411,7 +698,7 @@ export default function CustomersPage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Mijoz muvaffaqiyatli yangilandi!')
+      toast.success(t('customerUpdated'))
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       queryClient.invalidateQueries({ queryKey: ['debtors-summary'] })
       setShowAddDialog(false)
@@ -421,10 +708,10 @@ export default function CustomersPage() {
     onError: (error: any) => {
       const detail = error.response?.data?.detail
       if (Array.isArray(detail)) {
-        const messages = detail.map((e: any) => typeof e.msg === 'string' ? e.msg : 'Xatolik')
+        const messages = detail.map((e: any) => typeof e.msg === 'string' ? e.msg : t('validationError'))
         toast.error(messages.join(', '))
       } else {
-        toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+        toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
       }
     },
   })
@@ -531,10 +818,10 @@ export default function CustomersPage() {
     <div className="space-y-4 lg:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 lg:gap-4">
-        <h1 className="text-xl lg:text-pos-xl font-bold">Mijozlar</h1>
+        <h1 className="text-xl lg:text-pos-xl font-bold">{t('customers')}</h1>
         <Button size="lg" onClick={() => setShowAddDialog(true)} className="w-full sm:w-auto">
           <Plus className="w-5 h-5 mr-2" />
-          Yangi mijoz
+          {t('addCustomer')}
         </Button>
       </div>
 
@@ -546,7 +833,7 @@ export default function CustomersPage() {
               <User className="w-4 h-4 lg:w-6 lg:h-6 text-primary" />
             </div>
             <div className="text-center lg:text-left">
-              <p className="text-xs lg:text-sm text-text-secondary">Mijozlar</p>
+              <p className="text-xs lg:text-sm text-text-secondary">{t('customers')}</p>
               <p className="text-sm lg:text-pos-lg font-bold">{customersData?.total || 0}</p>
             </div>
           </CardContent>
@@ -558,7 +845,7 @@ export default function CustomersPage() {
               <CreditCard className="w-4 h-4 lg:w-6 lg:h-6 text-danger" />
             </div>
             <div className="text-center lg:text-left">
-              <p className="text-xs lg:text-sm text-text-secondary">Qarzdorlar</p>
+              <p className="text-xs lg:text-sm text-text-secondary">{t('debt')}</p>
               <p className="text-sm lg:text-pos-lg font-bold">{debtorsData?.data?.length || 0}</p>
             </div>
           </CardContent>
@@ -570,7 +857,7 @@ export default function CustomersPage() {
               <Banknote className="w-4 h-4 lg:w-6 lg:h-6 text-warning" />
             </div>
             <div className="text-center lg:text-left">
-              <p className="text-xs lg:text-sm text-text-secondary">Jami qarz</p>
+              <p className="text-xs lg:text-sm text-text-secondary">{t('totalDebt')}</p>
               <p className="text-xs lg:text-pos-lg font-bold text-danger truncate">{formatMoney(debtorsData?.total_debt || 0)}</p>
             </div>
           </CardContent>
@@ -584,7 +871,7 @@ export default function CustomersPage() {
             <div className="flex-1">
               <Input
                 icon={<Search className="w-4 h-4 lg:w-5 lg:h-5" />}
-                placeholder="Mijoz qidirish..."
+                placeholder={t('search') + '...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="text-sm lg:text-base"
@@ -596,17 +883,17 @@ export default function CustomersPage() {
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
               >
-                <option value="">Barcha</option>
-                <option value="REGULAR">Oddiy</option>
+                <option value="">{t('all')}</option>
+                <option value="REGULAR">{t('retail')}</option>
                 <option value="VIP">VIP</option>
-                <option value="WHOLESALE">Ulgurji</option>
+                <option value="WHOLESALE">{t('wholesale')}</option>
               </select>
               <select
                 className="flex-1 sm:flex-none min-h-[44px] lg:min-h-btn px-3 lg:px-4 py-2 lg:py-3 border-2 border-border rounded-xl text-sm lg:text-pos-base"
                 value={filterSellerId}
                 onChange={(e) => setFilterSellerId(e.target.value ? Number(e.target.value) : '')}
               >
-                <option value="">Barcha kassirlar</option>
+                <option value="">{t('all')} {t('seller').toLowerCase()}</option>
                 {sellersData?.data?.map((seller: UserType) => (
                   <option key={seller.id} value={seller.id}>
                     {seller.first_name} {seller.last_name}
@@ -712,7 +999,7 @@ export default function CustomersPage() {
           {customersData?.data?.length === 0 && (
             <div className="text-center py-12">
               <User className="w-16 h-16 mx-auto text-text-secondary opacity-50 mb-4" />
-              <p className="text-text-secondary">Mijozlar topilmadi</p>
+              <p className="text-text-secondary">{t('noCustomersFound')}</p>
             </div>
           )}
         </div>
@@ -721,9 +1008,9 @@ export default function CustomersPage() {
       {/* Pagination */}
       {customersData && customersData.total > 20 && (
         <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>Oldingi</Button>
+          <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>{t('previous')}</Button>
           <span className="px-4">{page} / {Math.ceil(customersData.total / 20)}</span>
-          <Button variant="outline" disabled={page >= Math.ceil(customersData.total / 20)} onClick={() => setPage(page + 1)}>Keyingi</Button>
+          <Button variant="outline" disabled={page >= Math.ceil(customersData.total / 20)} onClick={() => setPage(page + 1)}>{t('next')}</Button>
         </div>
       )}
 
@@ -737,66 +1024,66 @@ export default function CustomersPage() {
       }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingCustomer ? 'Mijozni tahrirlash' : 'Yangi mijoz qo\'shish'}</DialogTitle>
-            <DialogDescription>Mijoz ma'lumotlarini kiriting</DialogDescription>
+            <DialogTitle>{editingCustomer ? t('editCustomerTitle') : t('addCustomerTitle')}</DialogTitle>
+            <DialogDescription>{t('enterCustomerDetails')}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <label className="font-medium">Mijoz ismi *</label>
-              <Input {...register('name', { required: 'Ism kiritilishi shart' })} placeholder="To'liq ism" />
+              <label className="font-medium">{t('customerName')} *</label>
+              <Input {...register('name', { required: t('nameRequired') })} placeholder={t('fullName')} />
               {errors.name && <p className="text-danger text-sm">{errors.name.message}</p>}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Telefon *</label>
-                <Input {...register('phone', { required: 'Telefon kiritilishi shart' })} placeholder="+998 90 123 45 67" />
+                <label className="font-medium">{t('phone')} *</label>
+                <Input {...register('phone', { required: t('phoneRequired') })} placeholder="+998 90 123 45 67" />
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Qo'shimcha telefon</label>
+                <label className="font-medium">{t('secondaryPhone')}</label>
                 <Input {...register('phone_secondary')} placeholder="+998 90 123 45 67" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Telegram ID</label>
-                <Input {...register('telegram_id')} placeholder="@username yoki 123456789" />
+                <label className="font-medium">{t('telegramId')}</label>
+                <Input {...register('telegram_id')} placeholder={t('telegramPlaceholder')} />
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Email</label>
+                <label className="font-medium">{t('emailLabel')}</label>
                 <Input {...register('email')} type="email" placeholder="email@example.com" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Kompaniya</label>
-                <Input {...register('company_name')} placeholder="Kompaniya nomi" />
+                <label className="font-medium">{t('companyName')}</label>
+                <Input {...register('company_name')} placeholder={t('companyPlaceholder')} />
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Manzil</label>
-                <Input {...register('address')} placeholder="To'liq manzil" />
+                <label className="font-medium">{t('address')}</label>
+                <Input {...register('address')} placeholder={t('fullAddress')} />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Mijoz turi</label>
+                <label className="font-medium">{t('customerType')}</label>
                 <select {...register('customer_type')} className="w-full min-h-btn px-4 py-3 border-2 border-border rounded-pos">
-                  <option value="REGULAR">Oddiy</option>
-                  <option value="VIP">VIP</option>
-                  <option value="WHOLESALE">Ulgurji</option>
+                  <option value="REGULAR">{t('regular')}</option>
+                  <option value="VIP">{t('vip')}</option>
+                  <option value="WHOLESALE">{t('wholesale')}</option>
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Kredit limiti</label>
+                <label className="font-medium">{t('creditLimit')}</label>
                 <Input type="number" {...register('credit_limit', { valueAsNumber: true })} placeholder="0" />
               </div>
             </div>
             <div className="space-y-2">
               <label className="font-medium flex items-center gap-2">
                 <Users className="w-4 h-4" />
-                Biriktirilgan kassir
+                {t('assignedSeller')}
               </label>
               <select {...register('manager_id', { valueAsNumber: true })} className="w-full min-h-btn px-4 py-3 border-2 border-border rounded-pos">
-                <option value="">Tanlanmagan</option>
+                <option value="">{t('notAssigned')}</option>
                 {sellersData?.data?.map((seller: UserType) => (
                   <option key={seller.id} value={seller.id}>
                     {seller.first_name} {seller.last_name}
@@ -810,10 +1097,10 @@ export default function CustomersPage() {
                 setEditingCustomer(null)
                 reset()
               }}>
-                Bekor qilish
+                {t('cancel')}
               </Button>
               <Button type="submit" disabled={createCustomer.isPending || updateCustomer.isPending}>
-                {(createCustomer.isPending || updateCustomer.isPending) ? 'Saqlanmoqda...' : 'Saqlash'}
+                {(createCustomer.isPending || updateCustomer.isPending) ? t('saving') : t('save')}
               </Button>
             </DialogFooter>
           </form>
@@ -1036,6 +1323,29 @@ export default function CustomersPage() {
                 </Card>
               </div>
 
+              {/* Professional Excel Export Button */}
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 border border-green-200 rounded-pos p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                      <FileSpreadsheet className="w-5 h-5 text-green-600" />
+                      To'liq hisobot yuklash
+                    </h4>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Barcha sotuvlar, tovarlar va qarz tarixi bitta Excel faylda
+                    </p>
+                  </div>
+                  <Button 
+                    variant="success" 
+                    onClick={exportCustomerDataToExcel}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Excel yuklash
+                  </Button>
+                </div>
+              </div>
+
               {/* Sales History */}
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -1043,12 +1353,6 @@ export default function CustomersPage() {
                     <ShoppingCart className="w-5 h-5" />
                     Sotuvlar tarixi ({customerSales?.data?.length || 0} ta)
                   </h4>
-                  {customerSales?.data && customerSales.data.length > 0 && (
-                    <Button variant="outline" size="sm" onClick={exportSalesToExcel}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Excel
-                    </Button>
-                  )}
                 </div>
                 {loadingSales ? (
                   <div className="flex items-center justify-center py-8">
@@ -1160,7 +1464,7 @@ export default function CustomersPage() {
                 ) : (
                   <div className="text-center py-8 text-text-secondary bg-gray-50 rounded-pos">
                     <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>Sotuvlar topilmadi</p>
+                    <p>{t('noSalesFound')}</p>
                   </div>
                 )}
               </div>
@@ -1172,12 +1476,6 @@ export default function CustomersPage() {
                     <Banknote className="w-5 h-5" />
                     Qarz va to'lovlar tarixi ({customerDebtHistory?.data?.length || 0} ta)
                   </h4>
-                  {customerDebtHistory?.data && customerDebtHistory.data.length > 0 && (
-                    <Button variant="outline" size="sm" onClick={exportPaymentsToExcel}>
-                      <Download className="w-4 h-4 mr-2" />
-                      Excel
-                    </Button>
-                  )}
                 </div>
                 {customerDebtHistory?.data && customerDebtHistory.data.length > 0 ? (
                   <div className="border border-border rounded-pos overflow-hidden">
@@ -1235,7 +1533,7 @@ export default function CustomersPage() {
                 ) : (
                   <div className="text-center py-8 text-text-secondary bg-gray-50 rounded-pos">
                     <Banknote className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>Tarix topilmadi</p>
+                    <p>{t('noHistoryFound')}</p>
                   </div>
                 )}
               </div>

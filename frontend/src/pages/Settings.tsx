@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Settings as SettingsIcon, DollarSign, Save, RefreshCw, Loader2, Send, Plus, Trash2, CheckCircle, XCircle, Clock, MessageSquare, Users } from 'lucide-react'
+import { Settings as SettingsIcon, DollarSign, Save, RefreshCw, Loader2, Send, Plus, Trash2, CheckCircle, XCircle, Clock, MessageSquare, Users, Globe } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Input, Card, CardContent, Badge } from '@/components/ui'
 import api from '@/services/api'
 import { formatNumber, formatDateTimeTashkent } from '@/lib/utils'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 
 export default function SettingsPage() {
   const queryClient = useQueryClient()
+  const { t, language } = useLanguage()
   const [usdRate, setUsdRate] = useState('')
   const [newDirectorId, setNewDirectorId] = useState('')
   const [testingId, setTestingId] = useState<string | null>(null)
@@ -108,13 +111,13 @@ export default function SettingsPage() {
     },
     onSuccess: (data) => {
       if (data.success) {
-        toast.success('Kunlik hisobot yuborildi!')
+        toast.success(t('dailyReportSent'))
       } else {
-        toast.error(data.message || 'Hisobot yuborilmadi')
+        toast.error(data.message || t('reportNotSent'))
       }
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Xatolik yuz berdi')
+      toast.error(error.response?.data?.detail || t('errorOccurred'))
     },
     onSettled: () => {
       setSendingReport(false)
@@ -159,13 +162,13 @@ export default function SettingsPage() {
     },
     onSuccess: (data) => {
       if (data.success) {
-        toast.success('Test xabar yuborildi!')
+        toast.success(t('testMessageSent'))
       } else {
-        toast.error(data.message || 'Xabar yuborilmadi')
+        toast.error(data.message || t('messageNotSent'))
       }
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Xatolik yuz berdi')
+      toast.error(error.response?.data?.detail || t('errorOccurred'))
     },
     onSettled: () => {
       setTestingId(null)
@@ -228,7 +231,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-center gap-2 lg:gap-3">
         <SettingsIcon className="w-6 h-6 lg:w-8 lg:h-8 text-primary" />
-        <h1 className="text-xl lg:text-pos-xl font-bold">Sozlamalar</h1>
+        <h1 className="text-xl lg:text-pos-xl font-bold">{t('settings')}</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
@@ -240,8 +243,8 @@ export default function SettingsPage() {
                 <DollarSign className="w-6 h-6 lg:w-8 lg:h-8 text-success" />
               </div>
               <div>
-                <h2 className="text-base lg:text-pos-lg font-bold">Dollar kursi</h2>
-                <p className="text-xs lg:text-sm text-text-secondary">1 USD = ? so'm</p>
+                <h2 className="text-base lg:text-pos-lg font-bold">{t('usdRate')}</h2>
+                <p className="text-xs lg:text-sm text-text-secondary">1 USD = ? UZS</p>
               </div>
             </div>
 
@@ -253,25 +256,25 @@ export default function SettingsPage() {
               <div className="space-y-3 lg:space-y-4">
                 {/* Current Rate Display */}
                 <div className="bg-gray-50 p-3 lg:p-4 rounded-xl">
-                  <p className="text-xs lg:text-sm text-text-secondary mb-1">Joriy kurs:</p>
+                  <p className="text-xs lg:text-sm text-text-secondary mb-1">{t('usdRate')}:</p>
                   <p className="text-lg lg:text-pos-xl font-bold text-success">
-                    1 $ = {formatNumber(exchangeRateData?.usd_rate || 12800)} so'm
+                    1 $ = {formatNumber(exchangeRateData?.usd_rate || 12800)} UZS
                   </p>
                   {exchangeRateData?.updated_at && (
                     <p className="text-[10px] lg:text-xs text-text-secondary mt-1">
-                      Oxirgi yangilanish: {formatDateTimeTashkent(exchangeRateData.updated_at)}
+                      {t('date')}: {formatDateTimeTashkent(exchangeRateData.updated_at)}
                     </p>
                   )}
                 </div>
 
                 {/* Input */}
                 <div className="space-y-2">
-                  <label className="font-medium text-sm lg:text-base">Yangi kurs</label>
+                  <label className="font-medium text-sm lg:text-base">{t('usdRate')}</label>
                   <Input
                     type="number"
                     value={usdRate}
                     onChange={(e) => setUsdRate(e.target.value)}
-                    placeholder="Masalan: 12800"
+                    placeholder="12800"
                     className="text-base lg:text-pos-lg font-bold"
                   />
                 </div>
@@ -301,12 +304,12 @@ export default function SettingsPage() {
                   {updateExchangeRate.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2 animate-spin" />
-                      Saqlanmoqda...
+                      {t('loading')}...
                     </>
                   ) : (
                     <>
                       <Save className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
-                      Saqlash
+                      {t('save')}
                     </>
                   )}
                 </Button>
@@ -323,14 +326,14 @@ export default function SettingsPage() {
                 <SettingsIcon className="w-6 h-6 lg:w-8 lg:h-8 text-primary" />
               </div>
               <div>
-                <h2 className="text-base lg:text-pos-lg font-bold">Kompaniya telefon raqamlari</h2>
-                <p className="text-xs lg:text-sm text-text-secondary">Chekda ko'rsatiladigan raqamlar</p>
+                <h2 className="text-base lg:text-pos-lg font-bold">{t('companyPhone')}</h2>
+                <p className="text-xs lg:text-sm text-text-secondary">{t('receiptSettings')}</p>
               </div>
             </div>
 
             <div className="space-y-3 lg:space-y-4">
               <div className="space-y-2">
-                <label className="font-medium text-sm lg:text-base">Telefon 1 (asosiy)</label>
+                <label className="font-medium text-sm lg:text-base">{t('phone')} 1</label>
                 <Input
                   value={companyPhone1}
                   onChange={(e) => setCompanyPhone1(e.target.value)}
@@ -339,7 +342,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="font-medium text-sm lg:text-base">Telefon 2 (qo'shimcha)</label>
+                <label className="font-medium text-sm lg:text-base">{t('phone')} 2</label>
                 <Input
                   value={companyPhone2}
                   onChange={(e) => setCompanyPhone2(e.target.value)}
@@ -348,7 +351,7 @@ export default function SettingsPage() {
               </div>
 
               <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-800">
-                <p>Bu telefon raqamlari chek chiqarilganda pastki qismida ko'rsatiladi.</p>
+                <p>{t('receiptSettings')}</p>
               </div>
 
               <Button 
@@ -360,15 +363,43 @@ export default function SettingsPage() {
                 {updateCompanyPhones.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 mr-2 animate-spin" />
-                    Saqlanmoqda...
+                    {t('loading')}...
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
-                    Saqlash
+                    {t('save')}
                   </>
                 )}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Language Settings Card */}
+        <Card>
+          <CardContent className="p-4 lg:p-6">
+            <div className="flex items-center gap-2 lg:gap-3 mb-4 lg:mb-6">
+              <div className="p-2 lg:p-3 bg-purple-500/10 rounded-xl">
+                <Globe className="w-6 h-6 lg:w-8 lg:h-8 text-purple-500" />
+              </div>
+              <div>
+                <h2 className="text-base lg:text-pos-lg font-bold">{t('language')}</h2>
+                <p className="text-xs lg:text-sm text-text-secondary">{t('selectLanguage')}</p>
+              </div>
+            </div>
+
+            <LanguageSwitcher variant="full" />
+            
+            <div className="mt-4 bg-purple-50 p-3 rounded-lg text-xs text-purple-800">
+              <p>
+                {language === 'ru' 
+                  ? 'Выбранный язык будет сохранен в вашем профиле и загрузится при следующем входе.'
+                  : language === 'uz_cyrl'
+                  ? 'Танланган тил профилингизда сақланади ва кейинги сафар киришда юкланади.'
+                  : "Tanlangan til profilingizda saqlanadi va keyingi safar kirishda yuklanadi."
+                }
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -381,8 +412,8 @@ export default function SettingsPage() {
                 <Send className="w-8 h-8 text-blue-500" />
               </div>
               <div>
-                <h2 className="text-pos-lg font-bold">Telegram Bot</h2>
-                <p className="text-sm text-text-secondary">VIP mijozlarga habar yuborish</p>
+                <h2 className="text-pos-lg font-bold">{t('telegramBot')}</h2>
+                <p className="text-sm text-text-secondary">{t('telegramNotifications')}</p>
               </div>
             </div>
 
@@ -394,19 +425,19 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 {/* Info */}
                 <div className="bg-blue-50 p-4 rounded-pos text-sm">
-                  <p className="font-medium text-blue-800 mb-2">📱 Telegram Bot qanday ishlaydi?</p>
+                  <p className="font-medium text-blue-800 mb-2">📱 {t('telegramBot')}</p>
                   <ul className="text-blue-700 space-y-1 text-xs">
-                    <li>• VIP mijoz harid qilganda → Mijozga + Direktorlarga xabar</li>
-                    <li>• VIP mijoz qarz to'laganda → Mijozga + Direktorlarga xabar</li>
-                    <li>• Har bir xabar bilan Excel fayl ham yuboriladi</li>
+                    <li>• VIP {t('customers').toLowerCase()} → {t('telegramNotifications')}</li>
+                    <li>• {t('payment')} → {t('telegramNotifications')}</li>
+                    <li>• Excel {t('export').toLowerCase()}</li>
                   </ul>
                 </div>
 
                 {/* Director IDs List */}
                 <div className="space-y-2">
-                  <label className="font-medium">Direktor Telegram ID lari</label>
+                  <label className="font-medium">{t('telegramDirectorIds')}</label>
                   <p className="text-xs text-text-secondary mb-2">
-                    Har bir harid/to'lov haqida xabar yuboriladi
+                    {t('telegramNotifications')}
                   </p>
                   
                   {(telegramData?.data?.telegram_ids || []).length === 0 ? (
@@ -467,10 +498,10 @@ export default function SettingsPage() {
 
                 {/* Help */}
                 <div className="bg-gray-50 p-3 rounded-pos text-xs text-text-secondary">
-                  <p className="font-medium mb-1">Telegram ID qanday topiladi?</p>
-                  <p>1. @userinfobot ga yozing</p>
-                  <p>2. /start bosing</p>
-                  <p>3. ID ni ko'chirib qo'shing</p>
+                  <p className="font-medium mb-1">{t('telegramHowToFind')}</p>
+                  <p>1. @userinfobot</p>
+                  <p>2. /start</p>
+                  <p>3. ID</p>
                 </div>
               </div>
             )}
@@ -485,8 +516,8 @@ export default function SettingsPage() {
                 <MessageSquare className="w-6 h-6 lg:w-8 lg:h-8 text-green-600" />
               </div>
               <div>
-                <h2 className="text-base lg:text-pos-lg font-bold">Kunlik hisobot</h2>
-                <p className="text-xs lg:text-sm text-text-secondary">Telegram guruhga avtomatik yuborish</p>
+                <h2 className="text-base lg:text-pos-lg font-bold">{t('dailyReport')}</h2>
+                <p className="text-xs lg:text-sm text-text-secondary">{t('telegramGroupReport')}</p>
               </div>
             </div>
 
@@ -498,7 +529,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 {/* Group Chat ID */}
                 <div className="space-y-2">
-                  <label className="font-medium text-sm">Guruh Chat ID</label>
+                  <label className="font-medium text-sm">{t('groupChatId')}</label>
                   <Input
                     type="text"
                     value={groupChatId}
@@ -507,7 +538,7 @@ export default function SettingsPage() {
                     className="font-mono"
                   />
                   <p className="text-xs text-text-secondary">
-                    Botni guruhga qo'shing va @RawDataBot orqali chat ID ni oling
+                    @RawDataBot
                   </p>
                 </div>
 
@@ -515,7 +546,7 @@ export default function SettingsPage() {
                 <div className="space-y-2">
                   <label className="font-medium text-sm flex items-center gap-2">
                     <Clock className="w-4 h-4" />
-                    Hisobot vaqti (24-soat formati)
+                    {t('reportTime')}
                   </label>
                   <div className="flex gap-2 items-center">
                     <select
@@ -547,15 +578,15 @@ export default function SettingsPage() {
                     </select>
                   </div>
                   <p className="text-xs text-text-secondary">
-                    Har kuni shu vaqtda kunlik hisobot yuboriladi (masalan: 19:00, 21:00)
+                    {t('reportTimeHint')}
                   </p>
                 </div>
 
                 {/* Enable/Disable */}
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="font-medium">Avtomatik yuborish</p>
-                    <p className="text-xs text-text-secondary">Har kuni belgilangan vaqtda</p>
+                    <p className="font-medium">{t('autoSend')}</p>
+                    <p className="text-xs text-text-secondary">{t('dailyAt')}</p>
                   </div>
                   <input
                     type="checkbox"
@@ -571,7 +602,7 @@ export default function SettingsPage() {
                   className="w-full"
                   onClick={() => {
                     if (!groupChatId.trim()) {
-                      toast.error('Guruh Chat ID kiriting')
+                      toast.error(t('enterGroupChatId'))
                       return
                     }
                     updateGroupSettings.mutate({
@@ -587,12 +618,12 @@ export default function SettingsPage() {
                   ) : (
                     <Save className="w-5 h-5 mr-2" />
                   )}
-                  Saqlash
+                  {t('save')}
                 </Button>
 
                 {/* Divider */}
                 <div className="border-t border-border pt-4">
-                  <p className="text-sm font-medium mb-3">Test</p>
+                  <p className="text-sm font-medium mb-3">{t('test')}</p>
                   
                   {/* Send Now Button */}
                   <Button
@@ -600,7 +631,7 @@ export default function SettingsPage() {
                     className="w-full bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
                     onClick={() => {
                       if (!groupChatId.trim()) {
-                        toast.error('Avval guruh Chat ID ni kiriting va saqlang')
+                        toast.error(t('enterGroupChatId'))
                         return
                       }
                       setSendingReport(true)
@@ -613,22 +644,22 @@ export default function SettingsPage() {
                     ) : (
                       <Send className="w-5 h-5 mr-2" />
                     )}
-                    Hozir yuborish
+                    {t('sendNow')}
                   </Button>
                   <p className="text-xs text-text-secondary mt-2 text-center">
-                    Kunlik hisobotni hozir guruhga yuborish
+                    {t('dailyReport')}
                   </p>
                 </div>
 
                 {/* Help */}
                 <div className="bg-blue-50 p-3 rounded-lg text-xs text-blue-700">
-                  <p className="font-medium mb-1">📊 Kunlik hisobotda:</p>
+                  <p className="font-medium mb-1">📊 {t('dailyReport')}:</p>
                   <ul className="list-disc list-inside space-y-0.5">
-                    <li>Bugungi sotuvlar soni va summasi</li>
-                    <li>Naqd, plastik, o'tkazma bo'yicha</li>
-                    <li>Har bir kassirning savdolari</li>
-                    <li>Bugungi qarzdorlar ro'yxati</li>
-                    <li>Kam qolgan tovarlar</li>
+                    <li>{t('todaySales')}</li>
+                    <li>{t('cash')}, {t('card')}, {t('transfer')}</li>
+                    <li>{t('sellerReport')}</li>
+                    <li>{t('debt')}</li>
+                    <li>{t('lowStock')}</li>
                   </ul>
                 </div>
               </div>
@@ -639,24 +670,24 @@ export default function SettingsPage() {
         {/* System Info Card */}
         <Card>
           <CardContent className="p-6">
-            <h2 className="text-pos-lg font-bold mb-4">Tizim ma'lumotlari</h2>
+            <h2 className="text-pos-lg font-bold mb-4">{t('generalSettings')}</h2>
             
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-text-secondary">Versiya</span>
+                <span className="text-text-secondary">{t('version')}</span>
                 <Badge variant="primary">1.0.0</Badge>
               </div>
               <div className="flex justify-between py-2 border-b border-border">
                 <span className="text-text-secondary">API</span>
-                <Badge variant="success">Faol</Badge>
+                <Badge variant="success">{t('active')}</Badge>
               </div>
               <div className="flex justify-between py-2 border-b border-border">
-                <span className="text-text-secondary">Ma'lumotlar bazasi</span>
+                <span className="text-text-secondary">{t('database')}</span>
                 <Badge variant="success">PostgreSQL</Badge>
               </div>
               <div className="flex justify-between py-2">
-                <span className="text-text-secondary">Ombor</span>
-                <Badge variant="secondary">Asosiy ombor</Badge>
+                <span className="text-text-secondary">{t('warehouse')}</span>
+                <Badge variant="secondary">{t('warehouseName')}</Badge>
               </div>
             </div>
           </CardContent>
@@ -665,13 +696,13 @@ export default function SettingsPage() {
         {/* Sales Settings Card */}
         <Card>
           <CardContent className="p-6">
-            <h2 className="text-pos-lg font-bold mb-4">Sotuv sozlamalari</h2>
+            <h2 className="text-pos-lg font-bold mb-4">{t('salesSettings')}</h2>
             
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">Maksimal chegirma</p>
-                  <p className="text-sm text-text-secondary">Sotuvchi bera oladigan maksimal chegirma</p>
+                  <p className="font-medium">{t('maxDiscount')}</p>
+                  <p className="text-sm text-text-secondary">{t('maxDiscountHint')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Input
@@ -685,8 +716,8 @@ export default function SettingsPage() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">Qarzga sotish</p>
-                  <p className="text-sm text-text-secondary">Mijozlarga qarzga sotish imkoniyati</p>
+                  <p className="font-medium">{t('onCredit')}</p>
+                  <p className="text-sm text-text-secondary">{t('allowDebtSales')}</p>
                 </div>
                 <input
                   type="checkbox"
@@ -697,8 +728,8 @@ export default function SettingsPage() {
 
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium">Chek chop etish</p>
-                  <p className="text-sm text-text-secondary">Har bir sotuvdan keyin avtomatik chop etish</p>
+                  <p className="font-medium">{t('print')}</p>
+                  <p className="text-sm text-text-secondary">{t('autoPrintReceipt')}</p>
                 </div>
                 <input
                   type="checkbox"
@@ -708,7 +739,7 @@ export default function SettingsPage() {
 
               <Button variant="primary" className="w-full">
                 <Save className="w-5 h-5 mr-2" />
-                Saqlash
+                {t('save')}
               </Button>
             </div>
           </CardContent>

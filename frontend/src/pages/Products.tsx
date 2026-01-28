@@ -12,7 +12,8 @@ import {
 } from '@/components/ui'
 import { productsService } from '@/services'
 import api from '@/services/api'
-import { formatMoney, formatNumber, cn } from '@/lib/utils'
+import { formatMoney, formatNumber, formatInputNumber, cn } from '@/lib/utils'
+import { useLanguage } from '@/contexts/LanguageContext'
 import type { Product, Category, UnitOfMeasure, UOMConversion } from '@/types'
 
 interface ProductFormData {
@@ -21,8 +22,8 @@ interface ProductFormData {
   barcode?: string
   category_id?: number
   base_uom_id: number
-  sale_price_usd: number
-  vip_price_usd?: number
+  sale_price: number  // UZS da sotish narxi
+  vip_price?: number  // UZS da VIP narx
   color?: string
   is_favorite?: boolean
   min_stock_level?: number
@@ -41,6 +42,7 @@ interface CategoryFormData {
 
 export default function ProductsPage() {
   const queryClient = useQueryClient()
+  const { t } = useLanguage()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [page, setPage] = useState(1)
@@ -54,6 +56,10 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [colorValue, setColorValue] = useState('#3B82F6')
+  
+  // Price display states (formatted with spaces)
+  const [salePriceDisplay, setSalePriceDisplay] = useState('')
+  const [vipPriceDisplay, setVipPriceDisplay] = useState('')
 
   const { register, handleSubmit, reset, setValue, watch, control, formState: { errors } } = useForm<ProductFormData>()
   const { register: registerUOM, handleSubmit: handleUOMSubmit, reset: resetUOM } = useForm<UOMConversionFormData>()
@@ -113,9 +119,8 @@ export default function ProductsPage() {
         category_id: data.category_id,
         base_uom_id: data.base_uom_id,
         cost_price: 0, // Kelish narxi omborga kirim qilganda aniqlanadi
-        sale_price: 0, // Legacy field
-        sale_price_usd: data.sale_price_usd,
-        vip_price_usd: data.vip_price_usd,
+        sale_price: data.sale_price,  // UZS da sotish narxi
+        vip_price: data.vip_price || null,  // UZS da VIP narx
         color: data.color,
         is_favorite: data.is_favorite || false,
         min_stock_level: data.min_stock_level || 0,
@@ -124,17 +129,19 @@ export default function ProductsPage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Tovar muvaffaqiyatli qo\'shildi!')
+      toast.success(t('productSaved'))
       queryClient.invalidateQueries({ queryKey: ['products'] })
       setShowAddDialog(false)
       reset()
+      setSalePriceDisplay('')
+      setVipPriceDisplay('')
     },
     onError: (error: any) => {
       const detail = error.response?.data?.detail
       if (Array.isArray(detail)) {
-        toast.error(detail.map((e: any) => e.msg).join(', ') || 'Validatsiya xatosi')
+        toast.error(detail.map((e: any) => e.msg).join(', ') || t('validationError'))
       } else {
-        toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+        toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
       }
     },
   })
@@ -148,8 +155,8 @@ export default function ProductsPage() {
         article: data.article,
         barcode: data.barcode,
         category_id: data.category_id,
-        sale_price_usd: data.sale_price_usd,
-        vip_price_usd: data.vip_price_usd,
+        sale_price: data.sale_price,  // UZS da sotish narxi
+        vip_price: data.vip_price || null,  // UZS da VIP narx
         color: data.color,
         is_favorite: data.is_favorite,
         min_stock_level: data.min_stock_level,
@@ -157,18 +164,20 @@ export default function ProductsPage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Tovar yangilandi!')
+      toast.success(t('productUpdated'))
       queryClient.invalidateQueries({ queryKey: ['products'] })
       setShowAddDialog(false)
       setEditingProduct(null)
       reset()
+      setSalePriceDisplay('')
+      setVipPriceDisplay('')
     },
     onError: (error: any) => {
       const detail = error.response?.data?.detail
       if (Array.isArray(detail)) {
-        toast.error(detail.map((e: any) => e.msg).join(', ') || 'Validatsiya xatosi')
+        toast.error(detail.map((e: any) => e.msg).join(', ') || t('validationError'))
       } else {
-        toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+        toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
       }
     },
   })
@@ -187,7 +196,7 @@ export default function ProductsPage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('O\'lchov birligi qo\'shildi!')
+      toast.success(t('uomAdded'))
       queryClient.invalidateQueries({ queryKey: ['product-uoms', selectedProduct?.id] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
       resetUOM()
@@ -195,9 +204,9 @@ export default function ProductsPage() {
     onError: (error: any) => {
       const detail = error.response?.data?.detail
       if (Array.isArray(detail)) {
-        toast.error(detail.map((e: any) => e.msg).join(', ') || 'Xatolik')
+        toast.error(detail.map((e: any) => e.msg).join(', ') || t('validationError'))
       } else {
-        toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+        toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
       }
     },
   })
@@ -209,13 +218,13 @@ export default function ProductsPage() {
       await api.delete(`/products/${selectedProduct.id}/uom-conversions/${conversionId}`)
     },
     onSuccess: () => {
-      toast.success('O\'lchov birligi o\'chirildi!')
+      toast.success(t('uomDeleted'))
       queryClient.invalidateQueries({ queryKey: ['product-uoms', selectedProduct?.id] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
     },
     onError: (error: any) => {
       const detail = error.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+      toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
     },
   })
 
@@ -225,12 +234,12 @@ export default function ProductsPage() {
       await api.delete(`/products/${id}`)
     },
     onSuccess: () => {
-      toast.success('Tovar o\'chirildi!')
+      toast.success(t('productDeleted'))
       queryClient.invalidateQueries({ queryKey: ['products'] })
     },
     onError: (error: any) => {
       const detail = error.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+      toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
     },
   })
 
@@ -241,7 +250,7 @@ export default function ProductsPage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Kategoriya qo\'shildi!')
+      toast.success(t('categoryAdded'))
       queryClient.invalidateQueries({ queryKey: ['categories'] })
       setShowCategoryDialog(false)
       setCategoryName('')
@@ -249,9 +258,9 @@ export default function ProductsPage() {
     onError: (error: any) => {
       const detail = error.response?.data?.detail
       if (Array.isArray(detail)) {
-        toast.error(detail.map((e: any) => e.msg).join(', ') || 'Xatolik')
+        toast.error(detail.map((e: any) => e.msg).join(', ') || t('validationError'))
       } else {
-        toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+        toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
       }
     },
   })
@@ -263,7 +272,7 @@ export default function ProductsPage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Kategoriya yangilandi!')
+      toast.success(t('categoryUpdated'))
       queryClient.invalidateQueries({ queryKey: ['categories'] })
       setShowEditCategoryDialog(false)
       setEditingCategory(null)
@@ -271,7 +280,7 @@ export default function ProductsPage() {
     },
     onError: (error: any) => {
       const detail = error.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+      toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
     },
   })
 
@@ -281,7 +290,7 @@ export default function ProductsPage() {
       await api.delete(`/products/categories/${id}`)
     },
     onSuccess: () => {
-      toast.success('Kategoriya o\'chirildi!')
+      toast.success(t('categoryDeleted'))
       queryClient.invalidateQueries({ queryKey: ['categories'] })
       if (selectedCategory === editingCategory?.id) {
         setSelectedCategory(null)
@@ -289,7 +298,7 @@ export default function ProductsPage() {
     },
     onError: (error: any) => {
       const detail = error.response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Kategoriyada tovarlar bor, avval ularni o\'chiring')
+      toast.error(typeof detail === 'string' ? detail : t('categoryHasProducts'))
     },
   })
 
@@ -318,8 +327,10 @@ export default function ProductsPage() {
     setValue('barcode', product.barcode || '')
     setValue('category_id', product.category_id)
     setValue('base_uom_id', product.base_uom_id)
-    setValue('sale_price_usd', product.sale_price_usd || 0)
-    setValue('vip_price_usd', product.vip_price_usd || undefined)
+    setValue('sale_price', product.sale_price || 0)
+    setValue('vip_price', product.vip_price || undefined)
+    setSalePriceDisplay(formatInputNumber(product.sale_price || 0))
+    setVipPriceDisplay(formatInputNumber(product.vip_price || 0))
     setValue('min_stock_level', product.min_stock_level || 0)
     setValue('color', product.color || '#3B82F6')
     setColorValue(product.color || '#3B82F6')
@@ -336,17 +347,17 @@ export default function ProductsPage() {
     <div className="space-y-4 lg:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 lg:gap-4">
-        <h1 className="text-xl lg:text-pos-xl font-bold">Tovarlar</h1>
+        <h1 className="text-xl lg:text-pos-xl font-bold">{t('products')}</h1>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setShowCategoryDialog(true)} className="flex-1 sm:flex-none text-sm lg:text-base">
             <FolderPlus className="w-4 h-4 lg:w-5 lg:h-5 mr-1 lg:mr-2" />
-            <span className="hidden sm:inline">Kategoriya</span>
-            <span className="sm:hidden">Kat.</span>
+            <span className="hidden sm:inline">{t('category')}</span>
+            <span className="sm:hidden">+</span>
           </Button>
           <Button variant="primary" onClick={() => { setEditingProduct(null); reset(); setShowAddDialog(true) }} className="flex-1 sm:flex-none text-sm lg:text-base">
             <Plus className="w-4 h-4 lg:w-5 lg:h-5 mr-1 lg:mr-2" />
-            <span className="hidden sm:inline">Yangi tovar</span>
-            <span className="sm:hidden">Yangi</span>
+            <span className="hidden sm:inline">{t('addProduct')}</span>
+            <span className="sm:hidden">{t('add')}</span>
           </Button>
         </div>
       </div>
@@ -355,7 +366,7 @@ export default function ProductsPage() {
       <div className="flex gap-2 lg:gap-4 flex-col sm:flex-row">
         <Input
           icon={<Search className="w-4 h-4 lg:w-5 lg:h-5" />}
-          placeholder="Tovar qidirish..."
+          placeholder={t('searchProducts') + '...'}
           className="w-full sm:max-w-xs text-sm lg:text-base"
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -365,7 +376,7 @@ export default function ProductsPage() {
           onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : null)}
           value={selectedCategory || ''}
         >
-          <option value="">Barcha kategoriyalar</option>
+          <option value="">{t('allProducts')}</option>
           {categories?.map((cat: Category) => (
             <option key={cat.id} value={cat.id}>{cat.name}</option>
           ))}
@@ -375,7 +386,7 @@ export default function ProductsPage() {
       {/* Categories Management */}
       <Card>
         <CardContent className="p-3 lg:p-4">
-          <h3 className="font-semibold mb-2 lg:mb-3 text-sm lg:text-base">Kategoriyalar</h3>
+          <h3 className="font-semibold mb-2 lg:mb-3 text-sm lg:text-base">{t('categories')}</h3>
           <div className="flex flex-wrap gap-1.5 lg:gap-2">
             {categories?.map((cat: Category) => (
               <div 
@@ -394,25 +405,25 @@ export default function ProductsPage() {
                 <button
                   onClick={() => handleEditCategory(cat)}
                   className="p-1 hover:bg-gray-200 rounded"
-                  title="Tahrirlash"
+                  title={t('edit')}
                 >
                   <Edit2 className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-blue-600" />
                 </button>
                 <button
                   onClick={() => {
-                    if (confirm(`"${cat.name}" kategoriyasini o'chirishni tasdiqlaysizmi?`)) {
+                    if (confirm(`"${cat.name}" ${t('delete')}?`)) {
                       deleteCategory.mutate(cat.id)
                     }
                   }}
                   className="p-1 hover:bg-red-100 rounded"
-                  title="O'chirish"
+                  title={t('delete')}
                 >
                   <Trash2 className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-red-500" />
                 </button>
               </div>
             ))}
             {(!categories || categories.length === 0) && (
-              <p className="text-gray-500 text-xs lg:text-sm">Kategoriyalar yo'q</p>
+              <p className="text-gray-500 text-xs lg:text-sm">{t('noData')}</p>
             )}
           </div>
         </CardContent>
@@ -430,12 +441,12 @@ export default function ProductsPage() {
               <table className="w-full">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">Tovar</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">O'lchov birliklari</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">Kelish narxi</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">Sotish (USD)</th>
-                    <th className="px-4 py-3 text-right text-sm font-semibold">Qoldiq</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold">Amallar</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">{t('product')}</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold">{t('units')}</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold">{t('costPrice')}</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold">{t('sellingPrice')}</th>
+                    <th className="px-4 py-3 text-right text-sm font-semibold">{t('currentStock')}</th>
+                    <th className="px-4 py-3 text-center text-sm font-semibold">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -489,10 +500,10 @@ export default function ProductsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="font-semibold text-success">
-                          {product.sale_price_usd ? `$${product.sale_price_usd}` : formatMoney(product.sale_price)}
+                          {formatMoney(product.sale_price)}
                         </div>
-                        {product.vip_price_usd && (
-                          <div className="text-xs text-purple-600">VIP: ${product.vip_price_usd}</div>
+                        {product.vip_price && product.vip_price > 0 && (
+                          <div className="text-xs text-purple-600">VIP: {formatMoney(product.vip_price)}</div>
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -517,7 +528,7 @@ export default function ProductsPage() {
                             variant="ghost" 
                             size="icon"
                             onClick={() => {
-                              if (confirm('Tovarni o\'chirishni tasdiqlaysizmi?')) {
+                              if (confirm(t('confirmDelete'))) {
                                 deleteProduct.mutate(product.id)
                               }
                             }}
@@ -535,7 +546,7 @@ export default function ProductsPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-text-secondary">
               <Package className="w-16 h-16 mb-4 opacity-50" />
-              <p>Tovar topilmadi</p>
+              <p>{t('noProductsFound')}</p>
             </div>
           )}
 
@@ -543,7 +554,7 @@ export default function ProductsPage() {
           {productsData && productsData.total > 20 && (
             <div className="flex items-center justify-between p-4 border-t border-border">
               <p className="text-sm text-text-secondary">
-                Jami: {productsData.total} ta
+                {t('totalItems')}: {productsData.total}
               </p>
               <div className="flex gap-2">
                 <Button
@@ -552,7 +563,7 @@ export default function ProductsPage() {
                   disabled={page === 1}
                   onClick={() => setPage(p => p - 1)}
                 >
-                  Oldingi
+                  {t('previous')}
                 </Button>
                 <Button
                   variant="outline"
@@ -560,7 +571,7 @@ export default function ProductsPage() {
                   disabled={page * 20 >= productsData.total}
                   onClick={() => setPage(p => p + 1)}
                 >
-                  Keyingi
+                  {t('next')}
                 </Button>
               </div>
             </div>
@@ -569,53 +580,65 @@ export default function ProductsPage() {
       </Card>
 
       {/* Add/Edit Product Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+      <Dialog open={showAddDialog} onOpenChange={(open) => {
+        setShowAddDialog(open)
+        if (!open) {
+          setSalePriceDisplay('')
+          setVipPriceDisplay('')
+          setEditingProduct(null)
+          reset()
+        }
+      }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? 'Tovarni tahrirlash' : 'Yangi tovar'}</DialogTitle>
-            <DialogDescription>Tovar ma'lumotlarini kiriting</DialogDescription>
+            <DialogTitle>{editingProduct ? t('editProduct') : t('newProduct')}</DialogTitle>
+            <DialogDescription>{t('enterProductDetails')}</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Hidden inputs for price fields */}
+            <input type="hidden" {...register('sale_price', { valueAsNumber: true })} />
+            <input type="hidden" {...register('vip_price', { valueAsNumber: true })} />
+            
             <div className="space-y-2">
-              <label className="font-medium">Tovar nomi *</label>
+              <label className="font-medium">{t('productName')} *</label>
               <Input
                 {...register('name', { required: true })}
-                placeholder="Masalan: Armatura 12mm"
+                placeholder={t('productName')}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Artikul</label>
-                <Input {...register('article')} placeholder="SKU" />
+                <label className="font-medium">{t('article')}</label>
+                <Input {...register('article')} placeholder={t('article')} />
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Shtrix-kod</label>
-                <Input {...register('barcode')} placeholder="Barcode" />
+                <label className="font-medium">{t('barcode')}</label>
+                <Input {...register('barcode')} placeholder={t('barcode')} />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Kategoriya</label>
+                <label className="font-medium">{t('category')}</label>
                 <select
                   {...register('category_id', { valueAsNumber: true })}
                   className="w-full min-h-btn px-4 py-3 border-2 border-border rounded-pos"
                 >
-                  <option value="">Tanlanmagan</option>
+                  <option value="">{t('notSelected')}</option>
                   {categories?.map((cat: Category) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Asosiy o'lchov birligi *</label>
+                <label className="font-medium">{t('baseUnit')} *</label>
                 <select
                   {...register('base_uom_id', { required: true, valueAsNumber: true })}
                   className="w-full min-h-btn px-4 py-3 border-2 border-border rounded-pos"
                 >
-                  <option value="">Tanlang</option>
+                  <option value="">{t('select')}</option>
                   {uoms.map((uom) => (
                     <option key={uom.id} value={uom.id}>{uom.name} ({uom.symbol})</option>
                   ))}
@@ -625,36 +648,46 @@ export default function ProductsPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Sotish narxi (USD) *</label>
+                <label className="font-medium">{t('sellingPrice')} (UZS) *</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                   <Input
-                    type="number"
-                    step="0.01"
-                    {...register('sale_price_usd', { required: true, valueAsNumber: true })}
-                    placeholder="0.00"
-                    className="pl-8"
+                    type="text"
+                    value={salePriceDisplay}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\s/g, '')
+                      const num = parseFloat(raw) || 0
+                      setValue('sale_price', num)
+                      setSalePriceDisplay(formatInputNumber(num))
+                    }}
+                    placeholder="0"
+                    className="pr-12"
                   />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{t('sum')}</span>
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="font-medium">VIP narx (USD)</label>
+                <label className="font-medium">{t('vipPrice')} (UZS)</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                   <Input
-                    type="number"
-                    step="0.01"
-                    {...register('vip_price_usd', { valueAsNumber: true })}
-                    placeholder="0.00"
-                    className="pl-8"
+                    type="text"
+                    value={vipPriceDisplay}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\s/g, '')
+                      const num = parseFloat(raw) || 0
+                      setValue('vip_price', num)
+                      setVipPriceDisplay(formatInputNumber(num))
+                    }}
+                    placeholder="0"
+                    className="pr-12"
                   />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{t('sum')}</span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Minimal qoldiq (ogohlantirish)</label>
+                <label className="font-medium">{t('minStock')}</label>
                 <div className="relative">
                   <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warning" />
                   <Input
@@ -666,24 +699,24 @@ export default function ProductsPage() {
                   />
                 </div>
                 <p className="text-xs text-gray-500">
-                  Qoldiq shu miqdordan kam bo'lganda ogohlantirish
+                  {t('minStockHint')}
                 </p>
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Sevimli tovar</label>
+                <label className="font-medium">{t('favoriteProduct')}</label>
                 <div className="flex items-center gap-2 h-10">
                   <input
                     type="checkbox"
                     {...register('is_favorite')}
                     className="w-5 h-5 rounded border-2 text-yellow-500"
                   />
-                  <span className="text-sm text-gray-600">Kassada tez topish uchun</span>
+                  <span className="text-sm text-gray-600">{t('favoriteHint')}</span>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="font-medium">Tovar rangi</label>
+              <label className="font-medium">{t('productColor')}</label>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
@@ -707,15 +740,15 @@ export default function ProductsPage() {
             </div>
 
             <p className="text-sm text-text-secondary bg-blue-50 p-3 rounded-pos">
-              💡 Kelish narxi omborga kirim qilganda avtomatik aniqlanadi. Kassada narx $ kurs × USD narx sifatida hisoblanadi.
+              💡 {t('costPriceHint')}
             </p>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                Bekor qilish
+                {t('cancel')}
               </Button>
               <Button type="submit" disabled={createProduct.isPending || updateProduct.isPending}>
-                {(createProduct.isPending || updateProduct.isPending) ? 'Saqlanmoqda...' : 'Saqlash'}
+                {(createProduct.isPending || updateProduct.isPending) ? t('saving') : t('save')}
               </Button>
             </DialogFooter>
           </form>
@@ -726,16 +759,16 @@ export default function ProductsPage() {
       <Dialog open={showUOMDialog} onOpenChange={setShowUOMDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>O'lchov birliklarini sozlash</DialogTitle>
+            <DialogTitle>{t('configureUnits')}</DialogTitle>
             <DialogDescription>
-              {selectedProduct?.name} - Turli o'lchovlarda sotish
+              {selectedProduct?.name} - {t('sellInDifferentUnits')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             {/* Current conversions */}
             <div className="space-y-2">
-              <p className="font-medium text-sm">Mavjud o'lchov birliklari:</p>
+              <p className="font-medium text-sm">{t('existingUnits')}:</p>
               <div className="space-y-2">
                 {productUOMsData?.data?.map((conv: any) => {
                   // Calculate: 1 base = how many of this
@@ -753,7 +786,7 @@ export default function ProductsPage() {
                         <div>
                           <p className="font-semibold">{conv.uom_name} ({conv.uom_symbol})</p>
                           {conv.is_base ? (
-                            <p className="text-sm text-primary">Asosiy o'lchov birligi</p>
+                            <p className="text-sm text-primary">{t('baseUnit')}</p>
                           ) : (
                             <p className="text-sm text-success font-medium">
                               1 {selectedProduct?.base_uom_symbol} = {formatNumber(toThisFromBase, 4)} {conv.uom_symbol}
@@ -784,7 +817,7 @@ export default function ProductsPage() {
 
             {/* Add new conversion */}
             <div className="border-t border-border pt-4">
-              <p className="font-medium text-sm mb-3">Yangi o'lchov qo'shish:</p>
+              <p className="font-medium text-sm mb-3">{t('addNewUnit')}:</p>
               <form onSubmit={handleUOMSubmit(onUOMSubmit)} className="space-y-3">
                 <div className="bg-gradient-to-r from-blue-50 to-green-50 p-4 rounded-pos space-y-3">
                   <div className="flex items-center gap-2 flex-wrap">
@@ -793,7 +826,7 @@ export default function ProductsPage() {
                       {...registerUOM('from_uom_id', { required: true, valueAsNumber: true })}
                       className="min-h-btn px-3 py-2 border-2 border-primary bg-white rounded-pos text-sm font-medium"
                     >
-                      <option value="">Qaysi o'lchovdan</option>
+                      <option value="">{t('fromUnit')}</option>
                       {/* Show all existing UOMs for this product */}
                       {productUOMsData?.data?.map((conv: any) => (
                         <option key={conv.uom_id} value={conv.uom_id}>
@@ -813,7 +846,7 @@ export default function ProductsPage() {
                       {...registerUOM('to_uom_id', { required: true, valueAsNumber: true })}
                       className="min-h-btn px-3 py-2 border-2 border-success bg-white rounded-pos text-sm font-medium"
                     >
-                      <option value="">Qaysi o'lchovga</option>
+                      <option value="">{t('toUnit')}</option>
                       {/* Show UOMs not yet added to this product */}
                       {uoms
                         .filter(u => !productUOMsData?.data?.find((c: any) => c.uom_id === u.id))
@@ -824,7 +857,7 @@ export default function ProductsPage() {
                     </select>
                   </div>
                   <div className="text-xs text-gray-600 space-y-1">
-                    <p>💡 <strong>Misol:</strong></p>
+                    <p>💡 <strong>{t('exampleText')}:</strong></p>
                     <p>• 1 <span className="text-primary font-medium">tonna</span> = 52 <span className="text-success font-medium">dona</span></p>
                     <p>• 1 <span className="text-primary font-medium">dona</span> = 12 <span className="text-success font-medium">metr</span></p>
                     <p>• 1 <span className="text-primary font-medium">tonna</span> = 20 <span className="text-success font-medium">pochka</span></p>
@@ -832,12 +865,12 @@ export default function ProductsPage() {
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-sm font-medium">Sotish narxi (yangi o'lchovda) - ixtiyoriy</label>
+                  <label className="text-sm font-medium">{t('salePriceOptional')}</label>
                   <Input
                     type="number"
                     step="0.01"
                     {...registerUOM('sale_price', { valueAsNumber: true })}
-                    placeholder="Bo'sh qoldiring = avtomatik hisoblanadi"
+                    placeholder={t('autoCalculated')}
                   />
                 </div>
 
@@ -849,12 +882,12 @@ export default function ProductsPage() {
                   {addUOMConversion.isPending ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Qo'shilmoqda...
+                      {t('adding')}
                     </>
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      Qo'shish
+                      {t('add')}
                     </>
                   )}
                 </Button>
@@ -868,25 +901,25 @@ export default function ProductsPage() {
       <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Yangi kategoriya</DialogTitle>
-            <DialogDescription>Kategoriya nomini kiriting</DialogDescription>
+            <DialogTitle>{t('newCategory')}</DialogTitle>
+            <DialogDescription>{t('enterCategoryName')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Input
-              placeholder="Kategoriya nomi"
+              placeholder={t('categoryName')}
               value={categoryName}
               onChange={(e) => setCategoryName(e.target.value)}
             />
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowCategoryDialog(false)}>
-                Bekor qilish
+                {t('cancel')}
               </Button>
               <Button 
                 onClick={() => {
                   if (categoryName.trim()) {
                     createCategory.mutate(categoryName.trim())
                   } else {
-                    toast.error('Kategoriya nomini kiriting')
+                    toast.error(t('enterCategoryName'))
                   }
                 }}
                 disabled={createCategory.isPending}
@@ -896,7 +929,7 @@ export default function ProductsPage() {
                 ) : (
                   <Plus className="w-4 h-4 mr-2" />
                 )}
-                Qo'shish
+                {t('add')}
               </Button>
             </DialogFooter>
           </div>
@@ -907,25 +940,25 @@ export default function ProductsPage() {
       <Dialog open={showEditCategoryDialog} onOpenChange={setShowEditCategoryDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Kategoriyani tahrirlash</DialogTitle>
-            <DialogDescription>Kategoriya nomini o'zgartiring</DialogDescription>
+            <DialogTitle>{t('editCategory')}</DialogTitle>
+            <DialogDescription>{t('changeCategoryName')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <Input
-              placeholder="Kategoriya nomi"
+              placeholder={t('categoryName')}
               value={editCategoryName}
               onChange={(e) => setEditCategoryName(e.target.value)}
             />
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowEditCategoryDialog(false)}>
-                Bekor qilish
+                {t('cancel')}
               </Button>
               <Button 
                 onClick={() => {
                   if (editCategoryName.trim() && editingCategory) {
                     updateCategory.mutate({ id: editingCategory.id, name: editCategoryName.trim() })
                   } else {
-                    toast.error('Kategoriya nomini kiriting')
+                    toast.error(t('enterCategoryName'))
                   }
                 }}
                 disabled={updateCategory.isPending}
@@ -935,7 +968,7 @@ export default function ProductsPage() {
                 ) : (
                   <Check className="w-4 h-4 mr-2" />
                 )}
-                Saqlash
+                {t('save')}
               </Button>
             </DialogFooter>
           </div>

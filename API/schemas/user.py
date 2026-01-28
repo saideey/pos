@@ -114,6 +114,22 @@ class UserUpdate(BaseSchema):
     role_id: Optional[int] = None
     assigned_warehouse_id: Optional[int] = None
     is_active: Optional[bool] = None
+    language: Optional[str] = None  # uz, ru, uz_cyrl
+
+
+class UserLanguageUpdate(BaseSchema):
+    """Schema for updating user's language preference."""
+    
+    language: str  # uz, ru, uz_cyrl
+    
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: str) -> str:
+        """Validate language code."""
+        valid_languages = ['uz', 'ru', 'uz_cyrl']
+        if v not in valid_languages:
+            raise ValueError(f"Til kodi noto'g'ri. Mavjud tillar: {', '.join(valid_languages)}")
+        return v
 
 
 class UserResponse(UserBase, TimestampMixin):
@@ -128,6 +144,7 @@ class UserResponse(UserBase, TimestampMixin):
     blocked_reason: Optional[str] = None
     assigned_warehouse_id: Optional[int] = None
     last_login: Optional[str] = None
+    language: str = 'uz'  # User's language preference
     
     @property
     def full_name(self) -> str:

@@ -8,6 +8,8 @@ import toast from 'react-hot-toast'
 import { Button, Input, Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
 import { authService } from '@/services/authService'
 import { useAuthStore } from '@/stores/authStore'
+import { useLanguage } from '@/contexts/LanguageContext'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 
 const loginSchema = z.object({
   username: z.string().min(3, 'Login kamida 3 ta belgi bo\'lishi kerak'),
@@ -19,6 +21,7 @@ type LoginForm = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
+  const { t, language, setLanguage } = useLanguage()
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -42,11 +45,17 @@ export default function LoginPage() {
         response.tokens.refresh_token
       )
       
-      toast.success(`Xush kelibsiz, ${response.user.first_name}!`)
+      // Set language from user's preference
+      if (response.user.language) {
+        setLanguage(response.user.language as 'uz' | 'ru' | 'uz_cyrl')
+      }
+      
+      const welcomeText = language === 'ru' ? 'Добро пожаловать' : language === 'uz_cyrl' ? 'Хуш келибсиз' : 'Xush kelibsiz'
+      toast.success(`${welcomeText}, ${response.user.first_name}!`)
       navigate('/')
     } catch (error: any) {
       // Handle different error formats
-      let message = 'Login yoki parol xato'
+      let message = t('loginError')
       
       try {
         if (error.response?.data?.detail) {
@@ -56,7 +65,7 @@ export default function LoginPage() {
             message = detail.map((d: any) => {
               if (typeof d === 'string') return d
               if (d && typeof d === 'object' && d.msg) return String(d.msg)
-              return 'Validatsiya xatosi'
+              return t('errorOccurred')
             }).join(', ')
           } else if (typeof detail === 'string') {
             message = detail
@@ -71,7 +80,7 @@ export default function LoginPage() {
           message = String(error.message)
         }
       } catch {
-        message = 'Xatolik yuz berdi'
+        message = t('errorOccurred')
       }
       
       // Ensure message is always a string
@@ -81,8 +90,25 @@ export default function LoginPage() {
     }
   }
 
+  // Translated labels
+  const labels = {
+    title: language === 'ru' ? 'Вход в систему' : language === 'uz_cyrl' ? 'Тизимга кириш' : 'Tizimga kirish',
+    subtitle: language === 'ru' ? 'Введите логин и пароль' : language === 'uz_cyrl' ? 'Логин ва паролингизни киритинг' : 'Login va parolingizni kiriting',
+    loginLabel: language === 'ru' ? 'Логин' : 'Login',
+    loginPlaceholder: language === 'ru' ? 'Введите логин' : language === 'uz_cyrl' ? 'Логин киритинг' : 'Login kiriting',
+    passwordLabel: language === 'ru' ? 'Пароль' : language === 'uz_cyrl' ? 'Парол' : 'Parol',
+    passwordPlaceholder: language === 'ru' ? 'Введите пароль' : language === 'uz_cyrl' ? 'Парол киритинг' : 'Parol kiriting',
+    loginButton: language === 'ru' ? 'Войти' : language === 'uz_cyrl' ? 'Кириш' : 'Kirish',
+    loggingIn: language === 'ru' ? 'Вход...' : language === 'uz_cyrl' ? 'Кириш...' : 'Kirish...',
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      {/* Language Switcher at top right */}
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher variant="default" />
+      </div>
+
       <Card className="w-full max-w-md">
         <CardHeader className="text-center p-6 lg:p-8">
           <div className="mx-auto mb-6">
@@ -92,18 +118,18 @@ export default function LoginPage() {
               className="h-24 lg:h-28 w-auto object-contain mx-auto"
             />
           </div>
-          <CardTitle className="text-xl lg:text-pos-xl">Tizimga kirish</CardTitle>
-          <p className="text-text-secondary mt-2 text-sm lg:text-base">Login va parolingizni kiriting</p>
+          <CardTitle className="text-xl lg:text-pos-xl">{labels.title}</CardTitle>
+          <p className="text-text-secondary mt-2 text-sm lg:text-base">{labels.subtitle}</p>
         </CardHeader>
         <CardContent className="p-6 lg:p-8 pt-0 lg:pt-0">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 lg:space-y-6">
             {/* Username */}
             <div className="space-y-2">
-              <label className="text-sm lg:text-pos-base font-medium">Login</label>
+              <label className="text-sm lg:text-pos-base font-medium">{labels.loginLabel}</label>
               <Input
                 {...register('username')}
                 icon={<User className="w-5 h-5" />}
-                placeholder="Login kiriting"
+                placeholder={labels.loginPlaceholder}
                 autoComplete="username"
                 className={`text-base ${errors.username ? 'border-danger' : ''}`}
               />
@@ -114,13 +140,13 @@ export default function LoginPage() {
 
             {/* Password */}
             <div className="space-y-2">
-              <label className="text-sm lg:text-pos-base font-medium">Parol</label>
+              <label className="text-sm lg:text-pos-base font-medium">{labels.passwordLabel}</label>
               <div className="relative">
                 <Input
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
                   icon={<Lock className="w-5 h-5" />}
-                  placeholder="Parol kiriting"
+                  placeholder={labels.passwordPlaceholder}
                   autoComplete="current-password"
                   className={`text-base ${errors.password ? 'border-danger' : ''}`}
                 />
@@ -147,10 +173,10 @@ export default function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Kirish...
+                  {labels.loggingIn}
                 </>
               ) : (
-                'Kirish'
+                labels.loginButton
               )}
             </Button>
           </form>

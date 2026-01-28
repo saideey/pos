@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, Trash2, User, ShoppingCart, CreditCard,
   Banknote, Building, Check, AlertCircle, Edit3,
-  Loader2, Ruler, Star, Grid3X3, X, ChevronUp, GripVertical, Plus, Minus, Phone, Printer, ArrowLeft
+  Loader2, Ruler, Star, Grid3X3, X, ChevronUp, GripVertical, Plus, Minus, Phone, Printer, ArrowLeft, Bookmark, Clock, FolderOpen
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { 
@@ -16,16 +16,17 @@ import { productsService, salesService, customersService } from '@/services'
 import api from '@/services/api'
 import { formatMoney, formatNumber, formatInputNumber, cn, debounce, formatDateTashkent, formatTimeTashkent } from '@/lib/utils'
 import { usePOSStore } from '@/stores'
+import { useLanguage } from '@/contexts/LanguageContext'
 import type { Product, Customer, UOMConversion } from '@/types'
 
 // Category order storage key
 const CATEGORY_ORDER_KEY = 'pos_category_order'
 
 const PAYMENT_TYPES = [
-  { type: 'CASH', label: 'Naqd', icon: Banknote, color: 'bg-green-600' },
-  { type: 'CARD', label: 'Karta', icon: CreditCard, color: 'bg-blue-600' },
-  { type: 'TRANSFER', label: "O'tkazma", icon: Building, color: 'bg-purple-600' },
-  { type: 'DEBT', label: 'Qarzga', icon: AlertCircle, color: 'bg-orange-500' },
+  { type: 'CASH', labelKey: 'cash', icon: Banknote, color: 'bg-green-600' },
+  { type: 'CARD', labelKey: 'card', icon: CreditCard, color: 'bg-blue-600' },
+  { type: 'TRANSFER', labelKey: 'transfer', icon: Building, color: 'bg-purple-600' },
+  { type: 'DEBT', labelKey: 'onCredit', icon: AlertCircle, color: 'bg-orange-500' },
 ]
 
 const CATEGORY_COLORS = [
@@ -53,6 +54,7 @@ interface CartItem {
 export default function POSPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { t } = useLanguage()
   
   // Get edit mode state from posStore
   const { 
@@ -65,7 +67,11 @@ export default function POSPage() {
     discountAmount: editDiscountAmount,
     finalTotal: editFinalTotal,
     clearEditMode,
-    resetPOS 
+    resetPOS,
+    // Saqlangan xaridlar
+    savedCarts,
+    addSavedCart,
+    removeSavedCart,
   } = usePOSStore()
   
   const isEditMode = !!editingSaleId
@@ -248,7 +254,7 @@ export default function POSPage() {
       toast.success('Saqlandi')
     },
     onError: () => {
-      toast.error('Xatolik')
+      toast.error(t('errorOccurred'))
     }
   })
 
@@ -776,7 +782,7 @@ export default function POSPage() {
 
         await api.put(`/sales/${editingSaleId}/full?edit_reason=${encodeURIComponent(editReason)}`, saleData)
         
-        toast.success(`Sotuv #${editingSaleNumber} muvaffaqiyatli tahrirlandi!`)
+        toast.success(t('saleEdited'))
         
         // Clear edit mode and navigate back
         handleClearCart()
@@ -812,7 +818,7 @@ export default function POSPage() {
       }
 
     } catch (error: any) {
-      toast.error(error.response?.data?.detail || 'Xatolik yuz berdi!')
+      toast.error(error.response?.data?.detail || t('errorOccurred'))
     } finally {
       setIsProcessing(false)
     }
@@ -876,7 +882,7 @@ export default function POSPage() {
 
     setDraggedProduct(null)
     setDragOverProduct(null)
-    toast.success('Tartib saqlandi')
+    toast.success(t('orderSaved'))
   }
 
   const handleDragEnd = () => {
@@ -1140,7 +1146,7 @@ export default function POSPage() {
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
               <ShoppingCart className="w-12 h-12 lg:w-16 lg:h-16 mb-3 opacity-30" />
-              <p className="text-base lg:text-lg">Tovar topilmadi</p>
+              <p className="text-base lg:text-lg">{t('noProductsFound')}</p>
             </div>
           )}
         </div>
@@ -1186,11 +1192,11 @@ export default function POSPage() {
             )}
           >
             <User className="w-4 h-4" />
-            {customer ? customer.name : 'Mijoz tanlash'}
+            {customer ? customer.name : t('selectCustomer')}
           </button>
           
           {customer && customer.current_debt > 0 && (
-            <p className="text-xs text-red-600 text-center mt-1">Qarz: {formatMoney(customer.current_debt)}</p>
+            <p className="text-xs text-red-600 text-center mt-1">{t('debt')}: {formatMoney(customer.current_debt)}</p>
           )}
           
           {/* Driver Phone Input */}
@@ -1199,18 +1205,106 @@ export default function POSPage() {
               type="tel"
               value={driverPhone}
               onChange={(e) => setDriverPhone(e.target.value)}
-              placeholder="Haydovchi tel: +998..."
+              placeholder={t('driverPhone')}
               className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
             />
           </div>
         </div>
+
+        {/* Saqlangan xaridlar */}
+        {savedCarts.length > 0 && (
+          <div className="p-2 border-b bg-amber-50">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-amber-700 flex items-center gap-1">
+                <FolderOpen className="w-3 h-3" />
+                {t('savedCarts')} ({savedCarts.length})
+              </span>
+            </div>
+            <div className="space-y-1 max-h-32 overflow-y-auto">
+              {savedCarts.map((cart) => (
+                <div
+                  key={cart.id}
+                  className="flex items-center justify-between p-2 bg-white rounded-lg border border-amber-200 hover:border-amber-400 transition-colors"
+                >
+                  <button
+                    onClick={() => {
+                      // Avval joriy xaridni saqlash (agar bo'lsa)
+                      if (items.length > 0) {
+                        addSavedCart({
+                          id: `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                          name: `Xarid ${new Date().toLocaleString('uz-UZ')}`,
+                          items: [...items],
+                          customer,
+                          warehouseId,
+                          subtotal,
+                          discountAmount: generalDiscount,
+                          customTotal: generalDiscount > 0 ? finalTotal : null,
+                          savedAt: new Date().toISOString(),
+                        })
+                      }
+                      
+                      // Saqlangan xaridni local state'ga yuklash
+                      const cartItems: CartItem[] = cart.items.map((item: any) => ({
+                        id: item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        product_id: item.product_id,
+                        product_name: item.product_name,
+                        quantity: item.quantity,
+                        uom_id: item.uom_id,
+                        uom_symbol: item.uom_symbol || '',
+                        uom_name: item.uom_name || item.uom_symbol || '',
+                        conversion_factor: item.conversion_factor || 1,
+                        base_uom_id: item.base_uom_id || item.uom_id,
+                        base_uom_symbol: item.base_uom_symbol || item.uom_symbol || '',
+                        cost_price: item.cost_price || 0,
+                        original_price: item.original_price || item.unit_price,
+                        unit_price: item.unit_price,
+                        available_stock: item.available_stock || 999999,
+                      }))
+                      
+                      setItems(cartItems)
+                      setCustomer(cart.customer)
+                      setGeneralDiscount(cart.discountAmount || 0)
+                      
+                      // Saqlangan xaridni ro'yxatdan o'chirish
+                      removeSavedCart(cart.id)
+                      
+                      toast.success('Xarid yuklandi!')
+                    }}
+                    className="flex-1 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart className="w-4 h-4 text-amber-600" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-800">
+                          {cart.items.length} ta tovar
+                          {cart.customer && <span className="text-gray-500"> • {cart.customer.name}</span>}
+                        </p>
+                        <p className="text-xs text-amber-600 font-semibold">{formatMoney(cart.customTotal || cart.subtotal)}</p>
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      removeSavedCart(cart.id)
+                      toast.success('O\'chirildi')
+                    }}
+                    className="p-1.5 hover:bg-red-100 rounded ml-2"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Items */}
         <div className="flex-1 overflow-y-auto">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-400">
               <ShoppingCart className="w-12 h-12 mb-2 opacity-30" />
-              <p className="text-sm">Savat bo'sh</p>
+              <p className="text-sm">{t('cartEmpty')}</p>
             </div>
           ) : (
             <div className="p-2 space-y-2">
@@ -1236,7 +1330,7 @@ export default function POSPage() {
                     </button>
                   </div>
                   
-                  <p className="text-xs text-orange-600 mb-2">Kelish: {formatMoney(item.cost_price * item.conversion_factor, false)}</p>
+                  <p className="text-xs text-orange-600 mb-2">{t('costPrice')}: {formatMoney(item.cost_price * item.conversion_factor, false)}</p>
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
@@ -1249,7 +1343,7 @@ export default function POSPage() {
                       <button
                         onClick={() => handleEditQuantity(item)}
                         className="w-14 h-8 text-center text-sm font-medium bg-white border rounded hover:bg-blue-50 hover:border-blue-300"
-                        title="Miqdorni o'zgartirish"
+                        title={t('quantity')}
                       >
                         {formatNumber(item.quantity, 1)}
                       </button>
@@ -1274,7 +1368,7 @@ export default function POSPage() {
           {items.length > 0 && (
             <>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Jami (chegirmasiz):</span>
+                <span className="text-gray-500">{t('subtotal')}:</span>
                 <span className="font-medium">{formatMoney(subtotal, false)}</span>
               </div>
               
@@ -1284,9 +1378,9 @@ export default function POSPage() {
                   onClick={() => setShowDiscountInput(!showDiscountInput)}
                   className="w-full flex items-center justify-between text-sm"
                 >
-                  <span className="text-orange-700 font-medium">Chegirma:</span>
+                  <span className="text-orange-700 font-medium">{t('discount')}:</span>
                   <span className="text-orange-700 font-bold">
-                    {generalDiscount > 0 ? `-${formatMoney(generalDiscount, false)}` : 'Qo\'shish +'}
+                    {generalDiscount > 0 ? `-${formatMoney(generalDiscount, false)}` : `${t('add')} +`}
                   </span>
                 </button>
                 
@@ -1302,18 +1396,18 @@ export default function POSPage() {
                           applyGeneralDiscount(parseFloat(value) || 0)
                         }}
                         onFocus={(e) => e.target.select()}
-                        placeholder="Chegirma summasi"
+                        placeholder={t('discount')}
                         className="flex-1 h-9 px-3 text-sm font-medium border rounded-lg"
                       />
                       <button
                         onClick={() => { setGeneralDiscount(0); setShowDiscountInput(false) }}
                         className="px-3 h-9 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg"
                       >
-                        Bekor
+                        {t('cancel')}
                       </button>
                     </div>
                     <div className="text-xs text-gray-500">
-                      Yoki yakuniy summani kiriting:
+                      {t('finalTotal')}:
                     </div>
                     <input
                       type="text"
@@ -1324,7 +1418,7 @@ export default function POSPage() {
                         setFinalTotalDirectly(parseFloat(value) || 0)
                       }}
                       onFocus={(e) => e.target.select()}
-                      placeholder="Yakuniy summa"
+                      placeholder={t('finalTotal')}
                       className="w-full h-9 px-3 text-sm font-medium border rounded-lg"
                     />
                   </div>
@@ -1333,7 +1427,7 @@ export default function POSPage() {
               
               {/* Profit */}
               <div className="flex justify-between text-sm">
-                <span className="text-gray-500">Foyda:</span>
+                <span className="text-gray-500">{t('profit')}:</span>
                 <span className={expectedProfit >= 0 ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
                   {formatMoney(expectedProfit, false)}
                 </span>
@@ -1348,14 +1442,47 @@ export default function POSPage() {
               <p className="text-2xl font-bold text-green-700">{formatMoney(finalTotal, false)}</p>
               <p className="text-xs text-gray-500">≈ ${formatNumber(finalTotal / usdRate, 2)}</p>
             </div>
-            <button
-              onClick={handleClearCart}
-              disabled={items.length === 0}
-              className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
-            >
-              <Trash2 className="w-4 h-4" />
-              Tozalash
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => {
+                  if (items.length === 0) {
+                    toast.error('Savat bo\'sh!')
+                    return
+                  }
+                  // Saqlash
+                  addSavedCart({
+                    id: `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                    name: `Xarid ${new Date().toLocaleString('uz-UZ')}`,
+                    items: [...items],
+                    customer,
+                    warehouseId,
+                    subtotal,
+                    discountAmount: generalDiscount,
+                    customTotal: generalDiscount > 0 ? finalTotal : null,
+                    savedAt: new Date().toISOString(),
+                  })
+                  // Clear local cart
+                  setItems([])
+                  setCustomer(null)
+                  setGeneralDiscount(0)
+                  toast.success('Xarid keyinroqqa saqlandi!')
+                }}
+                disabled={items.length === 0}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+                title="Keyinroqqa saqlash"
+              >
+                <Bookmark className="w-4 h-4" />
+                Keyinroq
+              </button>
+              <button
+                onClick={handleClearCart}
+                disabled={items.length === 0}
+                className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                {t('clear')}
+              </button>
+            </div>
           </div>
           
           <button
@@ -1364,7 +1491,7 @@ export default function POSPage() {
             className="w-full h-12 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-lg font-medium"
           >
             <Check className="w-5 h-5" />
-            To'lov
+            {t('payment')}
           </button>
           
           <button
@@ -1373,7 +1500,7 @@ export default function POSPage() {
             className="w-full h-10 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-lg text-base font-medium border border-gray-300"
           >
             <Printer className="w-4 h-4" />
-            Chek chiqarish
+            {t('printReceipt')}
           </button>
         </div>
       </div>
@@ -1392,7 +1519,7 @@ export default function POSPage() {
             <div className="flex items-center justify-between px-4 pb-2 border-b">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5" />
-                Savat ({items.length})
+                {t('cart')} ({items.length})
               </h3>
               <button onClick={() => setMobileCartOpen(false)} className="p-2 hover:bg-gray-100 rounded-full">
                 <X className="w-5 h-5" />
@@ -1411,10 +1538,10 @@ export default function POSPage() {
                 )}
               >
                 <User className="w-4 h-4" />
-                {customer ? customer.name : 'Mijoz tanlash'}
+                {customer ? customer.name : t('selectCustomer')}
               </button>
               {customer && customer.current_debt > 0 && (
-                <p className="text-xs text-red-600 text-center mt-1">Qarz: {formatMoney(customer.current_debt)}</p>
+                <p className="text-xs text-red-600 text-center mt-1">{t('debt')}: {formatMoney(customer.current_debt)}</p>
               )}
               
               {/* Driver Phone Input - Mobile */}
@@ -1423,18 +1550,96 @@ export default function POSPage() {
                   type="tel"
                   value={driverPhone}
                   onChange={(e) => setDriverPhone(e.target.value)}
-                  placeholder="Haydovchi tel: +998..."
+                  placeholder={t('driverPhone')}
                   className="w-full h-9 px-3 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
                 />
               </div>
             </div>
+
+            {/* Saqlangan xaridlar - Mobile */}
+            {savedCarts.length > 0 && (
+              <div className="p-2 border-b bg-amber-50">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-amber-700 flex items-center gap-1">
+                    <FolderOpen className="w-3 h-3" />
+                    Saqlangan ({savedCarts.length})
+                  </span>
+                </div>
+                <div className="space-y-1 max-h-24 overflow-y-auto">
+                  {savedCarts.map((cart) => (
+                    <div
+                      key={cart.id}
+                      className="flex items-center justify-between p-2 bg-white rounded-lg border border-amber-200"
+                    >
+                      <button
+                        onClick={() => {
+                          // Joriy xaridni saqlash
+                          if (items.length > 0) {
+                            addSavedCart({
+                              id: `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                              name: `Xarid ${new Date().toLocaleString('uz-UZ')}`,
+                              items: [...items],
+                              customer,
+                              warehouseId,
+                              subtotal,
+                              discountAmount: generalDiscount,
+                              customTotal: generalDiscount > 0 ? finalTotal : null,
+                              savedAt: new Date().toISOString(),
+                            })
+                          }
+                          
+                          // Saqlangan xaridni yuklash
+                          const cartItems: CartItem[] = cart.items.map((item: any) => ({
+                            id: item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                            product_id: item.product_id,
+                            product_name: item.product_name,
+                            quantity: item.quantity,
+                            uom_id: item.uom_id,
+                            uom_symbol: item.uom_symbol || '',
+                            uom_name: item.uom_name || item.uom_symbol || '',
+                            conversion_factor: item.conversion_factor || 1,
+                            base_uom_id: item.base_uom_id || item.uom_id,
+                            base_uom_symbol: item.base_uom_symbol || item.uom_symbol || '',
+                            cost_price: item.cost_price || 0,
+                            original_price: item.original_price || item.unit_price,
+                            unit_price: item.unit_price,
+                            available_stock: item.available_stock || 999999,
+                          }))
+                          
+                          setItems(cartItems)
+                          setCustomer(cart.customer)
+                          setGeneralDiscount(cart.discountAmount || 0)
+                          removeSavedCart(cart.id)
+                          
+                          toast.success('Xarid yuklandi!')
+                        }}
+                        className="flex-1 text-left"
+                      >
+                        <p className="text-xs font-medium">
+                          {cart.items.length} ta • {formatMoney(cart.customTotal || cart.subtotal)}
+                        </p>
+                      </button>
+                      <button
+                        onClick={() => {
+                          removeSavedCart(cart.id)
+                          toast.success('O\'chirildi')
+                        }}
+                        className="p-1 hover:bg-red-100 rounded ml-2"
+                      >
+                        <Trash2 className="w-3 h-3 text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Items */}
             <div className="flex-1 overflow-y-auto">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-40 text-gray-400">
                   <ShoppingCart className="w-10 h-10 mb-2 opacity-30" />
-                  <p className="text-sm">Savat bo'sh</p>
+                  <p className="text-sm">{t('cartEmpty')}</p>
                 </div>
               ) : (
                 <div className="p-3 space-y-2">
@@ -1494,12 +1699,12 @@ export default function POSPage() {
               {items.length > 0 && (
                 <>
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-500">Jami:</span>
+                    <span className="text-gray-500">{t('total')}:</span>
                     <span className="font-medium">{formatMoney(subtotal, false)}</span>
                   </div>
                   {generalDiscount > 0 && (
                     <div className="flex justify-between text-sm text-orange-600">
-                      <span>Chegirma:</span>
+                      <span>{t('discount')}:</span>
                       <span>-{formatMoney(generalDiscount, false)}</span>
                     </div>
                   )}
@@ -1508,16 +1713,42 @@ export default function POSPage() {
               
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-xs text-gray-500">Yakuniy summa:</p>
+                  <p className="text-xs text-gray-500">{t('finalTotal')}:</p>
                   <p className="text-xl font-bold text-green-700">{formatMoney(finalTotal, false)}</p>
                 </div>
-                <button
-                  onClick={handleClearCart}
-                  disabled={items.length === 0}
-                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded disabled:opacity-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      if (items.length === 0) return
+                      addSavedCart({
+                        id: `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                        name: `Xarid ${new Date().toLocaleString('uz-UZ')}`,
+                        items: [...items],
+                        customer,
+                        warehouseId,
+                        subtotal,
+                        discountAmount: generalDiscount,
+                        customTotal: generalDiscount > 0 ? finalTotal : null,
+                        savedAt: new Date().toISOString(),
+                      })
+                      setItems([])
+                      setCustomer(null)
+                      setGeneralDiscount(0)
+                      toast.success('Xarid keyinroqqa saqlandi!')
+                    }}
+                    disabled={items.length === 0}
+                    className="flex items-center gap-1 px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
+                  >
+                    <Bookmark className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleClearCart}
+                    disabled={items.length === 0}
+                    className="flex items-center gap-1 px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-200 rounded disabled:opacity-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               
               <button
@@ -1526,7 +1757,7 @@ export default function POSPage() {
                 className="w-full h-12 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-base font-medium"
               >
                 <Check className="w-5 h-5" />
-                To'lov
+                {t('payment')}
               </button>
               
               <button
@@ -1535,7 +1766,7 @@ export default function POSPage() {
                 className="w-full h-10 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 rounded-lg text-sm font-medium border border-gray-300"
               >
                 <Printer className="w-4 h-4" />
-                Chek chiqarish
+                {t('printReceipt')}
               </button>
             </div>
           </div>
@@ -1560,7 +1791,7 @@ export default function POSPage() {
       }}>
         <DialogContent className="max-w-[340px]">
           <DialogHeader>
-            <DialogTitle className="text-base pr-6">Kassaga qo'shish</DialogTitle>
+            <DialogTitle className="text-base pr-6">{t('addToCart')}</DialogTitle>
             <DialogDescription className="font-semibold text-sm text-gray-800 line-clamp-2 pr-6">
               {addProductData.product?.name}
             </DialogDescription>
@@ -1571,7 +1802,7 @@ export default function POSPage() {
               {/* Cost Price Info */}
               <div className="bg-orange-50 px-3 py-2 rounded-lg border border-orange-200 w-full box-border">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-orange-600">Kelish narxi:</span>
+                  <span className="text-xs text-orange-600">{t('costPrice')}:</span>
                   <span className="text-sm font-bold text-orange-700">
                     {formatMoney(addProductData.costPrice)}
                   </span>
@@ -1580,7 +1811,7 @@ export default function POSPage() {
               
               {/* UOM Selection */}
               <div className="w-full">
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">O'lchov birligi</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">{t('unit')}</label>
                 <div className="flex flex-wrap gap-2">
                   {/* Base UOM */}
                   <button
@@ -1713,7 +1944,7 @@ export default function POSPage() {
       }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>O'lchov birligi</DialogTitle>
+            <DialogTitle>{t('unit')}</DialogTitle>
             <DialogDescription>{selectedProductForUOM?.name}</DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
@@ -1760,9 +1991,9 @@ export default function POSPage() {
       }}>
         <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader className="pb-2 border-b">
-            <DialogTitle className="text-xl pr-8">Mijoz tanlash</DialogTitle>
+            <DialogTitle className="text-xl pr-8">{t('selectCustomer')}</DialogTitle>
             <p className="text-sm text-gray-500 mt-1">
-              Jami: {customersData?.data?.length || 0} ta mijoz | Ko'rsatilgan: {filteredCustomers.length} ta
+              {t('total')}: {customersData?.data?.length || 0} | {t('all')}: {filteredCustomers.length}
             </p>
           </DialogHeader>
           
@@ -1770,13 +2001,13 @@ export default function POSPage() {
           <div className="flex flex-col sm:flex-row gap-3 py-3 border-b bg-gray-50 -mx-4 px-4 sm:-mx-6 sm:px-6">
             {/* Seller filter */}
             <div className="flex-1 sm:max-w-[200px]">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Kassir bo'yicha</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('seller')}</label>
               <select
                 value={customerSellerFilter}
                 onChange={(e) => setCustomerSellerFilter(e.target.value ? Number(e.target.value) : '')}
                 className="w-full h-11 px-3 border-2 border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
-                <option value="">Barcha kassirlar</option>
+                <option value="">{t('all')}</option>
                 {sellersData?.data?.map((seller: any) => (
                   <option key={seller.id} value={seller.id}>
                     {seller.first_name} {seller.last_name}
@@ -1787,14 +2018,14 @@ export default function POSPage() {
             
             {/* Search input */}
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-600 mb-1">Qidirish</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{t('search')}</label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   type="text"
                   value={customerSearchQuery}
                   onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                  placeholder="Ism, kompaniya yoki telefon..."
+                  placeholder={t('searchProducts')}
                   className="w-full h-11 pl-11 pr-4 border-2 border-gray-200 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   autoFocus
                 />
@@ -1814,8 +2045,8 @@ export default function POSPage() {
                   <User className="w-6 h-6 text-gray-400" />
                 </div>
                 <div>
-                  <p className="font-semibold text-base">Oddiy xaridor</p>
-                  <p className="text-sm text-gray-500">Ro'yxatdan o'tmagan mijoz</p>
+                  <p className="font-semibold text-base">{t('retail')}</p>
+                  <p className="text-sm text-gray-500">{t('noData')}</p>
                 </div>
               </div>
             </button>
@@ -1823,8 +2054,8 @@ export default function POSPage() {
             {filteredCustomers.length === 0 ? (
               <div className="text-center py-12">
                 <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg">Mijoz topilmadi</p>
-                <p className="text-gray-400 text-sm mt-1">Qidiruv so'zini o'zgartiring</p>
+                <p className="text-gray-500 text-lg">{t('notFound')}</p>
+                <p className="text-gray-400 text-sm mt-1">{t('search')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1957,19 +2188,19 @@ export default function POSPage() {
         <DialogContent className="max-w-[340px]">
           <DialogHeader>
             <DialogTitle className="text-base pr-6">
-              {isEditMode ? `Sotuv #${editingSaleNumber} tahrirlash` : 'To\'lov qilish'}
+              {isEditMode ? `${t('sales')} #${editingSaleNumber} ${t('editSaleTitle')}` : t('makePayment')}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 pt-2 w-full">
             {/* Edit Reason - Only in Edit Mode */}
             {isEditMode && (
               <div className="space-y-1.5">
-                <label className="text-sm font-medium text-gray-700">Tahrirlash sababi *</label>
+                <label className="text-sm font-medium text-gray-700">{t('editReason')} *</label>
                 <input
                   type="text"
                   value={editReason}
                   onChange={(e) => setEditReason(e.target.value)}
-                  placeholder="Sabab kiriting (kamida 3 ta belgi)"
+                  placeholder={t('editReasonPlaceholder')}
                   className="w-full h-10 px-3 text-sm border-2 border-warning/50 rounded-lg focus:border-warning focus:ring-2 focus:ring-warning/20 outline-none"
                 />
               </div>
@@ -1987,7 +2218,7 @@ export default function POSPage() {
                   )}
                 >
                   <pt.icon className="w-4 h-4" />
-                  {pt.label}
+                  {t(pt.labelKey as any)}
                 </button>
               ))}
             </div>

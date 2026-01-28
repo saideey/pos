@@ -20,6 +20,7 @@ from schemas.user import (
     UserListResponse,
     UserBlockRequest,
     UserPasswordReset,
+    UserLanguageUpdate,
     RoleResponse,
     RoleListResponse,
 )
@@ -72,6 +73,32 @@ async def change_own_password(
     db.commit()
     
     return SuccessResponse(message="Parol muvaffaqiyatli o'zgartirildi")
+
+
+# ==================== CHANGE LANGUAGE ====================
+
+@router.put(
+    "/language",
+    response_model=SuccessResponse,
+    summary="Tilni o'zgartirish"
+)
+async def change_language(
+    data: UserLanguageUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Change user's language preference.
+    
+    Available languages:
+    - uz: O'zbek (lotin)
+    - ru: Русский
+    - uz_cyrl: Ўзбек (кирилл)
+    """
+    current_user.language = data.language
+    db.commit()
+    
+    return SuccessResponse(message="Til muvaffaqiyatli o'zgartirildi")
 
 
 # ==================== ROLES ====================

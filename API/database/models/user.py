@@ -158,6 +158,9 @@ class User(BaseModel, SoftDeleteMixin):
     phone = Column(String(20), nullable=True, index=True)
     avatar_url = Column(String(500), nullable=True)
     
+    # User preferences
+    language = Column(String(10), default='uz', nullable=False)  # uz, ru, uz_cyrl
+    
     # Role and permissions
     role_id = Column(Integer, ForeignKey('roles.id'), nullable=False)
     

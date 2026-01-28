@@ -15,6 +15,7 @@ import { warehouseService, productsService } from '@/services'
 import api from '@/services/api'
 import { formatMoney, formatNumber, cn, formatDateTashkent, formatTimeTashkent } from '@/lib/utils'
 import { useAuthStore } from '@/stores'
+import { useLanguage } from '@/contexts/LanguageContext'
 import type { Stock, Warehouse, Product } from '@/types'
 
 interface IncomeItem {
@@ -51,6 +52,7 @@ type MovementFilter = 'all' | 'income' | 'outcome'
 export default function WarehousePage() {
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
+  const { t } = useLanguage()
   const isDirector = user?.role_type === 'director'
   
   const [searchQuery, setSearchQuery] = useState('')
@@ -212,9 +214,9 @@ export default function WarehousePage() {
     onError: (error: any) => {
       const detail = error.response?.data?.detail
       if (Array.isArray(detail)) {
-        toast.error(detail.map((e: any) => e.msg).join(', ') || 'Validatsiya xatosi')
+        toast.error(detail.map((e: any) => e.msg).join(', ') || t('validationError'))
       } else {
-        toast.error(typeof detail === 'string' ? detail : 'Xatolik yuz berdi')
+        toast.error(typeof detail === 'string' ? detail : t('errorOccurred'))
       }
     },
   })
@@ -235,13 +237,13 @@ export default function WarehousePage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Harakat muvaffaqiyatli tahrirlandi!')
+      toast.success(t('movementEdited'))
       queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
       queryClient.invalidateQueries({ queryKey: ['stock'] })
       setEditingMovement(null)
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Tahrirlashda xatolik')
+      toast.error(error.response?.data?.detail || t('editError'))
     }
   })
 
@@ -252,14 +254,14 @@ export default function WarehousePage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Harakat o\'chirildi!')
+      toast.success(t('movementDeleted'))
       queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
       queryClient.invalidateQueries({ queryKey: ['stock'] })
       setDeletingMovement(null)
       setDeleteReason('')
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'O\'chirishda xatolik')
+      toast.error(error.response?.data?.detail || t('deleteError'))
     }
   })
 
@@ -283,7 +285,7 @@ export default function WarehousePage() {
     <div className="space-y-4 lg:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 lg:gap-4">
-        <h1 className="text-xl lg:text-pos-xl font-bold">Ombor</h1>
+        <h1 className="text-xl lg:text-pos-xl font-bold">{t('warehouse')}</h1>
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <div className="flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-primary/10 rounded-xl text-sm lg:text-base">
             <DollarSign className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
@@ -291,7 +293,7 @@ export default function WarehousePage() {
           </div>
           <Button size="lg" variant="success" onClick={() => setShowIncomeDialog(true)} className="w-full sm:w-auto text-sm lg:text-base">
             <TrendingUp className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
-            Kirim qilish (USD)
+            {t('stockIn')} (USD)
           </Button>
         </div>
       </div>
@@ -325,8 +327,8 @@ export default function WarehousePage() {
               <AlertTriangle className="w-5 h-5 lg:w-6 lg:h-6 text-warning" />
             </div>
             <div className="text-center lg:text-left">
-              <p className="font-semibold text-sm lg:text-base">Kam qoldiq</p>
-              <p className="text-xs lg:text-sm text-danger font-bold">{lowStock?.data?.length || 0} ta tovar</p>
+              <p className="font-semibold text-sm lg:text-base">{t('lowStock')}</p>
+              <p className="text-xs lg:text-sm text-danger font-bold">{lowStock?.data?.length || 0}</p>
             </div>
           </CardContent>
         </Card>
@@ -342,7 +344,7 @@ export default function WarehousePage() {
           )}
         >
           <Package className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          Qoldiqlar
+          {t('inventory')}
         </button>
         <button
           onClick={() => setActiveTab('history')}
@@ -352,7 +354,7 @@ export default function WarehousePage() {
           )}
         >
           <History className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          Kirim tarixi
+          {t('movements')}
         </button>
       </div>
 
@@ -366,7 +368,7 @@ export default function WarehousePage() {
                 <div className="flex-1">
                   <Input
                     icon={<Search className="w-4 h-4 lg:w-5 lg:h-5" />}
-                    placeholder="Tovar qidirish..."
+                    placeholder={t('searchProducts') + '...'}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="text-sm lg:text-base"
@@ -752,10 +754,10 @@ export default function WarehousePage() {
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-3 py-2 text-left text-sm font-medium">Tovar</th>
-                      <th className="px-3 py-2 text-center text-sm font-medium w-24">Miqdor</th>
+                      <th className="px-3 py-2 text-center text-sm font-medium w-32">Miqdor</th>
                       <th className="px-3 py-2 text-center text-sm font-medium w-24">O'lchov</th>
-                      <th className="px-3 py-2 text-center text-sm font-medium w-28">Narx ($)</th>
-                      <th className="px-3 py-2 text-right text-sm font-medium w-32">Jami ($)</th>
+                      <th className="px-3 py-2 text-center text-sm font-medium w-36">Narx ($)</th>
+                      <th className="px-3 py-2 text-right text-sm font-medium w-36">Jami ($)</th>
                       <th className="px-3 py-2 w-12"></th>
                     </tr>
                   </thead>
@@ -771,7 +773,7 @@ export default function WarehousePage() {
                               className="w-full px-2 py-2 border border-border rounded text-sm"
                             >
                               <option value={0}>
-                                {productsLoading ? 'Yuklanmoqda...' : 'Tovar tanlang'}
+                                {productsLoading ? t('loading') : t('selectProduct')}
                               </option>
                               {productsList.map((p: Product) => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -782,7 +784,7 @@ export default function WarehousePage() {
                             <Input
                               type="number"
                               {...register(`items.${index}.quantity`, { valueAsNumber: true })}
-                              className="text-center text-sm"
+                              className="text-center text-sm w-full"
                               placeholder="0"
                             />
                           </td>
@@ -803,7 +805,7 @@ export default function WarehousePage() {
                                 type="number"
                                 step="0.01"
                                 {...register(`items.${index}.unit_price_usd`, { valueAsNumber: true })}
-                                className="text-center text-sm pl-6"
+                                className="text-center text-sm pl-6 w-full"
                                 placeholder="0.00"
                               />
                             </div>

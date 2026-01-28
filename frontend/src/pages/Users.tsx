@@ -25,10 +25,12 @@ import { Button, Input, Card, CardContent, Badge } from '@/components/ui'
 import usersService, { User, Role, CreateUserData, UpdateUserData } from '@/services/usersService'
 import { formatDateTimeTashkent } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function UsersPage() {
   const queryClient = useQueryClient()
   const { user: currentUser } = useAuthStore()
+  const { t } = useLanguage()
   const [search, setSearch] = useState('')
   const [filterRole, setFilterRole] = useState<number | ''>('')
   const [filterStatus, setFilterStatus] = useState<string>('')
@@ -83,7 +85,7 @@ export default function UsersPage() {
   const createUserMutation = useMutation({
     mutationFn: usersService.createUser,
     onSuccess: () => {
-      toast.success('Foydalanuvchi yaratildi!')
+      toast.success(t('savedSuccess'))
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowCreateModal(false)
       createForm.reset()
@@ -93,11 +95,11 @@ export default function UsersPage() {
       if (Array.isArray(detail)) {
         // Pydantic validation error
         const messages = detail.map((err: any) => err.msg || err.message).join(', ')
-        toast.error(messages || 'Validatsiya xatosi')
+        toast.error(messages || t('errorOccurred'))
       } else if (typeof detail === 'string') {
         toast.error(detail)
       } else {
-        toast.error('Xatolik yuz berdi')
+        toast.error(t('errorOccurred'))
       }
     }
   })
@@ -107,13 +109,13 @@ export default function UsersPage() {
     mutationFn: ({ id, data }: { id: number; data: UpdateUserData }) => 
       usersService.updateUser(id, data),
     onSuccess: () => {
-      toast.success('Foydalanuvchi yangilandi!')
+      toast.success(t('updatedSuccess'))
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowEditModal(false)
       setSelectedUser(null)
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Xatolik yuz berdi')
+      toast.error(error.response?.data?.detail || t('errorOccurred'))
     }
   })
 
@@ -121,13 +123,13 @@ export default function UsersPage() {
   const deleteUserMutation = useMutation({
     mutationFn: usersService.deleteUser,
     onSuccess: () => {
-      toast.success('Foydalanuvchi o\'chirildi!')
+      toast.success(t('deletedSuccess'))
       queryClient.invalidateQueries({ queryKey: ['users'] })
       setShowDeleteConfirm(false)
       setSelectedUser(null)
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Xatolik yuz berdi')
+      toast.error(error.response?.data?.detail || t('errorOccurred'))
     }
   })
 
@@ -135,11 +137,11 @@ export default function UsersPage() {
   const toggleStatusMutation = useMutation({
     mutationFn: usersService.toggleUserStatus,
     onSuccess: () => {
-      toast.success('Status o\'zgartirildi!')
+      toast.success(t('updatedSuccess'))
       queryClient.invalidateQueries({ queryKey: ['users'] })
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'Xatolik yuz berdi')
+      toast.error(error.response?.data?.detail || t('errorOccurred'))
     }
   })
 
@@ -148,7 +150,7 @@ export default function UsersPage() {
     mutationFn: ({ userId, password }: { userId: number; password: string }) =>
       usersService.resetUserPassword(userId, password),
     onSuccess: () => {
-      toast.success('Parol yangilandi!')
+      toast.success(t('passwordChanged'))
       setShowResetPasswordModal(false)
       setSelectedUser(null)
       resetPasswordForm.reset()
@@ -157,11 +159,11 @@ export default function UsersPage() {
       const detail = error.response?.data?.detail
       if (Array.isArray(detail)) {
         const messages = detail.map((err: any) => err.msg || err.message).join(', ')
-        toast.error(messages || 'Validatsiya xatosi')
+        toast.error(messages || t('errorOccurred'))
       } else if (typeof detail === 'string') {
         toast.error(detail)
       } else {
-        toast.error('Xatolik yuz berdi')
+        toast.error(t('errorOccurred'))
       }
     }
   })
@@ -169,7 +171,7 @@ export default function UsersPage() {
   // Handlers
   const handleCreate = (data: CreateUserData) => {
     if (!data.role_id) {
-      toast.error('Rolni tanlang')
+      toast.error(t('required'))
       return
     }
     createUserMutation.mutate(data)
@@ -196,7 +198,7 @@ export default function UsersPage() {
 
   const handleDelete = (user: User) => {
     if (user.id === currentUser?.id) {
-      toast.error('O\'zingizni o\'chira olmaysiz!')
+      toast.error(t('accessDenied'))
       return
     }
     setSelectedUser(user)
@@ -211,11 +213,11 @@ export default function UsersPage() {
 
   const submitResetPassword = (data: { new_password: string; confirm_password: string }) => {
     if (data.new_password !== data.confirm_password) {
-      toast.error('Parollar mos kelmayapti')
+      toast.error(t('passwordMismatch'))
       return
     }
     if (data.new_password.length < 6) {
-      toast.error('Parol kamida 6 ta belgidan iborat bo\'lishi kerak')
+      toast.error(t('minLength'))
       return
     }
     if (selectedUser) {
@@ -235,18 +237,18 @@ export default function UsersPage() {
 
   const getRoleDisplayName = (roleName: string) => {
     const roleMap: Record<string, string> = {
-      'Admin': 'Administrator',
-      'ADMIN': 'Administrator',
-      'admin': 'Administrator',
-      'Manager': 'Menejer',
-      'MANAGER': 'Menejer',
-      'manager': 'Menejer',
-      'Cashier': 'Kassir',
-      'CASHIER': 'Kassir',
-      'cashier': 'Kassir',
-      'Warehouse': 'Omborchi',
-      'WAREHOUSE': 'Omborchi',
-      'warehouse': 'Omborchi',
+      'Admin': t('director'),
+      'ADMIN': t('director'),
+      'admin': t('director'),
+      'Manager': t('warehouseManager'),
+      'MANAGER': t('warehouseManager'),
+      'manager': t('warehouseManager'),
+      'Cashier': t('seller2'),
+      'CASHIER': t('seller2'),
+      'cashier': t('seller2'),
+      'Warehouse': t('warehouseManager'),
+      'WAREHOUSE': t('warehouseManager'),
+      'warehouse': t('warehouseManager'),
     }
     return roleMap[roleName] || roleName
   }
@@ -258,13 +260,13 @@ export default function UsersPage() {
         <div className="flex items-center gap-2 lg:gap-3">
           <UsersIcon className="w-6 h-6 lg:w-8 lg:h-8 text-primary" />
           <div>
-            <h1 className="text-xl lg:text-2xl font-bold">Foydalanuvchilar</h1>
-            <p className="text-xs lg:text-sm text-gray-500">Jami: {users.length} ta</p>
+            <h1 className="text-xl lg:text-2xl font-bold">{t('users')}</h1>
+            <p className="text-xs lg:text-sm text-gray-500">{t('total')}: {users.length}</p>
           </div>
         </div>
         <Button variant="primary" onClick={() => setShowCreateModal(true)} className="w-full sm:w-auto">
           <Plus className="w-5 h-5 mr-2" />
-          Yangi foydalanuvchi
+          {t('addUser')}
         </Button>
       </div>
 
@@ -275,7 +277,7 @@ export default function UsersPage() {
             <div className="relative col-span-2">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
               <Input
-                placeholder="Qidirish..."
+                placeholder={t('search') + '...'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9 lg:pl-10 text-sm lg:text-base"
@@ -286,7 +288,7 @@ export default function UsersPage() {
               onChange={(e) => setFilterRole(e.target.value ? Number(e.target.value) : '')}
               className="px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 text-sm lg:text-base"
             >
-              <option value="">Barcha rollar</option>
+              <option value="">{t('all')} {t('role').toLowerCase()}</option>
               {roles.map((role) => (
                 <option key={role.id} value={role.id}>{getRoleDisplayName(role.name)}</option>
               ))}
@@ -296,9 +298,9 @@ export default function UsersPage() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20 text-sm lg:text-base"
             >
-              <option value="">Barcha status</option>
-              <option value="active">Faol</option>
-              <option value="inactive">Nofaol</option>
+              <option value="">{t('all')} {t('status').toLowerCase()}</option>
+              <option value="active">{t('active')}</option>
+              <option value="inactive">{t('blocked')}</option>
             </select>
           </div>
         </CardContent>
@@ -314,20 +316,20 @@ export default function UsersPage() {
           ) : users.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <UsersIcon className="w-12 h-12 lg:w-16 lg:h-16 mx-auto mb-4 opacity-50" />
-              <p className="text-sm lg:text-base">Foydalanuvchilar topilmadi</p>
+              <p className="text-sm lg:text-base">{t('noData')}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[800px]">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="text-left px-6 py-4 font-semibold">Foydalanuvchi</th>
-                    <th className="text-left px-6 py-4 font-semibold">Username</th>
-                    <th className="text-left px-6 py-4 font-semibold">Telefon</th>
-                    <th className="text-left px-6 py-4 font-semibold">Role</th>
-                    <th className="text-center px-6 py-4 font-semibold">Status</th>
-                    <th className="text-left px-6 py-4 font-semibold">Oxirgi kirish</th>
-                    <th className="text-center px-6 py-4 font-semibold">Amallar</th>
+                    <th className="text-left px-6 py-4 font-semibold">{t('name')}</th>
+                    <th className="text-left px-6 py-4 font-semibold">{t('username')}</th>
+                    <th className="text-left px-6 py-4 font-semibold">{t('phone')}</th>
+                    <th className="text-left px-6 py-4 font-semibold">{t('role')}</th>
+                    <th className="text-center px-6 py-4 font-semibold">{t('status')}</th>
+                    <th className="text-left px-6 py-4 font-semibold">{t('date')}</th>
+                    <th className="text-center px-6 py-4 font-semibold">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -374,21 +376,21 @@ export default function UsersPage() {
                       <td className="px-6 py-4 text-sm text-gray-500">
                         {user.last_login 
                           ? formatDateTimeTashkent(user.last_login)
-                          : 'Hech qachon'}
+                          : '-'}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => handleEdit(user)}
                             className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Tahrirlash"
+                            title={t('edit')}
                           >
                             <Edit className="w-5 h-5" />
                           </button>
                           <button
                             onClick={() => handleResetPassword(user)}
                             className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                            title="Parol o'zgartirish"
+                            title={t('changePassword')}
                           >
                             <Key className="w-5 h-5" />
                           </button>
@@ -398,7 +400,7 @@ export default function UsersPage() {
                             className={`p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors ${
                               user.id === currentUser?.id ? 'opacity-50 cursor-not-allowed' : ''
                             }`}
-                            title="O'chirish"
+                            title={t('delete')}
                           >
                             <Trash2 className="w-5 h-5" />
                           </button>
@@ -418,7 +420,7 @@ export default function UsersPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold">Yangi foydalanuvchi</h2>
+              <h2 className="text-xl font-bold">{t('addUser')}</h2>
               <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
@@ -426,25 +428,25 @@ export default function UsersPage() {
             <form onSubmit={createForm.handleSubmit(handleCreate)} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Ism *</label>
-                  <Input {...createForm.register('first_name', { required: true })} placeholder="Ism" />
+                  <label className="block text-sm font-medium mb-1">{t('firstName')} *</label>
+                  <Input {...createForm.register('first_name', { required: true })} placeholder={t('firstName')} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Familiya *</label>
-                  <Input {...createForm.register('last_name', { required: true })} placeholder="Familiya" />
+                  <label className="block text-sm font-medium mb-1">{t('lastName')} *</label>
+                  <Input {...createForm.register('last_name', { required: true })} placeholder={t('lastName')} />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Username *</label>
-                <Input {...createForm.register('username', { required: true, minLength: 3 })} placeholder="username (kamida 3 ta belgi)" />
+                <label className="block text-sm font-medium mb-1">{t('username')} *</label>
+                <Input {...createForm.register('username', { required: true, minLength: 3 })} placeholder={t('username')} />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Parol *</label>
+                <label className="block text-sm font-medium mb-1">{t('password')} *</label>
                 <div className="relative">
                   <Input
                     type={showPassword ? 'text' : 'password'}
                     {...createForm.register('password', { required: true, minLength: 6 })}
-                    placeholder="Kamida 6 ta belgi"
+                    placeholder={t('password')}
                   />
                   <button
                     type="button"
@@ -456,20 +458,20 @@ export default function UsersPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Telefon *</label>
+                <label className="block text-sm font-medium mb-1">{t('phone')} *</label>
                 <Input {...createForm.register('phone', { required: true })} placeholder="+998901234567" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+                <label className="block text-sm font-medium mb-1">{t('email')}</label>
                 <Input {...createForm.register('email')} type="email" placeholder="email@example.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Role *</label>
+                <label className="block text-sm font-medium mb-1">{t('role')} *</label>
                 <select
                   {...createForm.register('role_id', { required: true, valueAsNumber: true })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value={0}>Rolni tanlang</option>
+                  <option value={0}>{t('role')}</option>
                   {roles.map((role) => (
                     <option key={role.id} value={role.id}>{getRoleDisplayName(role.name)}</option>
                   ))}
@@ -477,10 +479,10 @@ export default function UsersPage() {
               </div>
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setShowCreateModal(false)}>
-                  Bekor qilish
+                  {t('cancel')}
                 </Button>
                 <Button type="submit" variant="primary" className="flex-1" disabled={createUserMutation.isPending}>
-                  {createUserMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Yaratish'}
+                  {createUserMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : t('save')}
                 </Button>
               </div>
             </form>
@@ -493,7 +495,7 @@ export default function UsersPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold">Foydalanuvchini tahrirlash</h2>
+              <h2 className="text-xl font-bold">{t('editUser')}</h2>
               <button onClick={() => setShowEditModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
@@ -501,24 +503,24 @@ export default function UsersPage() {
             <form onSubmit={editForm.handleSubmit(handleUpdate)} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Ism</label>
-                  <Input {...editForm.register('first_name')} placeholder="Ism" />
+                  <label className="block text-sm font-medium mb-1">{t('firstName')}</label>
+                  <Input {...editForm.register('first_name')} placeholder={t('firstName')} />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1">Familiya</label>
-                  <Input {...editForm.register('last_name')} placeholder="Familiya" />
+                  <label className="block text-sm font-medium mb-1">{t('lastName')}</label>
+                  <Input {...editForm.register('last_name')} placeholder={t('lastName')} />
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Telefon</label>
+                <label className="block text-sm font-medium mb-1">{t('phone')}</label>
                 <Input {...editForm.register('phone')} placeholder="+998901234567" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+                <label className="block text-sm font-medium mb-1">{t('email')}</label>
                 <Input {...editForm.register('email')} type="email" placeholder="email@example.com" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Role</label>
+                <label className="block text-sm font-medium mb-1">{t('role')}</label>
                 <select
                   {...editForm.register('role_id', { valueAsNumber: true })}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary/20"
@@ -529,15 +531,15 @@ export default function UsersPage() {
                   ))}
                 </select>
                 {selectedUser.id === currentUser?.id && (
-                  <p className="text-xs text-gray-500 mt-1">O'z rolingizni o'zgartira olmaysiz</p>
+                  <p className="text-xs text-gray-500 mt-1">{t('accessDenied')}</p>
                 )}
               </div>
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setShowEditModal(false)}>
-                  Bekor qilish
+                  {t('cancel')}
                 </Button>
                 <Button type="submit" variant="primary" className="flex-1" disabled={updateUserMutation.isPending}>
-                  {updateUserMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Saqlash'}
+                  {updateUserMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : t('save')}
                 </Button>
               </div>
             </form>
@@ -550,7 +552,7 @@ export default function UsersPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
             <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-xl font-bold">Parolni o'zgartirish</h2>
+              <h2 className="text-xl font-bold">{t('changePassword')}</h2>
               <button onClick={() => setShowResetPasswordModal(false)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
@@ -558,16 +560,16 @@ export default function UsersPage() {
             <form onSubmit={resetPasswordForm.handleSubmit(submitResetPassword)} className="p-6 space-y-4">
               <div className="bg-yellow-50 p-4 rounded-xl">
                 <p className="text-sm text-yellow-800">
-                  <strong>{selectedUser.first_name} {selectedUser.last_name}</strong> uchun yangi parol o'rnatiladi
+                  <strong>{selectedUser.first_name} {selectedUser.last_name}</strong>
                 </p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Yangi parol</label>
+                <label className="block text-sm font-medium mb-1">{t('newPassword')}</label>
                 <div className="relative">
                   <Input
                     type={showPassword ? 'text' : 'password'}
                     {...resetPasswordForm.register('new_password', { required: true, minLength: 6 })}
-                    placeholder="Kamida 6 ta belgi"
+                    placeholder={t('newPassword')}
                   />
                   <button
                     type="button"
@@ -579,19 +581,19 @@ export default function UsersPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Parolni tasdiqlang</label>
+                <label className="block text-sm font-medium mb-1">{t('confirmPassword')}</label>
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   {...resetPasswordForm.register('confirm_password', { required: true })}
-                  placeholder="Parolni qayta kiriting"
+                  placeholder={t('confirmPassword')}
                 />
               </div>
               <div className="flex gap-3 pt-4">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setShowResetPasswordModal(false)}>
-                  Bekor qilish
+                  {t('cancel')}
                 </Button>
                 <Button type="submit" variant="warning" className="flex-1" disabled={resetPasswordMutation.isPending}>
-                  {resetPasswordMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'O\'zgartirish'}
+                  {resetPasswordMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : t('save')}
                 </Button>
               </div>
             </form>
@@ -607,13 +609,13 @@ export default function UsersPage() {
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-8 h-8 text-red-600" />
               </div>
-              <h3 className="text-xl font-bold mb-2">O'chirishni tasdiqlang</h3>
+              <h3 className="text-xl font-bold mb-2">{t('confirm')}</h3>
               <p className="text-gray-600 mb-6">
-                <strong>{selectedUser.first_name} {selectedUser.last_name}</strong> foydalanuvchisini o'chirmoqchimisiz?
+                <strong>{selectedUser.first_name} {selectedUser.last_name}</strong> - {t('deleteUser')}?
               </p>
               <div className="flex gap-3">
                 <Button variant="outline" className="flex-1" onClick={() => setShowDeleteConfirm(false)}>
-                  Bekor qilish
+                  {t('cancel')}
                 </Button>
                 <Button
                   variant="danger"
@@ -621,7 +623,7 @@ export default function UsersPage() {
                   onClick={() => deleteUserMutation.mutate(selectedUser.id)}
                   disabled={deleteUserMutation.isPending}
                 >
-                  {deleteUserMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'O\'chirish'}
+                  {deleteUserMutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : t('delete')}
                 </Button>
               </div>
             </div>

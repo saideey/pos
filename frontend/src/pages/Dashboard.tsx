@@ -14,9 +14,11 @@ import { Card, CardContent, CardHeader, CardTitle, Button, Badge } from '@/compo
 import { salesService, warehouseService, customersService } from '@/services'
 import { formatMoney, formatNumber } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function Dashboard() {
   const { user, token } = useAuthStore()
+  const { t } = useLanguage()
   const isDirector = user?.role_type === 'director'
   
   // For sellers, pass their ID to filter data
@@ -45,28 +47,28 @@ export default function Dashboard() {
 
   const stats = [
     {
-      title: "Bugungi sotuvlar",
+      title: t('todaySales'),
       value: formatNumber(dailySummary?.total_sales || 0),
       icon: ShoppingCart,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
     {
-      title: "Umumiy summa",
+      title: t('total'),
       value: formatMoney(dailySummary?.total_amount || 0, false),
       icon: DollarSign,
       color: 'text-success',
       bgColor: 'bg-success/10',
     },
     {
-      title: "To'langan",
+      title: t('paid'),
       value: formatMoney(dailySummary?.total_paid || 0, false),
       icon: CreditCard,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
     },
     {
-      title: "Qarzga",
+      title: t('debt'),
       value: formatMoney(dailySummary?.total_debt || 0, false),
       icon: TrendingUp,
       color: dailySummary?.total_debt > 0 ? 'text-warning' : 'text-success',
@@ -74,27 +76,39 @@ export default function Dashboard() {
     },
   ]
 
+  // Welcome message based on language
+  const getWelcome = () => {
+    return t('welcomeMessage')
+  }
+
+  // Date locale based on language
+  const getDateLocale = () => {
+    const lang = localStorage.getItem('language') || 'uz'
+    if (lang === 'ru') return 'ru-RU'
+    return 'uz-UZ'
+  }
+
   return (
     <div className="space-y-4 lg:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl lg:text-pos-xl font-bold">Xush kelibsiz, {user?.first_name}!</h1>
+          <h1 className="text-xl lg:text-pos-xl font-bold">{getWelcome()}, {user?.first_name}!</h1>
           <p className="text-text-secondary text-sm lg:text-pos-base">
-            {new Date().toLocaleDateString('uz-UZ', { 
+            {new Date().toLocaleDateString(getDateLocale(), { 
               weekday: 'long', 
               year: 'numeric', 
               month: 'long', 
               day: 'numeric',
               timeZone: 'Asia/Tashkent'
             })}
-            {!isDirector && <span className="ml-2 text-primary">• Sizning statistikangiz</span>}
+            {!isDirector && <span className="ml-2 text-primary">• {t('language') === 'Язык' ? 'Ваша статистика' : 'Sizning statistikangiz'}</span>}
           </p>
         </div>
         <Link to="/pos" className="w-full sm:w-auto">
           <Button size="lg" variant="success" className="w-full sm:w-auto">
             <ShoppingCart className="w-5 h-5 lg:w-6 lg:h-6 mr-2" />
-            Kassa ochish
+            {t('pos')}
           </Button>
         </Link>
       </div>
@@ -125,11 +139,11 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between p-4 lg:p-6">
             <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
               <AlertTriangle className="w-5 h-5 lg:w-6 lg:h-6 text-warning" />
-              Kam qoldiqlar
+              {t('lowStock')}
             </CardTitle>
             <Link to="/warehouse">
               <Button variant="ghost" size="sm" className="text-sm">
-                Barchasi <ArrowRight className="w-4 h-4 ml-1" />
+                {t('all')} <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </CardHeader>
@@ -155,7 +169,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <p className="text-text-secondary text-center py-6 lg:py-8 text-sm lg:text-base">
-                Kam qoldiqli tovarlar yo'q
+                {t('noData')}
               </p>
             )}
           </CardContent>
@@ -166,11 +180,11 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between p-4 lg:p-6">
             <CardTitle className="flex items-center gap-2 text-base lg:text-lg">
               <Users className="w-5 h-5 lg:w-6 lg:h-6 text-danger" />
-              {isDirector ? 'Qarzdorlar' : 'Sizning qarzdorlaringiz'}
+              {t('debt')}
             </CardTitle>
             <Link to="/customers">
               <Button variant="ghost" size="sm" className="text-sm">
-                Barchasi <ArrowRight className="w-4 h-4 ml-1" />
+                {t('all')} <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </CardHeader>
@@ -191,7 +205,7 @@ export default function Dashboard() {
                 {debtorsData.total_debt > 0 && (
                   <div className="pt-3 border-t border-border">
                     <div className="flex justify-between text-sm lg:text-pos-base font-bold">
-                      <span>Jami qarz:</span>
+                      <span>{t('totalDebt')}:</span>
                       <span className="text-danger">{formatMoney(debtorsData.total_debt)}</span>
                     </div>
                   </div>
@@ -199,7 +213,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <p className="text-text-secondary text-center py-6 lg:py-8 text-sm lg:text-base">
-                Qarzdor mijozlar yo'q
+                {t('noData')}
               </p>
             )}
           </CardContent>
@@ -209,32 +223,32 @@ export default function Dashboard() {
       {/* Quick Actions */}
       <Card>
         <CardHeader className="p-4 lg:p-6">
-          <CardTitle className="text-base lg:text-lg">Tezkor harakatlar</CardTitle>
+          <CardTitle className="text-base lg:text-lg">{t('actions')}</CardTitle>
         </CardHeader>
         <CardContent className="p-4 lg:p-6 pt-0 lg:pt-0">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-4">
             <Link to="/pos">
               <Button variant="success" size="lg" className="w-full text-sm lg:text-base py-3 lg:py-4">
                 <ShoppingCart className="w-5 h-5 lg:w-6 lg:h-6 mr-1.5 lg:mr-2" />
-                <span className="hidden sm:inline">Yangi </span>sotuv
+                {t('pos')}
               </Button>
             </Link>
             <Link to="/products">
               <Button variant="outline" size="lg" className="w-full text-sm lg:text-base py-3 lg:py-4">
                 <Package className="w-5 h-5 lg:w-6 lg:h-6 mr-1.5 lg:mr-2" />
-                <span className="hidden sm:inline">Tovar </span>qo'shish
+                {t('products')}
               </Button>
             </Link>
             <Link to="/warehouse">
               <Button variant="outline" size="lg" className="w-full text-sm lg:text-base py-3 lg:py-4">
                 <TrendingUp className="w-5 h-5 lg:w-6 lg:h-6 mr-1.5 lg:mr-2" />
-                <span className="hidden sm:inline">Kirim </span>qilish
+                {t('warehouse')}
               </Button>
             </Link>
             <Link to="/customers">
               <Button variant="outline" size="lg" className="w-full text-sm lg:text-base py-3 lg:py-4">
                 <Users className="w-5 h-5 lg:w-6 lg:h-6 mr-1.5 lg:mr-2" />
-                <span className="hidden sm:inline">Mijoz </span>qo'shish
+                {t('customers')}
               </Button>
             </Link>
           </div>

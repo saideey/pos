@@ -14,6 +14,7 @@ import {
 import api from '@/services/api'
 import { formatMoney, formatNumber, cn, formatDateTashkent, formatTimeTashkent, formatDateTimeTashkent } from '@/lib/utils'
 import { useAuthStore, usePOSStore } from '@/stores'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 interface Sale {
   id: number
@@ -94,6 +95,7 @@ export default function SalesPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { loadSaleForEdit, resetPOS } = usePOSStore()
+  const { t } = useLanguage()
   const isDirector = user?.role_type === 'director'
   
   // Filters
@@ -197,7 +199,7 @@ export default function SalesPage() {
       setDeleteReason('')
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.detail || 'O\'chirishda xatolik')
+      toast.error(error.response?.data?.detail || t('deleteError'))
     }
   })
 
@@ -213,7 +215,7 @@ export default function SalesPage() {
       case 'pending':
         return <Badge variant="secondary">Kutilmoqda</Badge>
       case 'cancelled':
-        return <Badge variant="secondary">Bekor</Badge>
+        return <Badge variant="secondary">{t('cancelled')}</Badge>
       default:
         return <Badge>{status}</Badge>
     }
@@ -235,9 +237,9 @@ export default function SalesPage() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl lg:text-2xl font-bold">Sotuvlar</h1>
+          <h1 className="text-xl lg:text-2xl font-bold">{t('sales')}</h1>
           <p className="text-sm text-text-secondary">
-            Barcha sotuvlar ro'yxati
+            {t('all')} {t('sales').toLowerCase()}
           </p>
         </div>
       </div>
@@ -268,7 +270,7 @@ export default function SalesPage() {
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary" />
               <Input
-                placeholder="Qidirish..."
+                placeholder={t('search') + '...'}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -281,10 +283,10 @@ export default function SalesPage() {
               onChange={(e) => setPaymentStatus(e.target.value)}
               className="min-h-btn px-4 py-2 border-2 border-border rounded-pos"
             >
-              <option value="">Barcha holatlar</option>
-              <option value="paid">To'langan</option>
-              <option value="partial">Qisman</option>
-              <option value="debt">Qarzga</option>
+              <option value="">{t('all')}</option>
+              <option value="paid">{t('paidStatus')}</option>
+              <option value="partial">{t('partialStatus')}</option>
+              <option value="debt">{t('onCredit')}</option>
             </select>
 
             {/* Show Cancelled */}
@@ -295,7 +297,7 @@ export default function SalesPage() {
                 onChange={(e) => setShowCancelled(e.target.checked)}
                 className="w-4 h-4"
               />
-              <span className="text-sm">Bekor qilinganlar</span>
+              <span className="text-sm">{t('cancelSale')}</span>
             </label>
           </div>
 
@@ -304,22 +306,22 @@ export default function SalesPage() {
             <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-border">
               <div className="flex items-center gap-2">
                 <Receipt className="w-4 h-4 text-primary" />
-                <span className="text-sm text-text-secondary">Jami:</span>
-                <span className="font-semibold">{salesData.total} ta sotuv</span>
+                <span className="text-sm text-text-secondary">{t('total')}:</span>
+                <span className="font-semibold">{salesData.total}</span>
               </div>
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-success" />
-                <span className="text-sm text-text-secondary">Summa:</span>
+                <span className="text-sm text-text-secondary">{t('sum')}:</span>
                 <span className="font-semibold text-success">{formatMoney(salesData.summary.total_amount)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Banknote className="w-4 h-4 text-primary" />
-                <span className="text-sm text-text-secondary">To'langan:</span>
+                <span className="text-sm text-text-secondary">{t('paid')}:</span>
                 <span className="font-semibold text-primary">{formatMoney(salesData.summary.total_paid)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-danger" />
-                <span className="text-sm text-text-secondary">Qarz:</span>
+                <span className="text-sm text-text-secondary">{t('debt')}:</span>
                 <span className="font-semibold text-danger">{formatMoney(salesData.summary.total_debt)}</span>
               </div>
             </div>
@@ -461,7 +463,7 @@ export default function SalesPage() {
           ) : (
             <div className="text-center py-12">
               <Receipt className="w-16 h-16 mx-auto text-text-secondary opacity-50 mb-4" />
-              <p className="text-text-secondary">Sotuvlar topilmadi</p>
+              <p className="text-text-secondary">{t('noSalesFound')}</p>
             </div>
           )}
         </CardContent>
@@ -471,11 +473,11 @@ export default function SalesPage() {
       {salesData && salesData.total > 20 && (
         <div className="flex items-center justify-center gap-2">
           <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>
-            Oldingi
+            {t('previous')}
           </Button>
           <span className="px-4">{page}</span>
           <Button variant="outline" onClick={() => setPage(page + 1)}>
-            Keyingi
+            {t('next')}
           </Button>
         </div>
       )}

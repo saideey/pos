@@ -8,8 +8,11 @@ import toast from 'react-hot-toast'
 import { Button, Input, Card, CardContent, Badge } from '@/components/ui'
 import api from '@/services/api'
 import { formatMoney, formatNumber, cn, formatDateTashkent, formatDateTimeTashkent } from '@/lib/utils'
+import { useLanguage } from '@/contexts/LanguageContext'
 
 export default function ReportsPage() {
+  const { t } = useLanguage()
+  
   // Date filters
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -80,7 +83,7 @@ export default function ReportsPage() {
   // Download Excel report
   const handleDownloadExcel = async (type: string) => {
     try {
-      toast.loading('Hisobot tayyorlanmoqda...')
+      toast.loading(t('reportPreparing'))
       
       const response = await api.get(`/reports/excel/${type}`, {
         params: { start_date: startDate, end_date: endDate },
@@ -96,17 +99,17 @@ export default function ReportsPage() {
       link.remove()
       
       toast.dismiss()
-      toast.success('Hisobot yuklandi!')
+      toast.success(t('reportDownloaded'))
     } catch (error) {
       toast.dismiss()
-      toast.error('Hisobot yuklanmadi')
+      toast.error(t('reportError'))
     }
   }
 
   // Download PDF report
   const handleDownloadPDF = async (type: string) => {
     try {
-      toast.loading('Hisobot tayyorlanmoqda...')
+      toast.loading(t('reportPreparing'))
       
       const response = await api.get(`/reports/pdf/${type}`, {
         params: { start_date: startDate, end_date: endDate },
@@ -122,10 +125,10 @@ export default function ReportsPage() {
       link.remove()
       
       toast.dismiss()
-      toast.success('Hisobot yuklandi!')
+      toast.success(t('reportDownloaded'))
     } catch (error) {
       toast.dismiss()
-      toast.error('Hisobot yuklanmadi')
+      toast.error(t('reportError'))
     }
   }
 
@@ -133,7 +136,7 @@ export default function ReportsPage() {
     <div className="space-y-4 lg:space-y-6">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 lg:gap-4">
-        <h1 className="text-xl lg:text-pos-xl font-bold">Hisobotlar</h1>
+        <h1 className="text-xl lg:text-pos-xl font-bold">{t('reports')}</h1>
         
         {/* Date Filters */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 lg:gap-4">
@@ -156,7 +159,7 @@ export default function ReportsPage() {
           
           {exchangeRateData && (
             <Badge variant="secondary" className="text-sm lg:text-pos-base justify-center">
-              $ = {formatNumber(exchangeRateData.usd_rate)} so'm
+              $ = {formatNumber(exchangeRateData.usd_rate)} {t('sum')}
             </Badge>
           )}
         </div>
@@ -174,7 +177,7 @@ export default function ReportsPage() {
           )}
         >
           <TrendingUp className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          Foyda tahlili
+          {t('profitReport')}
         </button>
         <button
           onClick={() => setActiveTab('sales')}
@@ -186,7 +189,7 @@ export default function ReportsPage() {
           )}
         >
           <DollarSign className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          Sotuvlar xulosasi
+          {t('salesReport')}
         </button>
         <button
           onClick={() => setActiveTab('sellers')}
@@ -198,7 +201,7 @@ export default function ReportsPage() {
           )}
         >
           <Users className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          Kassirlar
+          {t('sellerReport')}
         </button>
         <button
           onClick={() => setActiveTab('export')}
@@ -210,7 +213,7 @@ export default function ReportsPage() {
           )}
         >
           <Download className="w-4 h-4 lg:w-5 lg:h-5 inline mr-1.5 lg:mr-2" />
-          Eksport
+          {t('export')}
         </button>
       </div>
 
@@ -229,7 +232,7 @@ export default function ReportsPage() {
                   <CardContent className="p-3 lg:p-6">
                     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">Jami daromad</p>
+                        <p className="text-xs lg:text-sm text-text-secondary">{t('totalRevenue')}</p>
                         <p className="text-sm lg:text-pos-xl font-bold text-primary truncate">
                           {formatMoney(profitData.summary.total_revenue)}
                         </p>
@@ -243,7 +246,7 @@ export default function ReportsPage() {
                   <CardContent className="p-3 lg:p-6">
                     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">Jami tan narx</p>
+                        <p className="text-xs lg:text-sm text-text-secondary">{t('totalCostPrice')}</p>
                         <p className="text-sm lg:text-pos-xl font-bold text-warning truncate">
                           {formatMoney(profitData.summary.total_cost)}
                         </p>
@@ -257,7 +260,7 @@ export default function ReportsPage() {
                   <CardContent className="p-3 lg:p-6">
                     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">Sof foyda</p>
+                        <p className="text-xs lg:text-sm text-text-secondary">{t('profit')}</p>
                         <p className={cn(
                           "text-sm lg:text-pos-xl font-bold truncate",
                           profitData.summary.total_profit >= 0 ? "text-success" : "text-danger"
@@ -274,7 +277,7 @@ export default function ReportsPage() {
                   <CardContent className="p-3 lg:p-6">
                     <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs lg:text-sm text-text-secondary">Foyda foizi</p>
+                        <p className="text-xs lg:text-sm text-text-secondary">{t('profitPercent')}</p>
                         <p className={cn(
                           "text-sm lg:text-pos-xl font-bold",
                           profitData.summary.profit_margin >= 0 ? "text-success" : "text-danger"
@@ -292,9 +295,9 @@ export default function ReportsPage() {
               <Card>
                 <CardContent className="p-0">
                   <div className="p-3 lg:p-4 border-b border-border">
-                    <h3 className="text-base lg:text-pos-lg font-bold">Tovarlar bo'yicha foyda</h3>
+                    <h3 className="text-base lg:text-pos-lg font-bold">{t('profitByProducts')}</h3>
                     <p className="text-xs lg:text-sm text-text-secondary">
-                      {profitData.summary.products_count} ta tovar sotilgan
+                      {profitData.summary.products_count} {t('product')}
                     </p>
                   </div>
                   
@@ -302,11 +305,11 @@ export default function ReportsPage() {
                     <table className="w-full min-w-[600px]">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-sm font-semibold">Tovar</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">Soni</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">Tan narx</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">Daromad</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold">Foyda</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold">{t('product')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold">{t('quantity')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold">{t('costPrice')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold">{t('totalRevenue')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold">{t('profit')}</th>
                           <th className="px-4 py-3 text-right text-sm font-semibold">%</th>
                         </tr>
                       </thead>
@@ -348,7 +351,7 @@ export default function ReportsPage() {
               </Card>
             </>
           ) : (
-            <p className="text-center py-12 text-text-secondary">Ma'lumot topilmadi</p>
+            <p className="text-center py-12 text-text-secondary">{t('noData')}</p>
           )}
         </div>
       )}
@@ -366,14 +369,14 @@ export default function ReportsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">Sotuvlar soni</p>
+                    <p className="text-sm text-text-secondary">{t('salesCount')}</p>
                     <p className="text-pos-xl font-bold">{salesData.summary.total_sales}</p>
                   </CardContent>
                 </Card>
                 
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">Jami summa</p>
+                    <p className="text-sm text-text-secondary">{t('totalSum')}</p>
                     <p className="text-pos-lg font-bold text-primary">
                       {formatMoney(salesData.summary.total_amount)}
                     </p>
@@ -382,7 +385,7 @@ export default function ReportsPage() {
                 
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">Chegirmalar</p>
+                    <p className="text-sm text-text-secondary">{t('discounts')}</p>
                     <p className="text-pos-lg font-bold text-warning">
                       {formatMoney(salesData.summary.total_discount)}
                     </p>
@@ -391,7 +394,7 @@ export default function ReportsPage() {
                 
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">To'langan</p>
+                    <p className="text-sm text-text-secondary">{t('paid')}</p>
                     <p className="text-pos-lg font-bold text-success">
                       {formatMoney(salesData.summary.total_paid)}
                     </p>
@@ -400,7 +403,7 @@ export default function ReportsPage() {
                 
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">Qarzlar</p>
+                    <p className="text-sm text-text-secondary">{t('debt')}</p>
                     <p className="text-pos-lg font-bold text-danger">
                       {formatMoney(salesData.summary.total_debt)}
                     </p>
@@ -409,7 +412,7 @@ export default function ReportsPage() {
                 
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-text-secondary">O'rtacha chek</p>
+                    <p className="text-sm text-text-secondary">{t('averageCheck')}</p>
                     <p className="text-pos-lg font-bold">
                       {formatMoney(salesData.summary.average_sale)}
                     </p>
@@ -420,7 +423,7 @@ export default function ReportsPage() {
               {/* Payment Breakdown */}
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="text-pos-lg font-bold mb-4">To'lov turlari</h3>
+                  <h3 className="text-pos-lg font-bold mb-4">{t('paymentType')}</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {Object.entries(salesData.payment_breakdown).map(([type, amount]: [string, any]) => (
                       <div key={type} className="p-4 bg-gray-50 rounded-pos">
@@ -433,7 +436,7 @@ export default function ReportsPage() {
               </Card>
             </>
           ) : (
-            <p className="text-center py-12 text-text-secondary">Ma'lumot topilmadi</p>
+            <p className="text-center py-12 text-text-secondary">{t('noData')}</p>
           )}
         </div>
       )}
@@ -446,16 +449,16 @@ export default function ReportsPage() {
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-600 mb-2">Kassirni tanlang</label>
+                  <label className="block text-sm font-medium text-gray-600 mb-2">{t('selectSeller')}</label>
                   <select
                     value={selectedSellerId}
                     onChange={(e) => setSelectedSellerId(e.target.value ? Number(e.target.value) : '')}
                     className="w-full h-12 px-4 border-2 border-gray-200 rounded-xl text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
-                    <option value="">Barcha kassirlar xulosasi</option>
+                    <option value="">{t('all')} {t('sellersList').toLowerCase()}</option>
                     {sellersSummary?.sellers?.map((seller: any) => (
                       <option key={seller.id} value={seller.id}>
-                        {seller.name} ({seller.sales_count} ta sotuv - {formatMoney(seller.total_amount)})
+                        {seller.name} ({seller.sales_count} - {formatMoney(seller.total_amount)})
                       </option>
                     ))}
                   </select>
@@ -477,25 +480,25 @@ export default function ReportsPage() {
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <Card className="bg-blue-50">
                       <CardContent className="p-4">
-                        <p className="text-xs text-blue-600">Jami sotuvlar</p>
+                        <p className="text-xs text-blue-600">{t('totalSales')}</p>
                         <p className="text-xl font-bold text-blue-700">{sellersSummary.totals.total_sales}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-green-50">
                       <CardContent className="p-4">
-                        <p className="text-xs text-green-600">Jami summa</p>
+                        <p className="text-xs text-green-600">{t('totalSum')}</p>
                         <p className="text-xl font-bold text-green-700">{formatMoney(sellersSummary.totals.total_amount)}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-purple-50">
                       <CardContent className="p-4">
-                        <p className="text-xs text-purple-600">To'langan</p>
+                        <p className="text-xs text-purple-600">{t('paid')}</p>
                         <p className="text-xl font-bold text-purple-700">{formatMoney(sellersSummary.totals.total_paid)}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-red-50">
                       <CardContent className="p-4">
-                        <p className="text-xs text-red-600">Qarzga</p>
+                        <p className="text-xs text-red-600">{t('onCredit')}</p>
                         <p className="text-xl font-bold text-red-700">{formatMoney(sellersSummary.totals.total_debt)}</p>
                       </CardContent>
                     </Card>
@@ -506,7 +509,7 @@ export default function ReportsPage() {
                     <CardContent className="p-4">
                       <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
                         <Users className="w-5 h-5" />
-                        Kassirlar ro'yxati
+                        {t('sellersList')}
                       </h3>
                       <div className="space-y-3">
                         {sellersSummary.sellers?.map((seller: any) => (
@@ -527,20 +530,20 @@ export default function ReportsPage() {
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-lg text-green-600">{formatMoney(seller.total_amount)}</p>
-                                <p className="text-sm text-gray-500">{seller.sales_count} ta sotuv</p>
+                                <p className="text-sm text-gray-500">{seller.sales_count} {t('sales').toLowerCase()}</p>
                               </div>
                             </div>
                             <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                               <div className="bg-green-50 rounded-lg p-2">
-                                <p className="text-xs text-green-600">To'langan</p>
+                                <p className="text-xs text-green-600">{t('paid')}</p>
                                 <p className="font-semibold text-green-700 text-sm">{formatMoney(seller.total_paid)}</p>
                               </div>
                               <div className="bg-red-50 rounded-lg p-2">
-                                <p className="text-xs text-red-600">Qarzga</p>
+                                <p className="text-xs text-red-600">{t('onCredit')}</p>
                                 <p className="font-semibold text-red-700 text-sm">{formatMoney(seller.total_debt)}</p>
                               </div>
                               <div className="bg-blue-50 rounded-lg p-2">
-                                <p className="text-xs text-blue-600">O'rtacha</p>
+                                <p className="text-xs text-blue-600">{t('averageCheck')}</p>
                                 <p className="font-semibold text-blue-700 text-sm">
                                   {formatMoney(seller.sales_count > 0 ? seller.total_amount / seller.sales_count : 0)}
                                 </p>
@@ -581,7 +584,7 @@ export default function ReportsPage() {
                         <Button
                           onClick={async () => {
                             try {
-                              toast.loading('Excel tayyorlanmoqda...')
+                              toast.loading(t('excelPreparing'))
                               const response = await api.get('/reports/excel/seller-stats', {
                                 params: { seller_id: selectedSellerId, start_date: startDate, end_date: endDate },
                                 responseType: 'blob'
@@ -594,16 +597,16 @@ export default function ReportsPage() {
                               link.click()
                               link.remove()
                               toast.dismiss()
-                              toast.success('Excel yuklandi!')
+                              toast.success(t('excelDownloaded'))
                             } catch (error) {
                               toast.dismiss()
-                              toast.error('Excel yuklanmadi')
+                              toast.error(t('excelError'))
                             }
                           }}
                           className="bg-white/20 hover:bg-white/30 text-white border-0"
                         >
                           <Download className="w-5 h-5 mr-2" />
-                          Excel yuklash
+                          {t('downloadExcel2')}
                         </Button>
                       </div>
                     </CardContent>
@@ -618,7 +621,7 @@ export default function ReportsPage() {
                             <ShoppingCart className="w-5 h-5 text-blue-600" />
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500">Sotuvlar soni</p>
+                            <p className="text-xs text-gray-500">{t('salesCount')}</p>
                             <p className="text-xl font-bold">{sellerStats.summary.total_sales_count}</p>
                           </div>
                         </div>
@@ -631,7 +634,7 @@ export default function ReportsPage() {
                             <DollarSign className="w-5 h-5 text-green-600" />
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500">Jami summa</p>
+                            <p className="text-xs text-gray-500">{t('totalSum')}</p>
                             <p className="text-xl font-bold text-green-600">{formatMoney(sellerStats.summary.total_amount)}</p>
                           </div>
                         </div>
@@ -644,7 +647,7 @@ export default function ReportsPage() {
                             <CreditCard className="w-5 h-5 text-purple-600" />
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500">To'langan</p>
+                            <p className="text-xs text-gray-500">{t('paid')}</p>
                             <p className="text-xl font-bold text-purple-600">{formatMoney(sellerStats.summary.total_paid)}</p>
                           </div>
                         </div>
@@ -657,7 +660,7 @@ export default function ReportsPage() {
                             <Banknote className="w-5 h-5 text-red-600" />
                           </div>
                           <div>
-                            <p className="text-xs text-gray-500">Qarzga sotilgan</p>
+                            <p className="text-xs text-gray-500">{t('soldOnCredit')}</p>
                             <p className="text-xl font-bold text-red-600">{formatMoney(sellerStats.summary.total_debt)}</p>
                           </div>
                         </div>
@@ -669,25 +672,25 @@ export default function ReportsPage() {
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     <Card className="bg-yellow-50">
                       <CardContent className="p-3">
-                        <p className="text-xs text-yellow-600">O'rtacha chek</p>
+                        <p className="text-xs text-yellow-600">{t('averageCheck')}</p>
                         <p className="text-lg font-bold text-yellow-700">{formatMoney(sellerStats.summary.average_sale)}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-indigo-50">
                       <CardContent className="p-3">
-                        <p className="text-xs text-indigo-600">Mijozlar soni</p>
+                        <p className="text-xs text-indigo-600">{t('customersCount')}</p>
                         <p className="text-lg font-bold text-indigo-700">{sellerStats.summary.unique_customers}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-gray-50">
                       <CardContent className="p-3">
-                        <p className="text-xs text-gray-600">Anonim sotuvlar</p>
+                        <p className="text-xs text-gray-600">{t('anonymousSales')}</p>
                         <p className="text-lg font-bold text-gray-700">{sellerStats.summary.anonymous_sales}</p>
                       </CardContent>
                     </Card>
                     <Card className="bg-orange-50">
                       <CardContent className="p-3">
-                        <p className="text-xs text-orange-600">Chegirmalar</p>
+                        <p className="text-xs text-orange-600">{t('discounts')}</p>
                         <p className="text-lg font-bold text-orange-700">{formatMoney(sellerStats.summary.total_discount)}</p>
                       </CardContent>
                     </Card>
@@ -698,27 +701,27 @@ export default function ReportsPage() {
                     <CardContent className="p-4">
                       <h3 className="font-bold text-lg mb-3 flex items-center gap-2">
                         <CreditCard className="w-5 h-5" />
-                        To'lov turlari
+                        {t('paymentType')}
                       </h3>
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                         <div className="bg-green-50 rounded-xl p-4 text-center">
                           <Banknote className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                          <p className="text-xs text-green-600">Naqd</p>
+                          <p className="text-xs text-green-600">{t('cash')}</p>
                           <p className="text-lg font-bold text-green-700">{formatMoney(sellerStats.payment_breakdown.CASH || 0)}</p>
                         </div>
                         <div className="bg-blue-50 rounded-xl p-4 text-center">
                           <CreditCard className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                          <p className="text-xs text-blue-600">Karta</p>
+                          <p className="text-xs text-blue-600">{t('card')}</p>
                           <p className="text-lg font-bold text-blue-700">{formatMoney(sellerStats.payment_breakdown.CARD || 0)}</p>
                         </div>
                         <div className="bg-purple-50 rounded-xl p-4 text-center">
                           <Building className="w-8 h-8 text-purple-600 mx-auto mb-2" />
-                          <p className="text-xs text-purple-600">O'tkazma</p>
+                          <p className="text-xs text-purple-600">{t('transfer')}</p>
                           <p className="text-lg font-bold text-purple-700">{formatMoney(sellerStats.payment_breakdown.TRANSFER || 0)}</p>
                         </div>
                         <div className="bg-red-50 rounded-xl p-4 text-center">
                           <Package className="w-8 h-8 text-red-600 mx-auto mb-2" />
-                          <p className="text-xs text-red-600">Qarz</p>
+                          <p className="text-xs text-red-600">{t('debt')}</p>
                           <p className="text-lg font-bold text-red-700">{formatMoney(sellerStats.summary.total_debt)}</p>
                         </div>
                       </div>
@@ -735,7 +738,7 @@ export default function ReportsPage() {
                       >
                         <h3 className="font-bold text-lg flex items-center gap-2">
                           <Calendar className="w-5 h-5" />
-                          Kunlik ko'rsatkichlar
+                          {t('dailyIndicators')}
                         </h3>
                         {expandedSection === 'daily' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                       </button>
@@ -745,12 +748,12 @@ export default function ReportsPage() {
                             <div key={day.date} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                               <div>
                                 <p className="font-medium">{formatDateTashkent(day.date)}</p>
-                                <p className="text-sm text-gray-500">{day.sales_count} ta sotuv</p>
+                                <p className="text-sm text-gray-500">{day.sales_count} {t('sales').toLowerCase()}</p>
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-green-600">{formatMoney(day.total_amount)}</p>
                                 {day.debt_amount > 0 && (
-                                  <p className="text-sm text-red-500">Qarz: {formatMoney(day.debt_amount)}</p>
+                                  <p className="text-sm text-red-500">{t('debt')}: {formatMoney(day.debt_amount)}</p>
                                 )}
                               </div>
                             </div>
@@ -769,7 +772,7 @@ export default function ReportsPage() {
                       >
                         <h3 className="font-bold text-lg flex items-center gap-2">
                           <Users className="w-5 h-5" />
-                          Mijozlar ({sellerStats.customers?.length || 0})
+                          {t('customers')} ({sellerStats.customers?.length || 0})
                         </h3>
                         {expandedSection === 'customers' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                       </button>
@@ -797,9 +800,9 @@ export default function ReportsPage() {
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-green-600">{formatMoney(cust.total_amount)}</p>
-                                <p className="text-sm text-gray-500">{cust.sales_count} ta xarid</p>
+                                <p className="text-sm text-gray-500">{cust.sales_count} {t('purchase')}</p>
                                 {cust.total_debt > 0 && (
-                                  <p className="text-xs text-red-500">Qarz: {formatMoney(cust.total_debt)}</p>
+                                  <p className="text-xs text-red-500">{t('debt')}: {formatMoney(cust.total_debt)}</p>
                                 )}
                               </div>
                             </div>
@@ -818,7 +821,7 @@ export default function ReportsPage() {
                       >
                         <h3 className="font-bold text-lg flex items-center gap-2">
                           <Package className="w-5 h-5" />
-                          Top mahsulotlar ({sellerStats.top_products?.length || 0})
+                          {t('topProducts')} ({sellerStats.top_products?.length || 0})
                         </h3>
                         {expandedSection === 'products' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                       </button>
@@ -832,12 +835,12 @@ export default function ReportsPage() {
                                 </div>
                                 <div>
                                   <p className="font-medium">{prod.product_name}</p>
-                                  <p className="text-sm text-gray-500">{prod.times_sold} marta sotildi</p>
+                                  <p className="text-sm text-gray-500">{prod.times_sold} {t('timesSold')}</p>
                                 </div>
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-green-600">{formatMoney(prod.total_revenue)}</p>
-                                <p className="text-sm text-gray-500">{formatNumber(prod.total_quantity)} dona</p>
+                                <p className="text-sm text-gray-500">{formatNumber(prod.total_quantity)} {t('pieces')}</p>
                               </div>
                             </div>
                           ))}
@@ -855,7 +858,7 @@ export default function ReportsPage() {
                       >
                         <h3 className="font-bold text-lg flex items-center gap-2">
                           <ShoppingCart className="w-5 h-5" />
-                          So'nggi sotuvlar ({sellerStats.recent_sales?.length || 0})
+                          {t('recentSalesTitle')} ({sellerStats.recent_sales?.length || 0})
                         </h3>
                         {expandedSection === 'sales' ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                       </button>
@@ -872,9 +875,9 @@ export default function ReportsPage() {
                               </div>
                               <div className="text-right">
                                 <p className="font-bold text-green-600">{formatMoney(sale.total_amount)}</p>
-                                <p className="text-sm text-gray-500">{sale.items_count} ta mahsulot</p>
+                                <p className="text-sm text-gray-500">{sale.items_count} {t('product')}</p>
                                 {sale.debt_amount > 0 && (
-                                  <Badge variant="danger" className="text-xs mt-1">Qarz: {formatMoney(sale.debt_amount)}</Badge>
+                                  <Badge variant="danger" className="text-xs mt-1">{t('debt')}: {formatMoney(sale.debt_amount)}</Badge>
                                 )}
                               </div>
                             </div>
@@ -901,8 +904,8 @@ export default function ReportsPage() {
                   <DollarSign className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-pos-lg">Sotuvlar hisoboti</h3>
-                  <p className="text-sm text-text-secondary">Tanlangan davr uchun</p>
+                  <h3 className="font-bold text-pos-lg">{t('salesReportTitle')}</h3>
+                  <p className="text-sm text-text-secondary">{t('forSelectedPeriod')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -934,8 +937,8 @@ export default function ReportsPage() {
                   <Package className="w-8 h-8 text-warning" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-pos-lg">Qoldiqlar hisoboti</h3>
-                  <p className="text-sm text-text-secondary">Joriy holat</p>
+                  <h3 className="font-bold text-pos-lg">{t('stockReportTitle')}</h3>
+                  <p className="text-sm text-text-secondary">{t('currentStatus')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -967,8 +970,8 @@ export default function ReportsPage() {
                   <Users className="w-8 h-8 text-danger" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-pos-lg">Qarzdorlar hisoboti</h3>
-                  <p className="text-sm text-text-secondary">Joriy qarzlar</p>
+                  <h3 className="font-bold text-pos-lg">{t('debtorsReportTitle')}</h3>
+                  <p className="text-sm text-text-secondary">{t('currentDebts')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1000,8 +1003,8 @@ export default function ReportsPage() {
                   <Calendar className="w-8 h-8 text-success" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-pos-lg">Kunlik hisobot</h3>
-                  <p className="text-sm text-text-secondary">Bugun uchun</p>
+                  <h3 className="font-bold text-pos-lg">{t('dailyReportTitle')}</h3>
+                  <p className="text-sm text-text-secondary">{t('forToday')}</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -1033,8 +1036,8 @@ export default function ReportsPage() {
                   <FileSpreadsheet className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-pos-lg">Narxlar ro'yxati</h3>
-                  <p className="text-sm text-text-secondary">Barcha tovarlar</p>
+                  <h3 className="font-bold text-pos-lg">{t('priceListTitle')}</h3>
+                  <p className="text-sm text-text-secondary">{t('allProducts')}</p>
                 </div>
               </div>
               <div className="flex gap-2">

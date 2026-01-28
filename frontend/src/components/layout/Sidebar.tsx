@@ -19,25 +19,26 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
+import { useLanguage } from '@/contexts/LanguageContext'
 import api from '@/services/api'
 
 interface NavItem {
-  name: string
+  nameKey: 'dashboard' | 'pos' | 'sales' | 'products' | 'customers' | 'warehouse' | 'reports' | 'users' | 'settings'
   href: string
   icon: React.ElementType
   permission?: string
 }
 
 const navItems: NavItem[] = [
-  { name: 'Bosh sahifa', href: '/', icon: LayoutDashboard },
-  { name: 'Kassa', href: '/pos', icon: ShoppingCart },
-  { name: 'Sotuvlar', href: '/sales', icon: Receipt },
-  { name: 'Tovarlar', href: '/products', icon: Package },
-  { name: 'Mijozlar', href: '/customers', icon: Users },
-  { name: 'Ombor', href: '/warehouse', icon: Warehouse },
-  { name: 'Hisobotlar', href: '/reports', icon: FileText, permission: 'REPORT_SALES' },
-  { name: 'Foydalanuvchilar', href: '/users', icon: UsersRound, permission: 'USER_VIEW' },
-  { name: 'Sozlamalar', href: '/settings', icon: Settings, permission: 'SETTINGS_VIEW' },
+  { nameKey: 'dashboard', href: '/', icon: LayoutDashboard },
+  { nameKey: 'pos', href: '/pos', icon: ShoppingCart },
+  { nameKey: 'sales', href: '/sales', icon: Receipt },
+  { nameKey: 'products', href: '/products', icon: Package },
+  { nameKey: 'customers', href: '/customers', icon: Users },
+  { nameKey: 'warehouse', href: '/warehouse', icon: Warehouse },
+  { nameKey: 'reports', href: '/reports', icon: FileText, permission: 'REPORT_SALES' },
+  { nameKey: 'users', href: '/users', icon: UsersRound, permission: 'USER_VIEW' },
+  { nameKey: 'settings', href: '/settings', icon: Settings, permission: 'SETTINGS_VIEW' },
 ]
 
 interface SidebarProps {
@@ -48,6 +49,7 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation()
   const { user, logout, hasPermission } = useAuthStore()
+  const { t } = useLanguage()
   const [showHelp, setShowHelp] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
   const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' })
@@ -61,15 +63,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const handleChangePassword = async () => {
     if (!passwordData.current || !passwordData.new || !passwordData.confirm) {
-      alert('Barcha maydonlarni to\'ldiring')
+      alert(t('required'))
       return
     }
     if (passwordData.new !== passwordData.confirm) {
-      alert('Yangi parollar mos kelmayapti')
+      alert(t('passwordMismatch'))
       return
     }
     if (passwordData.new.length < 6) {
-      alert('Parol kamida 6 ta belgidan iborat bo\'lishi kerak')
+      alert(t('minLength').replace('{min}', '6'))
       return
     }
 
@@ -81,12 +83,12 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       })
       
       if (response.data) {
-        alert('Parol muvaffaqiyatli o\'zgartirildi!')
+        alert(t('passwordChanged'))
         setShowChangePassword(false)
         setPasswordData({ current: '', new: '', confirm: '' })
       }
     } catch (error: any) {
-      alert(error.response?.data?.detail || 'Xatolik yuz berdi')
+      alert(error.response?.data?.detail || t('errorOccurred'))
     } finally {
       setChangingPassword(false)
     }
@@ -148,7 +150,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 )}
               >
                 <item.icon className="h-5 w-5 lg:h-6 lg:w-6 min-h-5 min-w-5 lg:min-h-6 lg:min-w-6 flex-shrink-0" />
-                <span className="truncate">{item.name}</span>
+                <span className="truncate">{t(item.nameKey)}</span>
               </NavLink>
             )
           })}
@@ -161,7 +163,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             className="flex items-center gap-3 lg:gap-4 w-full px-3 lg:px-4 py-3 rounded-xl font-medium hover:bg-gray-100 transition-colors text-text-secondary"
           >
             <HelpCircle className="h-5 w-5 lg:h-6 lg:w-6 flex-shrink-0" />
-            <span>Yordam</span>
+            <span>{t('help')}</span>
           </button>
         </div>
 
@@ -180,14 +182,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             className="flex items-center gap-3 w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl font-medium hover:bg-yellow-50 text-yellow-600 transition-colors mb-2"
           >
             <Key className="h-5 w-5 flex-shrink-0" />
-            <span>Parol o'zgartirish</span>
+            <span>{t('changePassword')}</span>
           </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl font-medium hover:bg-danger/10 text-danger transition-colors"
           >
             <LogOut className="h-5 w-5 flex-shrink-0" />
-            <span>Chiqish</span>
+            <span>{t('logout')}</span>
           </button>
         </div>
       </aside>
@@ -215,7 +217,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             {/* Content */}
             <div className="p-5 lg:p-6 space-y-4">
               <p className="text-gray-600 text-center text-sm lg:text-base">
-                Dastur bo'yicha yordam yoki qo'shimcha xizmatlar uchun biz bilan bog'laning
+                {t('helpText')}
               </p>
 
               {/* Contact Links */}
@@ -254,7 +256,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               {/* Footer */}
               <div className="pt-4 border-t border-gray-100 text-center">
                 <p className="text-xs text-gray-400">
-                  © 2026 XLAB. Barcha huquqlar himoyalangan.
+                  © 2026 XLAB. {t('allRightsReserved')}
                 </p>
               </div>
             </div>
@@ -270,8 +272,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-5 lg:p-6 text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg lg:text-xl font-bold">Parol o'zgartirish</h2>
-                  <p className="text-yellow-100 text-sm">Xavfsizlik uchun parolingizni yangilang</p>
+                  <h2 className="text-lg lg:text-xl font-bold">{t('changePassword')}</h2>
+                  <p className="text-yellow-100 text-sm">
+                    {t('updatePasswordHint')}
+                  </p>
                 </div>
                 <button 
                   onClick={() => {
@@ -288,34 +292,34 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             {/* Form */}
             <div className="p-5 lg:p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Joriy parol</label>
+                <label className="block text-sm font-medium mb-2">{t('currentPassword')}</label>
                 <input
                   type={showPasswords ? 'text' : 'password'}
                   value={passwordData.current}
                   onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })}
-                  placeholder="Hozirgi parolingiz"
+                  placeholder={t('currentPassword')}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 text-base"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Yangi parol</label>
+                <label className="block text-sm font-medium mb-2">{t('newPassword')}</label>
                 <input
                   type={showPasswords ? 'text' : 'password'}
                   value={passwordData.new}
                   onChange={(e) => setPasswordData({ ...passwordData, new: e.target.value })}
-                  placeholder="Kamida 6 ta belgi"
+                  placeholder={t('minLength').replace('{min}', '6')}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 text-base"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-2">Yangi parolni tasdiqlang</label>
+                <label className="block text-sm font-medium mb-2">{t('confirmPassword')}</label>
                 <input
                   type={showPasswords ? 'text' : 'password'}
                   value={passwordData.confirm}
                   onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })}
-                  placeholder="Yangi parolni qayta kiriting"
+                  placeholder={t('confirmPassword')}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500/20 focus:border-yellow-500 text-base"
                 />
               </div>
@@ -327,7 +331,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   onChange={(e) => setShowPasswords(e.target.checked)}
                   className="w-4 h-4 rounded border-gray-300"
                 />
-                <span className="text-sm text-gray-600">Parollarni ko'rsatish</span>
+                <span className="text-sm text-gray-600">
+                  {t('showPasswords')}
+                </span>
               </label>
 
               <div className="flex gap-3 pt-4">
@@ -338,14 +344,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   }}
                   className="flex-1 px-4 py-3 border border-gray-200 rounded-xl hover:bg-gray-50 font-medium transition-colors active:scale-[0.98]"
                 >
-                  Bekor qilish
+                  {t('cancel')}
                 </button>
                 <button
                   onClick={handleChangePassword}
                   disabled={changingPassword}
                   className="flex-1 px-4 py-3 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 font-medium transition-colors disabled:opacity-50 active:scale-[0.98]"
                 >
-                  {changingPassword ? 'Saqlanmoqda...' : 'Saqlash'}
+                  {changingPassword ? t('loading') : t('save')}
                 </button>
               </div>
             </div>
