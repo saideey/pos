@@ -20,6 +20,7 @@ from routers import (
     reports_router, sms_router
 )
 from routers.settings import router as settings_router
+from routers.sync import router as sync_router
 
 
 @asynccontextmanager
@@ -27,25 +28,25 @@ async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
     logger.info("🚀 Starting Metall Basa ERP API...")
-    
+
     # Initialize database
     try:
         init_db()
         logger.info("✅ Database initialized")
-        
+
         # Seed initial data
         with db.get_session() as session:
             seed_all(session)
         logger.info("✅ Database seeded")
-        
+
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")
         raise
-    
+
     logger.info("✅ Metall Basa ERP API started successfully!")
-    
+
     yield
-    
+
     # Shutdown
     logger.info("👋 Shutting down Metall Basa ERP API...")
 
@@ -116,7 +117,7 @@ async def health_check():
         # Test database connection
         with db.get_session() as session:
             session.execute(text("SELECT 1"))
-        
+
         return {
             "status": "healthy",
             "database": "connected"
@@ -142,6 +143,7 @@ app.include_router(sales_router, prefix="/api/v1/sales", tags=["Sales"])
 app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(sms_router, prefix="/api/v1/sms", tags=["SMS"])
 app.include_router(settings_router, prefix="/api/v1/settings", tags=["Settings"])
+app.include_router(sync_router, prefix="/api/v1/sync", tags=["Sync"])
 
 
 if __name__ == "__main__":
