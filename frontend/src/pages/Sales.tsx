@@ -137,7 +137,7 @@ export default function SalesPage() {
       const response = await api.get(`/sales/${saleId}`)
       setViewingSale(response.data.data)
     } catch (error) {
-      toast.error('Sotuv ma\'lumotlarini yuklashda xatolik')
+      toast.error(t('saleLoadError'))
     }
   }
 
@@ -147,10 +147,10 @@ export default function SalesPage() {
     try {
       const response = await api.get(`/sales/${saleId}`)
       const sale = response.data.data
-      
+
       // Reset POS and load sale data
       resetPOS()
-      
+
       loadSaleForEdit({
         id: sale.id,
         sale_number: sale.sale_number,
@@ -175,7 +175,7 @@ export default function SalesPage() {
         final_total: sale.total_amount,
         paid_amount: sale.paid_amount
       })
-      
+
       // Navigate to POS
       navigate('/pos')
       toast.success(`Sotuv #${sale.sale_number} tahrirlash uchun yuklandi`)
@@ -193,7 +193,7 @@ export default function SalesPage() {
       return response.data
     },
     onSuccess: () => {
-      toast.success('Sotuv o\'chirildi!')
+      toast.success(t('saleDeletedSuccess'))
       queryClient.invalidateQueries({ queryKey: ['sales'] })
       setDeletingSale(null)
       setDeleteReason('')
@@ -207,13 +207,13 @@ export default function SalesPage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'paid':
-        return <Badge variant="success">To'langan</Badge>
+        return <Badge variant="success">{t('paid')}</Badge>
       case 'partial':
-        return <Badge variant="warning">Qisman</Badge>
+        return <Badge variant="warning">{t('partial')}</Badge>
       case 'debt':
-        return <Badge variant="danger">Qarzga</Badge>
+        return <Badge variant="danger">{t('onDebt')}</Badge>
       case 'pending':
-        return <Badge variant="secondary">Kutilmoqda</Badge>
+        return <Badge variant="secondary">{t('pending')}</Badge>
       case 'cancelled':
         return <Badge variant="secondary">{t('cancelled')}</Badge>
       default:
@@ -335,7 +335,7 @@ export default function SalesPage() {
           <Info className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
           <div className="text-sm text-blue-800">
             <p className="font-medium">Ma'lumot:</p>
-            <p>Siz faqat <span className="font-semibold">oxirgi sotuvingizni</span> tahrirlashingiz yoki o'chirishingiz mumkin. 
+            <p>Siz faqat <span className="font-semibold">oxirgi sotuvingizni</span> tahrirlashingiz yoki o'chirishingiz mumkin.
             Yangi sotuv qilganingizdan keyin avvalgi sotuvlarni o'zgartira olmaysiz.</p>
           </div>
         </div>
@@ -354,20 +354,20 @@ export default function SalesPage() {
                 <thead className="bg-gray-50 border-b border-border">
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium">№</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Sana</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Mijoz</th>
-                    <th className="px-4 py-3 text-left text-sm font-medium">Sotuvchi</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">Summa</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">To'langan</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium">Qarz</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium">Holat</th>
-                    <th className="px-4 py-3 text-center text-sm font-medium">Amallar</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">{t('date')}</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">{t('customer')}</th>
+                    <th className="px-4 py-3 text-left text-sm font-medium">{t('seller')}</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium">{t('amount')}</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium">{t('paidAmount')}</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium">{t('debt')}</th>
+                    <th className="px-4 py-3 text-center text-sm font-medium">{t('status')}</th>
+                    <th className="px-4 py-3 text-center text-sm font-medium">{t('actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredSales.map((sale: Sale) => (
                     <tr key={sale.id} className={cn(
-                      "hover:bg-gray-50", 
+                      "hover:bg-gray-50",
                       sale.is_cancelled && "bg-gray-100 opacity-60",
                       sale.can_edit && !isDirector && "bg-green-50/50" // Highlight editable sale for sellers
                     )}>
@@ -376,14 +376,14 @@ export default function SalesPage() {
                           <span className="font-mono text-sm">{sale.sale_number}</span>
                           {sale.can_edit && !isDirector && !sale.is_cancelled && (
                             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-100 text-green-700">
-                              Oxirgi
+                              {t('lastSale')}
                             </Badge>
                           )}
                         </div>
                         {sale.updated_by && (
                           <div className="text-xs text-warning flex items-center gap-1 mt-1">
                             <Pencil className="w-3 h-3" />
-                            Tahrirlangan
+                            {t('edited')}
                           </div>
                         )}
                       </td>
@@ -394,7 +394,7 @@ export default function SalesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium">{sale.customer_name || 'Noma\'lum'}</p>
+                        <p className="font-medium">{sale.customer_name || t('unknownCustomer')}</p>
                       </td>
                       <td className="px-4 py-3 text-sm text-text-secondary">
                         {sale.seller_name}
@@ -410,7 +410,7 @@ export default function SalesPage() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {sale.is_cancelled ? (
-                          <Badge variant="secondary">Bekor</Badge>
+                          <Badge variant="secondary">{t('cancelled')}</Badge>
                         ) : (
                           getStatusBadge(sale.payment_status)
                         )}
@@ -488,7 +488,7 @@ export default function SalesPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Receipt className="w-5 h-5 text-primary" />
-              Sotuv #{viewingSale?.sale_number}
+              {t('sales')} #{viewingSale?.sale_number}
             </DialogTitle>
           </DialogHeader>
 
@@ -497,16 +497,16 @@ export default function SalesPage() {
               {/* Sale Info */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <p className="text-sm text-text-secondary">Sana</p>
+                  <p className="text-sm text-text-secondary">{t('date')}</p>
                   <p className="font-medium">{formatDateTashkent(viewingSale.sale_date)}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-text-secondary">Sotuvchi</p>
+                  <p className="text-sm text-text-secondary">{t('seller')}</p>
                   <p className="font-medium">{viewingSale.seller_name}</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-text-secondary">Mijoz</p>
-                  <p className="font-medium">{viewingSale.customer_name || 'Noma\'lum'}</p>
+                  <p className="text-sm text-text-secondary">{t('customer')}</p>
+                  <p className="font-medium">{viewingSale.customer_name || t('unknownCustomer')}</p>
                   {viewingSale.customer_phone && (
                     <p className="text-sm text-text-secondary flex items-center gap-1">
                       <Phone className="w-3 h-3" />
@@ -515,21 +515,21 @@ export default function SalesPage() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <p className="text-sm text-text-secondary">Ombor</p>
+                  <p className="text-sm text-text-secondary">{t('warehouse')}</p>
                   <p className="font-medium">{viewingSale.warehouse_name}</p>
                 </div>
               </div>
 
               {/* Items */}
               <div className="border border-border rounded-pos overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 font-medium">Tovarlar</div>
+                <div className="bg-gray-50 px-4 py-2 font-medium">{t('products')}</div>
                 <table className="w-full">
                   <thead className="bg-gray-50 border-t border-border">
                     <tr>
-                      <th className="px-4 py-2 text-left text-sm">Tovar</th>
-                      <th className="px-4 py-2 text-right text-sm">Miqdor</th>
-                      <th className="px-4 py-2 text-right text-sm">Narx</th>
-                      <th className="px-4 py-2 text-right text-sm">Jami</th>
+                      <th className="px-4 py-2 text-left text-sm">{t('product')}</th>
+                      <th className="px-4 py-2 text-right text-sm">{t('quantity')}</th>
+                      <th className="px-4 py-2 text-right text-sm">{t('price')}</th>
+                      <th className="px-4 py-2 text-right text-sm">{t('total')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -548,26 +548,26 @@ export default function SalesPage() {
               {/* Totals */}
               <div className="bg-gray-50 rounded-pos p-4 space-y-2">
                 <div className="flex justify-between">
-                  <span>Jami:</span>
+                  <span>{t('subtotal')}:</span>
                   <span className="font-semibold">{formatMoney(viewingSale.subtotal)}</span>
                 </div>
                 {viewingSale.discount_amount > 0 && (
                   <div className="flex justify-between text-success">
-                    <span>Chegirma ({viewingSale.discount_percent.toFixed(1)}%):</span>
+                    <span>{t('discount')} ({viewingSale.discount_percent.toFixed(1)}%):</span>
                     <span>-{formatMoney(viewingSale.discount_amount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-lg font-bold border-t border-border pt-2">
-                  <span>Umumiy:</span>
+                  <span>{t('grandTotal')}:</span>
                   <span className="text-primary">{formatMoney(viewingSale.total_amount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>To'langan:</span>
+                  <span>{t('paidAmount')}:</span>
                   <span className="text-success font-semibold">{formatMoney(viewingSale.paid_amount)}</span>
                 </div>
                 {viewingSale.debt_amount > 0 && (
                   <div className="flex justify-between">
-                    <span>Qarz:</span>
+                    <span>{t('debt')}:</span>
                     <span className="text-danger font-semibold">{formatMoney(viewingSale.debt_amount)}</span>
                   </div>
                 )}
@@ -579,10 +579,10 @@ export default function SalesPage() {
                   <div className="flex items-start gap-2">
                     <Pencil className="w-4 h-4 text-warning mt-0.5" />
                     <div>
-                      <p className="font-medium text-warning">Tahrirlangan</p>
-                      <p>Kim: {viewingSale.updated_by}</p>
-                      <p>Qachon: {formatDateTimeTashkent(viewingSale.updated_at)}</p>
-                      {viewingSale.edit_reason && <p>Sabab: {viewingSale.edit_reason}</p>}
+                      <p className="font-medium text-warning">{t('edited')}</p>
+                      <p>{t('editedBy')}: {viewingSale.updated_by}</p>
+                      <p>{t('editedWhen')}: {formatDateTimeTashkent(viewingSale.updated_at)}</p>
+                      {viewingSale.edit_reason && <p>{t('reason')}: {viewingSale.edit_reason}</p>}
                     </div>
                   </div>
                 </div>
@@ -594,10 +594,10 @@ export default function SalesPage() {
                   <div className="flex items-start gap-2">
                     <X className="w-4 h-4 text-danger mt-0.5" />
                     <div>
-                      <p className="font-medium text-danger">Bekor qilingan</p>
-                      <p>Kim: {viewingSale.cancelled_by}</p>
-                      <p>Qachon: {formatDateTimeTashkent(viewingSale.cancelled_at)}</p>
-                      {viewingSale.cancelled_reason && <p>Sabab: {viewingSale.cancelled_reason}</p>}
+                      <p className="font-medium text-danger">{t('cancelledStatus')}</p>
+                      <p>{t('cancelledBy')}: {viewingSale.cancelled_by}</p>
+                      <p>{t('cancelledWhen')}: {formatDateTimeTashkent(viewingSale.cancelled_at)}</p>
+                      {viewingSale.cancelled_reason && <p>{t('reason')}: {viewingSale.cancelled_reason}</p>}
                     </div>
                   </div>
                 </div>
@@ -606,7 +606,7 @@ export default function SalesPage() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingSale(null)}>Yopish</Button>
+            <Button variant="outline" onClick={() => setViewingSale(null)}>{t('close')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -617,10 +617,10 @@ export default function SalesPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-danger">
               <Trash2 className="w-5 h-5" />
-              Sotuvni o'chirish
+              {t('deleteSaleTitle')}
             </DialogTitle>
             <DialogDescription>
-              Sotuv #{deletingSale?.sale_number} ni o'chirmoqchimisiz?
+              {t('sales')} #{deletingSale?.sale_number} {t('confirmDeleteSale')}
             </DialogDescription>
           </DialogHeader>
 
@@ -629,31 +629,31 @@ export default function SalesPage() {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-danger mt-0.5" />
                 <div>
-                  <p className="font-medium text-danger">Diqqat!</p>
-                  <p>Sotuv bekor qilinadi va tovarlar omborga qaytariladi. Mijoz qarzlari ham yangilanadi.</p>
+                  <p className="font-medium text-danger">{t('attentionWarning')}</p>
+                  <p>{t('saleDeleteWarning')}</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="font-medium text-sm">O'chirish sababi *</label>
+              <label className="font-medium text-sm">{t('deleteReasonLabel')} *</label>
               <Input
                 value={deleteReason}
                 onChange={(e) => setDeleteReason(e.target.value)}
-                placeholder="Sabab kiriting (majburiy)"
+                placeholder={t('enterReasonRequired')}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeletingSale(null); setDeleteReason(''); }}>Bekor qilish</Button>
+            <Button variant="outline" onClick={() => { setDeletingSale(null); setDeleteReason(''); }}>{t('cancel')}</Button>
             <Button
               variant="danger"
               onClick={() => deletingSale && deleteSaleMutation.mutate({ id: deletingSale.id, reason: deleteReason })}
               disabled={deleteSaleMutation.isPending || !deleteReason.trim()}
             >
               {deleteSaleMutation.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-              O'chirish
+              {t('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

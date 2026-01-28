@@ -268,7 +268,7 @@ export default function WarehousePage() {
   const onSubmit = (data: IncomeFormData) => {
     const validItems = data.items.filter(item => item.product_id > 0 && item.quantity > 0)
     if (validItems.length === 0) {
-      toast.error('Kamida bitta tovar qo\'shing')
+      toast.error(t('addAtLeastOneProduct'))
       return
     }
     stockIncome.mutate(data)
@@ -289,7 +289,7 @@ export default function WarehousePage() {
         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
           <div className="flex items-center justify-center gap-2 px-3 lg:px-4 py-2 bg-primary/10 rounded-xl text-sm lg:text-base">
             <DollarSign className="w-4 h-4 lg:w-5 lg:h-5 text-primary" />
-            <span className="font-semibold">1$ = {formatNumber(usdRate)} so'm</span>
+            <span className="font-semibold">1$ = {formatNumber(usdRate)} {t('sum')}</span>
           </div>
           <Button size="lg" variant="success" onClick={() => setShowIncomeDialog(true)} className="w-full sm:w-auto text-sm lg:text-base">
             <TrendingUp className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
@@ -379,7 +379,7 @@ export default function WarehousePage() {
                   value={selectedCategory || ''}
                   onChange={(e) => setSelectedCategory(e.target.value ? Number(e.target.value) : null)}
                 >
-                  <option value="">Barcha kategoriyalar</option>
+                  <option value="">{t('allCategories')}</option>
                   {categories?.map((cat: any) => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -399,14 +399,14 @@ export default function WarehousePage() {
                 <table className="w-full min-w-[700px]">
                   <thead className="bg-gray-50 border-b border-border">
                     <tr>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Tovar</th>
-                      <th className="px-4 py-3 text-left text-sm font-medium">Artikul</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">Qoldiq</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">O'rtacha kelish (USD)</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">O'rtacha kelish (UZS)</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">Sotuv narxi</th>
-                      <th className="px-4 py-3 text-right text-sm font-medium">Jami qiymat</th>
-                      <th className="px-4 py-3 text-center text-sm font-medium">Holat</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">{t('product')}</th>
+                      <th className="px-4 py-3 text-left text-sm font-medium">{t('article')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t('balance')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t('avgCostUsd')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t('avgCostUzs')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t('sellingPrice')}</th>
+                      <th className="px-4 py-3 text-right text-sm font-medium">{t('totalValue')}</th>
+                      <th className="px-4 py-3 text-center text-sm font-medium">{t('status')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -414,7 +414,7 @@ export default function WarehousePage() {
                       // Mahsulotni topish va UOM konversiyalarini olish
                       const product = productsList.find((p: Product) => p.id === stock.product_id)
                       const uomConversions = product?.uom_conversions || []
-                      
+
                       return (
                       <tr key={stock.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
@@ -453,9 +453,9 @@ export default function WarehousePage() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           {stock.is_below_minimum ? (
-                            <Badge variant="danger">Kam</Badge>
+                            <Badge variant="danger">{t('low')}</Badge>
                           ) : stock.quantity === 0 ? (
-                            <Badge variant="secondary">Tugagan</Badge>
+                            <Badge variant="secondary">{t('outOfStock')}</Badge>
                           ) : (
                             <Badge variant="success">OK</Badge>
                           )}
@@ -469,7 +469,7 @@ export default function WarehousePage() {
               {stockData?.data?.length === 0 && (
                 <div className="text-center py-12">
                   <Package className="w-16 h-16 mx-auto text-text-secondary opacity-50 mb-4" />
-                  <p className="text-text-secondary">Tovarlar topilmadi</p>
+                  <p className="text-text-secondary">{t('productsNotFound')}</p>
                 </div>
               )}
             </Card>
@@ -486,7 +486,7 @@ export default function WarehousePage() {
               <div className="flex flex-wrap items-center gap-4">
                 {/* Movement Type Filter */}
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Turi:</span>
+                  <span className="text-sm font-medium">{t('movementType')}:</span>
                   <div className="flex rounded-lg border overflow-hidden">
                     <button
                       onClick={() => { setMovementFilter('all'); setPage(1) }}
@@ -495,7 +495,7 @@ export default function WarehousePage() {
                         movementFilter === 'all' ? 'bg-primary text-white' : 'hover:bg-gray-100'
                       )}
                     >
-                      Barchasi
+                      {t('all')}
                     </button>
                     <button
                       onClick={() => { setMovementFilter('income'); setPage(1) }}
@@ -504,7 +504,7 @@ export default function WarehousePage() {
                         movementFilter === 'income' ? 'bg-green-600 text-white' : 'hover:bg-gray-100'
                       )}
                     >
-                      Kirim
+                      {t('incomeType')}
                     </button>
                     <button
                       onClick={() => { setMovementFilter('outcome'); setPage(1) }}
@@ -513,14 +513,14 @@ export default function WarehousePage() {
                         movementFilter === 'outcome' ? 'bg-red-600 text-white' : 'hover:bg-gray-100'
                       )}
                     >
-                      Sotildi
+                      {t('soldType')}
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Date Range */}
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Sana:</span>
+                  <span className="text-sm font-medium">{t('date')}:</span>
                   <input
                     type="date"
                     value={startDate}
@@ -535,7 +535,7 @@ export default function WarehousePage() {
                     className="h-9 px-3 text-sm border rounded-lg"
                   />
                 </div>
-                
+
                 {/* Clear Filters */}
                 {(movementFilter !== 'all' || startDate || endDate) && (
                   <Button
@@ -548,18 +548,18 @@ export default function WarehousePage() {
                       setPage(1)
                     }}
                   >
-                    Tozalash
+                    {t('clearFilters')}
                   </Button>
                 )}
-                
+
                 {/* Results count */}
                 <div className="ml-auto text-sm text-gray-500">
-                  Jami: {movementsData?.total || 0} ta
+                  {t('totalCount')}: {movementsData?.total || 0}
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardContent className="p-0">
               {loadingMovements ? (
@@ -571,16 +571,16 @@ export default function WarehousePage() {
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-border">
                       <tr>
-                        <th className="px-4 py-3 text-left text-sm font-medium">Sana</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium">Tovar</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium">Miqdor</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium">Narx (USD)</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium">Narx (UZS)</th>
-                        <th className="px-4 py-3 text-right text-sm font-medium">Jami</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium">Hujjat №</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium">Yetkazuvchi</th>
-                        <th className="px-4 py-3 text-center text-sm font-medium">Tur</th>
-                        {isDirector && <th className="px-4 py-3 text-center text-sm font-medium">Amallar</th>}
+                        <th className="px-4 py-3 text-left text-sm font-medium">{t('date')}</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium">{t('product')}</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium">{t('quantity')}</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium">{t('priceUsd')}</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium">{t('priceUzs')}</th>
+                        <th className="px-4 py-3 text-right text-sm font-medium">{t('total')}</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium">{t('documentNo')}</th>
+                        <th className="px-4 py-3 text-left text-sm font-medium">{t('supplier')}</th>
+                        <th className="px-4 py-3 text-center text-sm font-medium">{t('movementType')}</th>
+                        {isDirector && <th className="px-4 py-3 text-center text-sm font-medium">{t('actions')}</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
@@ -629,13 +629,13 @@ export default function WarehousePage() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <Badge variant={['purchase', 'transfer_in', 'adjustment_plus', 'return_from_customer'].includes(movement.movement_type) ? 'success' : 'danger'}>
-                            {movement.movement_type === 'purchase' ? 'Kirim' : 
-                             movement.movement_type === 'sale' ? 'Sotildi' :
-                             movement.movement_type === 'transfer_in' ? 'Keldi' :
-                             movement.movement_type === 'transfer_out' ? 'Jo\'natildi' :
-                             movement.movement_type === 'adjustment_plus' ? 'Tuzatish+' :
-                             movement.movement_type === 'adjustment_minus' ? 'Tuzatish-' :
-                             movement.movement_type === 'write_off' ? 'Zarar' : movement.movement_type}
+                            {movement.movement_type === 'purchase' ? t('incomeType') :
+                             movement.movement_type === 'sale' ? t('soldType') :
+                             movement.movement_type === 'transfer_in' ? t('transferIn') :
+                             movement.movement_type === 'transfer_out' ? t('transferOut') :
+                             movement.movement_type === 'adjustment_plus' ? t('adjustmentPlus') :
+                             movement.movement_type === 'adjustment_minus' ? t('adjustmentMinus') :
+                             movement.movement_type === 'write_off' ? t('writeOff') : movement.movement_type}
                           </Badge>
                         </td>
                         {isDirector && (
@@ -684,7 +684,7 @@ export default function WarehousePage() {
             ) : (
               <div className="text-center py-12">
                 <History className="w-16 h-16 mx-auto text-text-secondary opacity-50 mb-4" />
-                <p className="text-text-secondary">Kirim tarixi topilmadi</p>
+                <p className="text-text-secondary">{t('movementHistoryNotFound')}</p>
               </div>
             )}
           </CardContent>
@@ -693,12 +693,12 @@ export default function WarehousePage() {
       )}
 
       {/* Pagination */}
-      {((activeTab === 'stock' && stockData && stockData.total > 20) || 
+      {((activeTab === 'stock' && stockData && stockData.total > 20) ||
         (activeTab === 'history' && movementsData && movementsData.total > 30)) && (
         <div className="flex items-center justify-center gap-2">
-          <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>Oldingi</Button>
+          <Button variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>{t('previous')}</Button>
           <span className="px-4">{page}</span>
-          <Button variant="outline" onClick={() => setPage(page + 1)}>Keyingi</Button>
+          <Button variant="outline" onClick={() => setPage(page + 1)}>{t('next')}</Button>
         </div>
       )}
 
@@ -706,15 +706,15 @@ export default function WarehousePage() {
       <Dialog open={showIncomeDialog} onOpenChange={setShowIncomeDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Omborga kirim (USD)</DialogTitle>
-            <DialogDescription>Joriy kurs: 1$ = {formatNumber(usdRate)} so'm</DialogDescription>
+            <DialogTitle>{t('stockIncomeUsd')}</DialogTitle>
+            <DialogDescription>{t('currentRateInfo')}: 1$ = {formatNumber(usdRate)} {t('sum')}</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             {/* Warehouse & Document */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <label className="font-medium">Ombor</label>
+                <label className="font-medium">{t('warehouse')}</label>
                 <select
                   {...register('warehouse_id', { valueAsNumber: true })}
                   className="w-full min-h-btn px-4 py-3 border-2 border-border rounded-pos"
@@ -725,19 +725,19 @@ export default function WarehousePage() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Hujjat raqami</label>
-                <Input {...register('document_number')} placeholder="Faktura №" />
+                <label className="font-medium">{t('documentNo')}</label>
+                <Input {...register('document_number')} placeholder={t('invoiceNo')} />
               </div>
               <div className="space-y-2">
-                <label className="font-medium">Yetkazuvchi</label>
-                <Input {...register('supplier_name')} placeholder="Yetkazuvchi nomi" />
+                <label className="font-medium">{t('supplier')}</label>
+                <Input {...register('supplier_name')} placeholder={t('supplierName')} />
               </div>
             </div>
 
             {/* Items */}
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <label className="font-medium">Tovarlar</label>
+                <label className="font-medium">{t('productsLabel')}</label>
                 <Button
                   type="button"
                   variant="outline"
@@ -745,7 +745,7 @@ export default function WarehousePage() {
                   onClick={() => append({ product_id: 0, quantity: 1, uom_id: 1, unit_price_usd: 0 })}
                 >
                   <Plus className="w-4 h-4 mr-1" />
-                  Qo'shish
+                  {t('add')}
                 </Button>
               </div>
 
@@ -753,11 +753,11 @@ export default function WarehousePage() {
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-3 py-2 text-left text-sm font-medium">Tovar</th>
-                      <th className="px-3 py-2 text-center text-sm font-medium w-32">Miqdor</th>
-                      <th className="px-3 py-2 text-center text-sm font-medium w-24">O'lchov</th>
-                      <th className="px-3 py-2 text-center text-sm font-medium w-36">Narx ($)</th>
-                      <th className="px-3 py-2 text-right text-sm font-medium w-36">Jami ($)</th>
+                      <th className="px-3 py-2 text-left text-sm font-medium">{t('product')}</th>
+                      <th className="px-3 py-2 text-center text-sm font-medium w-32">{t('quantity')}</th>
+                      <th className="px-3 py-2 text-center text-sm font-medium w-24">{t('measureUnit')}</th>
+                      <th className="px-3 py-2 text-center text-sm font-medium w-36">{t('price')} ($)</th>
+                      <th className="px-3 py-2 text-right text-sm font-medium w-36">{t('total')} ($)</th>
                       <th className="px-3 py-2 w-12"></th>
                     </tr>
                   </thead>
@@ -834,29 +834,29 @@ export default function WarehousePage() {
 
             {/* Notes */}
             <div className="space-y-2">
-              <label className="font-medium">Izoh</label>
-              <Input {...register('notes')} placeholder="Qo'shimcha ma'lumot" />
+              <label className="font-medium">{t('notes')}</label>
+              <Input {...register('notes')} placeholder={t('additionalInfo')} />
             </div>
 
             {/* Total */}
             <div className="bg-gradient-to-r from-primary/10 to-success/10 p-4 rounded-pos">
               <div className="flex justify-between items-center">
                 <div>
-                  <p className="text-sm text-text-secondary">Jami (USD):</p>
+                  <p className="text-sm text-text-secondary">{t('totalUsd')}:</p>
                   <p className="text-pos-xl font-bold text-primary">${formatNumber(incomeTotalUsd, 2)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-text-secondary">So'mda:</p>
+                  <p className="text-sm text-text-secondary">{t('inUzs')}:</p>
                   <p className="text-pos-lg font-bold text-success">{formatMoney(incomeTotalUzs)}</p>
                 </div>
               </div>
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowIncomeDialog(false)}>Bekor qilish</Button>
+              <Button type="button" variant="outline" onClick={() => setShowIncomeDialog(false)}>{t('cancel')}</Button>
               <Button type="submit" variant="success" disabled={stockIncome.isPending}>
                 {stockIncome.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <TrendingUp className="w-4 h-4 mr-2" />}
-                Kirimni saqlash
+                {t('saveIncome')}
               </Button>
             </DialogFooter>
           </form>
@@ -869,7 +869,7 @@ export default function WarehousePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="w-5 h-5 text-primary" />
-              Harakatni tahrirlash
+              {t('editMovementTitle')}
             </DialogTitle>
             <DialogDescription>
               {editingMovement?.product_name}
@@ -880,7 +880,7 @@ export default function WarehousePage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="font-medium text-sm">Miqdor</label>
+                  <label className="font-medium text-sm">{t('quantity')}</label>
                   <Input
                     type="number"
                     step="0.01"
@@ -889,7 +889,7 @@ export default function WarehousePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="font-medium text-sm">O'lchov birligi</label>
+                  <label className="font-medium text-sm">{t('unit')}</label>
                   <select
                     className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                     value={editingMovement.uom_id}
@@ -897,7 +897,7 @@ export default function WarehousePage() {
                       const availableUoms = productUoms.length > 0 ? productUoms : uoms
                       const selectedUom = availableUoms.find((u: any) => u.uom_id === parseInt(e.target.value) || u.id === parseInt(e.target.value))
                       setEditingMovement({
-                        ...editingMovement, 
+                        ...editingMovement,
                         uom_id: parseInt(e.target.value),
                         uom_symbol: selectedUom?.uom_symbol || selectedUom?.symbol || ''
                       })
@@ -917,23 +917,23 @@ export default function WarehousePage() {
                   </select>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="font-medium text-sm">Narx (USD)</label>
+                  <label className="font-medium text-sm">{t('priceUsd')}</label>
                   <Input
                     type="number"
                     step="0.01"
                     value={editingMovement.unit_price_usd || ''}
                     onChange={(e) => setEditingMovement({
-                      ...editingMovement, 
+                      ...editingMovement,
                       unit_price_usd: parseFloat(e.target.value) || 0,
                       unit_price: (parseFloat(e.target.value) || 0) * usdRate
                     })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="font-medium text-sm">Narx (UZS)</label>
+                  <label className="font-medium text-sm">{t('priceUzs')}</label>
                   <Input
                     type="number"
                     value={editingMovement.unit_price}
@@ -943,7 +943,7 @@ export default function WarehousePage() {
               </div>
 
               <div className="space-y-2">
-                <label className="font-medium text-sm">Hujjat raqami</label>
+                <label className="font-medium text-sm">{t('documentNo')}</label>
                 <Input
                   value={editingMovement.document_number}
                   onChange={(e) => setEditingMovement({...editingMovement, document_number: e.target.value})}
@@ -951,7 +951,7 @@ export default function WarehousePage() {
               </div>
 
               <div className="space-y-2">
-                <label className="font-medium text-sm">Yetkazuvchi</label>
+                <label className="font-medium text-sm">{t('supplier')}</label>
                 <Input
                   value={editingMovement.supplier_name}
                   onChange={(e) => setEditingMovement({...editingMovement, supplier_name: e.target.value})}
@@ -959,7 +959,7 @@ export default function WarehousePage() {
               </div>
 
               <div className="space-y-2">
-                <label className="font-medium text-sm">Izoh</label>
+                <label className="font-medium text-sm">{t('notes')}</label>
                 <Input
                   value={editingMovement.notes}
                   onChange={(e) => setEditingMovement({...editingMovement, notes: e.target.value})}
@@ -969,14 +969,14 @@ export default function WarehousePage() {
               <div className="bg-warning/10 p-3 rounded-lg text-sm">
                 <div className="flex items-start gap-2">
                   <Info className="w-4 h-4 text-warning mt-0.5" />
-                  <p>Miqdorni o'zgartirsangiz, ombor qoldig'i avtomatik yangilanadi.</p>
+                  <p>{t('quantityChangeWarning')}</p>
                 </div>
               </div>
             </div>
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingMovement(null)}>Bekor qilish</Button>
+            <Button variant="outline" onClick={() => setEditingMovement(null)}>{t('cancel')}</Button>
             <Button
               variant="primary"
               onClick={() => editingMovement && editMovement.mutate({
@@ -992,7 +992,7 @@ export default function WarehousePage() {
               disabled={editMovement.isPending}
             >
               {editMovement.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Pencil className="w-4 h-4 mr-2" />}
-              Saqlash
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1004,10 +1004,10 @@ export default function WarehousePage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-danger">
               <Trash2 className="w-5 h-5" />
-              Harakatni o'chirish
+              {t('deleteMovementTitle')}
             </DialogTitle>
             <DialogDescription>
-              <span className="font-semibold">{deletingMovement?.name}</span> kirimini o'chirmoqchimisiz?
+              <span className="font-semibold">{deletingMovement?.name}</span> {t('confirmDeleteMovement')}
             </DialogDescription>
           </DialogHeader>
 
@@ -1016,31 +1016,31 @@ export default function WarehousePage() {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-danger mt-0.5" />
                 <div>
-                  <p className="font-medium text-danger">Diqqat!</p>
-                  <p>Bu harakat ombor qoldig'ini teskari o'zgartiradi. Kirim o'chirilsa, tovar qoldig'i kamayadi.</p>
+                  <p className="font-medium text-danger">{t('attentionWarning')}</p>
+                  <p>{t('deleteMovementWarning')}</p>
                 </div>
               </div>
             </div>
 
             <div className="space-y-2">
-              <label className="font-medium text-sm">O'chirish sababi *</label>
+              <label className="font-medium text-sm">{t('deleteReasonLabel')} *</label>
               <Input
                 value={deleteReason}
                 onChange={(e) => setDeleteReason(e.target.value)}
-                placeholder="Sabab kiriting (majburiy)"
+                placeholder={t('enterReasonRequired')}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeletingMovement(null); setDeleteReason(''); }}>Bekor qilish</Button>
+            <Button variant="outline" onClick={() => { setDeletingMovement(null); setDeleteReason(''); }}>{t('cancel')}</Button>
             <Button
               variant="danger"
               onClick={() => deletingMovement && deleteMovement.mutate({ id: deletingMovement.id, reason: deleteReason })}
               disabled={deleteMovement.isPending || !deleteReason.trim()}
             >
               {deleteMovement.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-              O'chirish
+              {t('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

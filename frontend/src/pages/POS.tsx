@@ -140,15 +140,25 @@ export default function POSPage() {
   // NEW: Driver phone for receipt
   const [driverPhone, setDriverPhone] = useState('')
   
+  // NEW: Receipt edit mode
+  const [receiptEditMode, setReceiptEditMode] = useState(false)
+  const [receiptData, setReceiptData] = useState({
+    companyName: 'INTER PROFNASTIL',
+    customerName: '',
+    customerPhone: '',
+    customerCompany: '',
+    additionalPhone: '',
+  })
+
   // NEW: Category ordering
   const [categoryOrder, setCategoryOrder] = useState<number[]>([])
   const [draggingCategoryId, setDraggingCategoryId] = useState<number | null>(null)
   const [dragOverCategoryId, setDragOverCategoryId] = useState<number | null>(null)
-  
+
   const [items, setItems] = useState<CartItem[]>([])
   const [customer, setCustomer] = useState<Customer | null>(null)
   const [warehouseId] = useState(1)
-  
+
   // Load edit mode data
   useEffect(() => {
     if (isEditMode && editItems.length > 0) {
@@ -170,18 +180,32 @@ export default function POSPage() {
         available_stock: 999999, // Not tracked in edit mode
       }))
       setItems(cartItems)
-      
+
       if (editCustomer) {
         setCustomer(editCustomer)
       }
-      
+
       // Set general discount if there was one
       if (editDiscountAmount > 0) {
         setGeneralDiscount(editDiscountAmount)
       }
     }
   }, [isEditMode, editItems, editCustomer, editDiscountAmount])
-  
+
+  // Update receiptData when customer changes or print preview opens
+  useEffect(() => {
+    if (showPrintPreview) {
+      setReceiptData({
+        companyName: 'INTER PROFNASTIL',
+        customerName: customer?.name || '',
+        customerPhone: customer?.phone || '',
+        customerCompany: customer?.company_name || '',
+        additionalPhone: driverPhone,
+      })
+      setReceiptEditMode(false)
+    }
+  }, [showPrintPreview, customer, driverPhone])
+
   const { data: exchangeRateData } = useQuery({
     queryKey: ['exchange-rate'],
     queryFn: async () => {
@@ -220,7 +244,7 @@ export default function POSPage() {
   const sortedCategories = useMemo(() => {
     if (!categories) return []
     if (categoryOrder.length === 0) return categories
-    
+
     return [...categories].sort((a: any, b: any) => {
       const indexA = categoryOrder.indexOf(a.id)
       const indexB = categoryOrder.indexOf(b.id)
@@ -251,7 +275,7 @@ export default function POSPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products-pos'] })
-      toast.success('Saqlandi')
+      toast.success(t('saved'))
     },
     onError: () => {
       toast.error(t('errorOccurred'))
@@ -348,7 +372,7 @@ export default function POSPage() {
   const handleProductClick = (product: Product) => {
     const salePrice = getSalePrice(product)
     const costPrice = getCostPrice(product)
-    
+
     // Open add product dialog with product info
     setAddProductData({
       product,
@@ -366,7 +390,7 @@ export default function POSPage() {
   // Handle UOM change in add product dialog
   const handleAddProductUOMChange = (uomConv: UOMConversion | null) => {
     if (!addProductData.product) return
-    
+
     if (uomConv === null) {
       // Base UOM selected
       const salePrice = getSalePrice(addProductData.product)
@@ -394,15 +418,15 @@ export default function POSPage() {
   // Confirm add product to cart
   const handleConfirmAddProduct = () => {
     if (!addProductData.product) return
-    
-    const existingItem = items.find(i => 
-      i.product_id === addProductData.product!.id && 
+
+    const existingItem = items.find(i =>
+      i.product_id === addProductData.product!.id &&
       i.uom_id === addProductData.selectedUomId
     )
-    
+
     if (existingItem) {
-      setItems(items.map(item => 
-        item.id === existingItem.id 
+      setItems(items.map(item =>
+        item.id === existingItem.id
           ? { ...item, quantity: item.quantity + addProductData.quantity, unit_price: addProductData.unitPrice }
           : item
       ))
@@ -424,7 +448,7 @@ export default function POSPage() {
         available_stock: Number(addProductData.product.current_stock) || 0,
       }])
     }
-    
+
     setShowAddProductDialog(false)
     setAddProductData({
       product: null,
@@ -436,7 +460,7 @@ export default function POSPage() {
       costPrice: 0,
       quantity: 1
     })
-    toast.success('Qo\'shildi')
+    toast.success(t('added'))
   }
 
   // Category drag handlers
@@ -458,19 +482,19 @@ export default function POSPage() {
       return
     }
 
-    const currentOrder = categoryOrder.length > 0 
-      ? [...categoryOrder] 
+    const currentOrder = categoryOrder.length > 0
+      ? [...categoryOrder]
       : sortedCategories.map((c: any) => c.id)
-    
+
     const dragIndex = currentOrder.indexOf(draggingCategoryId)
     const dropIndex = currentOrder.indexOf(targetCategoryId)
-    
+
     if (dragIndex !== -1 && dropIndex !== -1) {
       currentOrder.splice(dragIndex, 1)
       currentOrder.splice(dropIndex, 0, draggingCategoryId)
       setCategoryOrder(currentOrder)
     }
-    
+
     setDraggingCategoryId(null)
     setDragOverCategoryId(null)
   }
@@ -478,24 +502,24 @@ export default function POSPage() {
   // Filtered customers based on search and seller filter
   const filteredCustomers = useMemo(() => {
     if (!customersData?.data) return []
-    
+
     let filtered = customersData.data
-    
+
     // Filter by seller
     if (customerSellerFilter) {
       filtered = filtered.filter((c: Customer) => c.manager_id === customerSellerFilter)
     }
-    
+
     // Filter by search query
     if (customerSearchQuery.trim()) {
       const query = customerSearchQuery.toLowerCase()
-      filtered = filtered.filter((c: Customer) => 
+      filtered = filtered.filter((c: Customer) =>
         c.name?.toLowerCase().includes(query) ||
         c.company_name?.toLowerCase().includes(query) ||
         c.phone?.toLowerCase().includes(query)
       )
     }
-    
+
     return filtered
   }, [customersData, customerSearchQuery, customerSellerFilter])
 
@@ -506,18 +530,18 @@ export default function POSPage() {
   }
 
   const addItemToCart = (
-    product: Product, 
-    uomId: number, 
-    uomSymbol: string, 
+    product: Product,
+    uomId: number,
+    uomSymbol: string,
     uomName: string,
-    conversionFactor: number, 
+    conversionFactor: number,
     unitPrice: number
   ) => {
     const existingItem = items.find(i => i.product_id === product.id && i.uom_id === uomId)
-    
+
     if (existingItem) {
-      setItems(items.map(item => 
-        item.id === existingItem.id 
+      setItems(items.map(item =>
+        item.id === existingItem.id
           ? { ...item, quantity: item.quantity + 1 }
           : item
       ))
@@ -530,9 +554,9 @@ export default function POSPage() {
           salePrice = Number(product.vip_price) * conversionFactor
         }
       }
-      
+
       const costPrice = getCostPrice(product)
-      
+
       setItems([...items, {
         id: `${product.id}-${uomId}-${Date.now()}`,
         product_id: product.id,
@@ -550,19 +574,19 @@ export default function POSPage() {
         available_stock: Number(product.current_stock) || 0,
       }])
     }
-    
+
     setShowUOMSelectDialog(false)
     setSelectedProductForUOM(null)
-    toast.success('Qo\'shildi')
+    toast.success(t('added'))
   }
 
   const handleSelectUOM = (uomConv: UOMConversion | null) => {
     if (!selectedProductForUOM) return
-    
+
     if (changingUOMItemId) {
       if (uomConv === null) {
         const salePrice = getSalePrice(selectedProductForUOM)
-        setItems(items.map(i => 
+        setItems(items.map(i =>
           i.id === changingUOMItemId
             ? {
                 ...i,
@@ -577,7 +601,7 @@ export default function POSPage() {
         ))
       } else {
         const convPrice = uomConv.sale_price || getSalePrice(selectedProductForUOM, uomConv.conversion_factor)
-        setItems(items.map(i => 
+        setItems(items.map(i =>
           i.id === changingUOMItemId
             ? {
                 ...i,
@@ -596,7 +620,7 @@ export default function POSPage() {
       setSelectedProductForUOM(null)
       return
     }
-    
+
     if (uomConv === null) {
       const salePrice = getSalePrice(selectedProductForUOM)
       addItemToCart(
@@ -667,7 +691,7 @@ export default function POSPage() {
             ? { ...item, unit_price: newPrice }
             : item
         ))
-        toast.success('Narx o\'zgartirildi')
+        toast.success(t('priceChanged'))
       }
     }
     setShowEditPriceDialog(false)
@@ -689,7 +713,7 @@ export default function POSPage() {
             ? { ...item, quantity: newQty }
             : item
         ))
-        toast.success('Miqdor o\'zgartirildi')
+        toast.success(t('quantityChanged'))
       }
     }
     setShowEditQuantityDialog(false)
@@ -701,7 +725,7 @@ export default function POSPage() {
     if (discountAmount >= 0 && discountAmount <= subtotal) {
       setGeneralDiscount(discountAmount)
     } else {
-      toast.error('Chegirma summasi noto\'g\'ri')
+      toast.error(t('invalidDiscount'))
     }
   }
 
@@ -710,29 +734,29 @@ export default function POSPage() {
     if (newTotal > 0 && newTotal <= subtotal) {
       setGeneralDiscount(subtotal - newTotal)
     } else {
-      toast.error('Summa noto\'g\'ri')
+      toast.error(t('invalidAmount'))
     }
   }
 
   const processSale = async () => {
     if (items.length === 0) {
-      toast.error('Savat bo\'sh!')
+      toast.error(t('cartEmpty'))
       return
     }
 
     if (paymentType === 'DEBT' && !customer) {
-      toast.error('Qarzga sotuv uchun mijoz tanlang!')
+      toast.error(t('selectCustomerForDebt'))
       return
     }
-    
+
     // Edit mode validation
     if (isEditMode && !editReason.trim()) {
-      toast.error('Tahrirlash sababini kiriting!')
+      toast.error(t('enterEditReason'))
       return
     }
-    
+
     if (isEditMode && editReason.trim().length < 3) {
-      toast.error('Sabab kamida 3 ta belgidan iborat bo\'lishi kerak!')
+      toast.error(t('reasonMinLength'))
       return
     }
 
@@ -741,7 +765,7 @@ export default function POSPage() {
     try {
       let paymentInUZS = finalTotal
       const inputAmount = parseFloat(paymentAmount) || 0
-      
+
       if (paymentType !== 'DEBT' && inputAmount > 0) {
         paymentInUZS = paymentCurrency === 'USD' ? inputAmount * usdRate : inputAmount
       }
@@ -750,12 +774,12 @@ export default function POSPage() {
       const saleItems = items.map(item => {
         const itemTotal = item.unit_price * item.quantity
         // Calculate this item's share of the general discount
-        const itemDiscountShare = subtotal > 0 
-          ? (itemTotal / subtotal) * generalDiscount 
+        const itemDiscountShare = subtotal > 0
+          ? (itemTotal / subtotal) * generalDiscount
           : 0
         // Per-item discount from price changes + share of general discount
         const perItemDiscount = (item.original_price - item.unit_price) * item.quantity + itemDiscountShare
-        
+
         return {
           product_id: item.product_id,
           quantity: item.quantity,
@@ -781,9 +805,9 @@ export default function POSPage() {
         }
 
         await api.put(`/sales/${editingSaleId}/full?edit_reason=${encodeURIComponent(editReason)}`, saleData)
-        
+
         toast.success(t('saleEdited'))
-        
+
         // Clear edit mode and navigate back
         handleClearCart()
         clearEditMode()
@@ -792,7 +816,7 @@ export default function POSPage() {
         setEditReason('')
         queryClient.invalidateQueries({ queryKey: ['sales'] })
         navigate('/sales')
-        
+
       } else {
         // NEW SALE MODE
         const saleData = {
@@ -805,7 +829,7 @@ export default function POSPage() {
         }
 
         const result = await salesService.quickSale(saleData)
-        
+
         toast.success(
           paymentType === 'DEBT'
             ? `Qarzga sotildi`
@@ -862,7 +886,7 @@ export default function POSPage() {
 
     // Calculate new sort orders
     const updates: { productId: number; sortOrder: number }[] = []
-    
+
     // Remove dragged product and insert at new position
     currentProducts.splice(draggedIndex, 1)
     currentProducts.splice(targetIndex, 0, draggedProduct)
@@ -912,38 +936,38 @@ export default function POSPage() {
       {/* LEFT - Categories (hidden on mobile, horizontal on tablet) */}
       <div className="hidden lg:flex w-52 bg-white border-r flex-col shrink-0">
         <div className="p-3 border-b">
-          <h3 className="font-semibold text-sm text-gray-500 uppercase">Bo'limlar</h3>
-          <p className="text-[10px] text-gray-400 mt-0.5">Tartibni o'zgartirish uchun surish</p>
+          <h3 className="font-semibold text-sm text-gray-500 uppercase">{t('categories')}</h3>
+          <p className="text-[10px] text-gray-400 mt-0.5">{t('dragToReorder')}</p>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto">
           <button
             onClick={() => setSelectedCategory('favorites')}
             className={cn(
               'w-full flex items-center gap-3 px-4 py-3 text-left border-b transition-colors',
-              selectedCategory === 'favorites' 
-                ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' 
+              selectedCategory === 'favorites'
+                ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600'
                 : 'hover:bg-gray-50'
             )}
           >
             <Star className={cn('w-5 h-5', selectedCategory === 'favorites' ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400')} />
-            <span className="flex-1 text-[15px] font-medium">Sevimlilar</span>
+            <span className="flex-1 text-[15px] font-medium">{t('favorites')}</span>
             <span className="text-sm text-gray-500">{favoritesCount}</span>
           </button>
-          
+
           <button
             onClick={() => setSelectedCategory(null)}
             className={cn(
               'w-full flex items-center gap-3 px-4 py-3 text-left border-b transition-colors',
-              selectedCategory === null 
-                ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' 
+              selectedCategory === null
+                ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600'
                 : 'hover:bg-gray-50'
             )}
           >
             <Grid3X3 className="w-5 h-5 text-gray-400" />
-            <span className="flex-1 text-[15px] font-medium">Barchasi</span>
+            <span className="flex-1 text-[15px] font-medium">{t('all')}</span>
           </button>
-          
+
           {sortedCategories?.map((cat: any, index: number) => (
             <div
               key={cat.id}
@@ -954,8 +978,8 @@ export default function POSPage() {
               onDragEnd={() => { setDraggingCategoryId(null); setDragOverCategoryId(null) }}
               className={cn(
                 'w-full flex items-center gap-2 px-2 py-3 text-left border-b transition-all cursor-grab active:cursor-grabbing',
-                selectedCategory === cat.id 
-                  ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' 
+                selectedCategory === cat.id
+                  ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600'
                   : 'hover:bg-gray-50',
                 draggingCategoryId === cat.id && 'opacity-50',
                 dragOverCategoryId === cat.id && 'bg-blue-100 border-blue-300'
@@ -966,8 +990,8 @@ export default function POSPage() {
                 onClick={() => setSelectedCategory(cat.id)}
                 className="flex items-center gap-2 flex-1 min-w-0"
               >
-                <div 
-                  className="w-3 h-3 rounded-full flex-shrink-0" 
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
                   style={{ backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length] }}
                 />
                 <span className="text-[15px] truncate">{cat.name}</span>
@@ -983,41 +1007,41 @@ export default function POSPage() {
           onClick={() => setSelectedCategory('favorites')}
           className={cn(
             'flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
-            selectedCategory === 'favorites' 
-              ? 'bg-blue-600 text-white' 
+            selectedCategory === 'favorites'
+              ? 'bg-blue-600 text-white'
               : 'bg-gray-100 text-gray-700'
           )}
         >
           <Star className={cn('w-4 h-4', selectedCategory === 'favorites' && 'fill-white')} />
-          Sevimlilar
+          {t('favorites')}
         </button>
-        
+
         <button
           onClick={() => setSelectedCategory(null)}
           className={cn(
             'flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
-            selectedCategory === null 
-              ? 'bg-blue-600 text-white' 
+            selectedCategory === null
+              ? 'bg-blue-600 text-white'
               : 'bg-gray-100 text-gray-700'
           )}
         >
           <Grid3X3 className="w-4 h-4" />
-          Barchasi
+          {t('all')}
         </button>
-        
+
         {sortedCategories?.map((cat: any, index: number) => (
           <button
             key={cat.id}
             onClick={() => setSelectedCategory(cat.id)}
             className={cn(
               'flex items-center gap-1.5 px-3 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors',
-              selectedCategory === cat.id 
-                ? 'bg-blue-600 text-white' 
+              selectedCategory === cat.id
+                ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700'
             )}
           >
-            <div 
-              className="w-2.5 h-2.5 rounded-full" 
+            <div
+              className="w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: selectedCategory === cat.id ? '#fff' : CATEGORY_COLORS[index % CATEGORY_COLORS.length] }}
             />
             {cat.name}
@@ -1033,12 +1057,12 @@ export default function POSPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Qidirish..."
+              placeholder={t('search') + '...'}
               className="w-full h-10 lg:h-11 pl-10 lg:pl-11 pr-4 text-sm lg:text-[15px] border rounded-lg focus:border-blue-500 focus:outline-none"
               onChange={(e) => debouncedSearch(e.target.value)}
             />
           </div>
-          
+
           <div className="flex items-center gap-1 lg:gap-2 text-xs lg:text-sm bg-blue-50 px-2 lg:px-3 py-1.5 lg:py-2 rounded-lg">
             <span className="text-gray-500">$</span>
             <span className="font-semibold text-blue-600">{formatNumber(usdRate)}</span>
@@ -1061,7 +1085,7 @@ export default function POSPage() {
                 const salePrice = getSalePrice(product)
                 const costPrice = getCostPrice(product)
                 const isDragOver = dragOverProduct === product.id
-                
+
                 return (
                   <div
                     key={product.id}
@@ -1091,7 +1115,7 @@ export default function POSPage() {
                         product.is_favorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
                       )} />
                     </button>
-                    
+
                     <button
                       onClick={() => !isOutOfStock && handleProductClick(product)}
                       disabled={isOutOfStock}
@@ -1101,19 +1125,19 @@ export default function POSPage() {
                       <p className="font-semibold text-xs lg:text-[15px] leading-tight line-clamp-2 pr-4 lg:pr-6 mb-1.5 lg:mb-2">
                         {product.name}
                       </p>
-                      
+
                       {/* UOM */}
                       <div className="flex flex-wrap gap-1 mb-1.5 lg:mb-2">
                         <span className="text-[10px] lg:text-xs px-1.5 lg:px-2 py-0.5 bg-blue-100 text-blue-700 rounded font-medium">
                           {product.base_uom_symbol}
                         </span>
-                        {product.uom_conversions?.slice(0, 1).map((conv) => (
+                        {product.uom_conversions?.map((conv) => (
                           <span key={conv.uom_id} className="text-[10px] lg:text-xs px-1.5 lg:px-2 py-0.5 bg-gray-100 text-gray-600 rounded hidden sm:inline-block">
                             {conv.uom_symbol}
                           </span>
                         ))}
                       </div>
-                      
+
                       {/* Price */}
                       <div className="mt-auto">
                         <p className="text-sm lg:text-lg font-bold text-green-600">
@@ -1124,19 +1148,19 @@ export default function POSPage() {
                         )}
                         {/* Cost price */}
                         <p className="text-[10px] lg:text-xs text-orange-600 mt-0.5">
-                          Kelish: {formatMoney(costPrice, false)}
+                          {t('costPrice')}: {formatMoney(costPrice, false)}
                         </p>
                       </div>
-                      
+
                       {/* Stock */}
                       <p className={cn(
                         'text-[10px] lg:text-xs mt-1.5 lg:mt-2',
                         isOutOfStock ? 'text-red-500' : 'text-gray-500'
                       )}>
                         {formatNumber(baseStock)} {product.base_uom_symbol}
-                        {product.uom_conversions?.[0] && (
-                          <span className="hidden sm:inline"> • {formatNumber(baseStock / product.uom_conversions[0].conversion_factor, 0)} {product.uom_conversions[0].uom_symbol}</span>
-                        )}
+                        {product.uom_conversions?.map((conv, idx) => (
+                          <span key={conv.uom_id} className="hidden sm:inline"> • {formatNumber(baseStock / conv.conversion_factor, 0)} {conv.uom_symbol}</span>
+                        ))}
                       </p>
                     </button>
                   </div>
@@ -1174,31 +1198,31 @@ export default function POSPage() {
                 className="text-danger"
               >
                 <X className="w-4 h-4 mr-1" />
-                Bekor
+                {t('cancel')}
               </Button>
             </div>
           </div>
         )}
-        
+
         {/* Customer */}
         <div className="p-3 border-b">
           <button
             onClick={() => setShowCustomerDialog(true)}
             className={cn(
               "w-full h-10 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors",
-              customer 
-                ? "bg-blue-600 text-white" 
+              customer
+                ? "bg-blue-600 text-white"
                 : "border border-dashed border-gray-300 text-gray-600 hover:border-blue-500"
             )}
           >
             <User className="w-4 h-4" />
             {customer ? customer.name : t('selectCustomer')}
           </button>
-          
+
           {customer && customer.current_debt > 0 && (
             <p className="text-xs text-red-600 text-center mt-1">{t('debt')}: {formatMoney(customer.current_debt)}</p>
           )}
-          
+
           {/* Driver Phone Input */}
           <div className="mt-2">
             <input
@@ -1242,7 +1266,7 @@ export default function POSPage() {
                           savedAt: new Date().toISOString(),
                         })
                       }
-                      
+
                       // Saqlangan xaridni local state'ga yuklash
                       const cartItems: CartItem[] = cart.items.map((item: any) => ({
                         id: item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1260,15 +1284,15 @@ export default function POSPage() {
                         unit_price: item.unit_price,
                         available_stock: item.available_stock || 999999,
                       }))
-                      
+
                       setItems(cartItems)
                       setCustomer(cart.customer)
                       setGeneralDiscount(cart.discountAmount || 0)
-                      
+
                       // Saqlangan xaridni ro'yxatdan o'chirish
                       removeSavedCart(cart.id)
-                      
-                      toast.success('Xarid yuklandi!')
+
+                      toast.success(t('cartLoaded'))
                     }}
                     className="flex-1 text-left"
                   >
@@ -1287,7 +1311,7 @@ export default function POSPage() {
                     onClick={(e) => {
                       e.stopPropagation()
                       removeSavedCart(cart.id)
-                      toast.success('O\'chirildi')
+                      toast.success(t('deleted'))
                     }}
                     className="p-1.5 hover:bg-red-100 rounded ml-2"
                   >
@@ -1316,7 +1340,7 @@ export default function POSPage() {
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </button>
                   </div>
-                  
+
                   <div className="flex items-center gap-2 mb-1">
                     <button
                       onClick={() => handleChangeItemUOM(item)}
@@ -1329,7 +1353,7 @@ export default function POSPage() {
                       <Edit3 className="w-3 h-3 text-blue-600" />
                     </button>
                   </div>
-                  
+
                   <p className="text-xs text-orange-600 mb-2">{t('costPrice')}: {formatMoney(item.cost_price * item.conversion_factor, false)}</p>
 
                   <div className="flex items-center justify-between">
@@ -1371,7 +1395,7 @@ export default function POSPage() {
                 <span className="text-gray-500">{t('subtotal')}:</span>
                 <span className="font-medium">{formatMoney(subtotal, false)}</span>
               </div>
-              
+
               {/* Discount section */}
               <div className="border rounded-lg p-2 bg-orange-50">
                 <button
@@ -1383,7 +1407,7 @@ export default function POSPage() {
                     {generalDiscount > 0 ? `-${formatMoney(generalDiscount, false)}` : `${t('add')} +`}
                   </span>
                 </button>
-                
+
                 {showDiscountInput && (
                   <div className="mt-2 space-y-2">
                     <div className="flex gap-2">
@@ -1424,7 +1448,7 @@ export default function POSPage() {
                   </div>
                 )}
               </div>
-              
+
               {/* Profit */}
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">{t('profit')}:</span>
@@ -1434,19 +1458,19 @@ export default function POSPage() {
               </div>
             </>
           )}
-          
+
           {/* Total */}
           <div className="flex justify-between items-end">
-            <div>
-              <p className="text-xs text-gray-500">Yakuniy summa:</p>
-              <p className="text-2xl font-bold text-green-700">{formatMoney(finalTotal, false)}</p>
-              <p className="text-xs text-gray-500">≈ ${formatNumber(finalTotal / usdRate, 2)}</p>
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 whitespace-nowrap">{t('finalTotal')}:</p>
+              <p className="text-2xl font-bold text-green-700 whitespace-nowrap">{formatMoney(finalTotal, false)}</p>
+              <p className="text-xs text-gray-500 whitespace-nowrap">≈ ${formatNumber(finalTotal / usdRate, 2)}</p>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={() => {
                   if (items.length === 0) {
-                    toast.error('Savat bo\'sh!')
+                    toast.error(t('cartEmpty'))
                     return
                   }
                   // Saqlash
@@ -1465,14 +1489,14 @@ export default function POSPage() {
                   setItems([])
                   setCustomer(null)
                   setGeneralDiscount(0)
-                  toast.success('Xarid keyinroqqa saqlandi!')
+                  toast.success(t('cartSavedForLater'))
                 }}
                 disabled={items.length === 0}
                 className="flex items-center gap-1 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
-                title="Keyinroqqa saqlash"
+                title={t('saveForLater')}
               >
                 <Bookmark className="w-4 h-4" />
-                Keyinroq
+                {t('saveLater')}
               </button>
               <button
                 onClick={handleClearCart}
@@ -1484,7 +1508,7 @@ export default function POSPage() {
               </button>
             </div>
           </div>
-          
+
           <button
             onClick={() => setShowPaymentDialog(true)}
             disabled={items.length === 0}
@@ -1493,7 +1517,7 @@ export default function POSPage() {
             <Check className="w-5 h-5" />
             {t('payment')}
           </button>
-          
+
           <button
             onClick={() => setShowPrintPreview(true)}
             disabled={items.length === 0}
@@ -1514,7 +1538,7 @@ export default function POSPage() {
             <div className="flex justify-center py-2">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />
             </div>
-            
+
             {/* Header */}
             <div className="flex items-center justify-between px-4 pb-2 border-b">
               <h3 className="text-lg font-bold flex items-center gap-2">
@@ -1525,15 +1549,15 @@ export default function POSPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            
+
             {/* Customer */}
             <div className="p-3 border-b">
               <button
                 onClick={() => setShowCustomerDialog(true)}
                 className={cn(
                   "w-full h-10 flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors",
-                  customer 
-                    ? "bg-blue-600 text-white" 
+                  customer
+                    ? "bg-blue-600 text-white"
                     : "border border-dashed border-gray-300 text-gray-600"
                 )}
               >
@@ -1543,7 +1567,7 @@ export default function POSPage() {
               {customer && customer.current_debt > 0 && (
                 <p className="text-xs text-red-600 text-center mt-1">{t('debt')}: {formatMoney(customer.current_debt)}</p>
               )}
-              
+
               {/* Driver Phone Input - Mobile */}
               <div className="mt-2">
                 <input
@@ -1587,7 +1611,7 @@ export default function POSPage() {
                               savedAt: new Date().toISOString(),
                             })
                           }
-                          
+
                           // Saqlangan xaridni yuklash
                           const cartItems: CartItem[] = cart.items.map((item: any) => ({
                             id: item.id || `item_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -1605,13 +1629,13 @@ export default function POSPage() {
                             unit_price: item.unit_price,
                             available_stock: item.available_stock || 999999,
                           }))
-                          
+
                           setItems(cartItems)
                           setCustomer(cart.customer)
                           setGeneralDiscount(cart.discountAmount || 0)
                           removeSavedCart(cart.id)
-                          
-                          toast.success('Xarid yuklandi!')
+
+                          toast.success(t('cartLoaded'))
                         }}
                         className="flex-1 text-left"
                       >
@@ -1622,7 +1646,7 @@ export default function POSPage() {
                       <button
                         onClick={() => {
                           removeSavedCart(cart.id)
-                          toast.success('O\'chirildi')
+                          toast.success(t('deleted'))
                         }}
                         className="p-1 hover:bg-red-100 rounded ml-2"
                       >
@@ -1651,7 +1675,7 @@ export default function POSPage() {
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
                       </div>
-                      
+
                       <div className="flex items-center gap-2 mb-1">
                         <button
                           onClick={() => handleChangeItemUOM(item)}
@@ -1710,13 +1734,14 @@ export default function POSPage() {
                   )}
                 </>
               )}
-              
+
               <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-xs text-gray-500">{t('finalTotal')}:</p>
-                  <p className="text-xl font-bold text-green-700">{formatMoney(finalTotal, false)}</p>
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-500 whitespace-nowrap">{t('finalTotal')}:</p>
+                  <p className="text-xl font-bold text-green-700 whitespace-nowrap">{formatMoney(finalTotal, false)}</p>
+                  <p className="text-xs text-gray-500 whitespace-nowrap">≈ ${formatNumber(finalTotal / usdRate, 2)}</p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   <button
                     onClick={() => {
                       if (items.length === 0) return
@@ -1734,7 +1759,7 @@ export default function POSPage() {
                       setItems([])
                       setCustomer(null)
                       setGeneralDiscount(0)
-                      toast.success('Xarid keyinroqqa saqlandi!')
+                      toast.success(t('cartSavedForLater'))
                     }}
                     disabled={items.length === 0}
                     className="flex items-center gap-1 px-2 py-1.5 text-sm text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
@@ -1750,7 +1775,7 @@ export default function POSPage() {
                   </button>
                 </div>
               </div>
-              
+
               <button
                 onClick={() => { setMobileCartOpen(false); setShowPaymentDialog(true); }}
                 disabled={items.length === 0}
@@ -1759,7 +1784,7 @@ export default function POSPage() {
                 <Check className="w-5 h-5" />
                 {t('payment')}
               </button>
-              
+
               <button
                 onClick={() => { setMobileCartOpen(false); setShowPrintPreview(true); }}
                 disabled={items.length === 0}
@@ -1796,7 +1821,7 @@ export default function POSPage() {
               {addProductData.product?.name}
             </DialogDescription>
           </DialogHeader>
-          
+
           {addProductData.product && (
             <div className="space-y-3 pt-2 w-full">
               {/* Cost Price Info */}
@@ -1808,7 +1833,7 @@ export default function POSPage() {
                   </span>
                 </div>
               </div>
-              
+
               {/* UOM Selection */}
               <div className="w-full">
                 <label className="block text-xs font-medium text-gray-600 mb-1.5">{t('unit')}</label>
@@ -1826,7 +1851,7 @@ export default function POSPage() {
                   >
                     {addProductData.product.base_uom_symbol}
                   </button>
-                  
+
                   {/* Other UOMs */}
                   {addProductData.product.uom_conversions?.map((conv) => (
                     <button
@@ -1845,10 +1870,10 @@ export default function POSPage() {
                   ))}
                 </div>
               </div>
-              
+
               {/* Price Input */}
               <div className="w-full">
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Sotish narxi (so'm)</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">{t('sellingPriceSum')}</label>
                 <input
                   type="text"
                   inputMode="numeric"
@@ -1861,13 +1886,13 @@ export default function POSPage() {
                   className="w-full h-11 px-3 text-base font-bold text-center border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none box-border"
                 />
                 {addProductData.unitPrice < addProductData.costPrice * addProductData.conversionFactor && addProductData.unitPrice > 0 && (
-                  <p className="text-xs text-red-500 mt-1">⚠️ Narx tan narxdan past</p>
+                  <p className="text-xs text-red-500 mt-1">⚠️ {t('priceBelowCost')}</p>
                 )}
               </div>
-              
+
               {/* Quantity Input */}
               <div className="w-full">
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">Miqdor ({addProductData.selectedUomSymbol})</label>
+                <label className="block text-xs font-medium text-gray-600 mb-1.5">{t('quantityUnit')} ({addProductData.selectedUomSymbol})</label>
                 <div className="flex items-center gap-2 w-full">
                   <button
                     type="button"
@@ -1912,17 +1937,17 @@ export default function POSPage() {
                   </button>
                 </div>
               </div>
-              
+
               {/* Total */}
               <div className="bg-green-50 px-3 py-2 rounded-lg border border-green-200 w-full box-border">
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-green-700">Jami:</span>
+                  <span className="text-xs text-green-700">{t('total')}:</span>
                   <span className="text-base font-bold text-green-700">
                     {formatMoney(addProductData.unitPrice * addProductData.quantity)}
                   </span>
                 </div>
               </div>
-              
+
               {/* Confirm Button */}
               <button
                 onClick={handleConfirmAddProduct}
@@ -1930,7 +1955,7 @@ export default function POSPage() {
                 className="w-full h-11 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors box-border"
               >
                 <Check className="w-4 h-4" />
-                Kassaga qo'shish
+                {t('addToCart')}
               </button>
             </div>
           )}
@@ -1956,7 +1981,7 @@ export default function POSPage() {
                 <Ruler className="w-5 h-5 text-blue-600" />
                 <div className="text-left">
                   <p className="font-medium">{selectedProductForUOM?.base_uom_name || selectedProductForUOM?.base_uom_symbol}</p>
-                  <p className="text-xs text-gray-500">Asosiy</p>
+                  <p className="text-xs text-gray-500">{t('baseUnitLabel')}</p>
                 </div>
               </div>
               <p className="font-bold text-green-600">{selectedProductForUOM && formatMoney(getSalePrice(selectedProductForUOM))}</p>
@@ -1996,7 +2021,7 @@ export default function POSPage() {
               {t('total')}: {customersData?.data?.length || 0} | {t('all')}: {filteredCustomers.length}
             </p>
           </DialogHeader>
-          
+
           {/* Filters Row */}
           <div className="flex flex-col sm:flex-row gap-3 py-3 border-b bg-gray-50 -mx-4 px-4 sm:-mx-6 sm:px-6">
             {/* Seller filter */}
@@ -2015,7 +2040,7 @@ export default function POSPage() {
                 ))}
               </select>
             </div>
-            
+
             {/* Search input */}
             <div className="flex-1">
               <label className="block text-xs font-medium text-gray-600 mb-1">{t('search')}</label>
@@ -2032,7 +2057,7 @@ export default function POSPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Customer List */}
           <div className="flex-1 overflow-y-auto py-3 -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ maxHeight: 'calc(90vh - 220px)', minHeight: '300px' }}>
             {/* Oddiy xaridor */}
@@ -2050,7 +2075,7 @@ export default function POSPage() {
                 </div>
               </div>
             </button>
-            
+
             {filteredCustomers.length === 0 ? (
               <div className="text-center py-12">
                 <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -2065,8 +2090,8 @@ export default function POSPage() {
                     onClick={() => { setCustomer(c); setShowCustomerDialog(false); setCustomerSearchQuery(''); setCustomerSellerFilter('') }}
                     className={cn(
                       "w-full p-4 text-left rounded-xl border-2 hover:shadow-md transition-all",
-                      customer?.id === c.id 
-                        ? "border-blue-500 bg-blue-50 shadow-md" 
+                      customer?.id === c.id
+                        ? "border-blue-500 bg-blue-50 shadow-md"
                         : "border-gray-200 hover:border-blue-300"
                     )}
                   >
@@ -2081,7 +2106,7 @@ export default function POSPage() {
                           c.customer_type?.toUpperCase() === 'VIP' ? "text-yellow-600" : "text-blue-600"
                         )} />
                       </div>
-                      
+
                       {/* Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
@@ -2100,7 +2125,7 @@ export default function POSPage() {
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="mt-2 space-y-1">
                           <p className="text-sm text-gray-600 flex items-center gap-1">
                             <Phone className="w-3.5 h-3.5" />
@@ -2124,14 +2149,14 @@ export default function POSPage() {
               </div>
             )}
           </div>
-          
+
           {/* Footer */}
           <div className="pt-3 border-t -mx-4 px-4 sm:-mx-6 sm:px-6">
             <button
               onClick={() => setShowCustomerDialog(false)}
               className="w-full h-12 border-2 border-gray-200 rounded-xl text-base font-medium hover:bg-gray-50 transition-colors"
             >
-              Bekor qilish
+              {t('cancel')}
             </button>
           </div>
         </DialogContent>
@@ -2141,7 +2166,7 @@ export default function POSPage() {
       <Dialog open={showEditPriceDialog} onOpenChange={setShowEditPriceDialog}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>Narxni o'zgartirish</DialogTitle>
+            <DialogTitle>{t('editPrice')}</DialogTitle>
           </DialogHeader>
           <input
             type="text"
@@ -2156,8 +2181,8 @@ export default function POSPage() {
             autoFocus
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditPriceDialog(false)}>Bekor</Button>
-            <Button variant="primary" onClick={handleSavePrice}>Saqlash</Button>
+            <Button variant="outline" onClick={() => setShowEditPriceDialog(false)}>{t('cancel')}</Button>
+            <Button variant="primary" onClick={handleSavePrice}>{t('save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2166,7 +2191,7 @@ export default function POSPage() {
       <Dialog open={showEditQuantityDialog} onOpenChange={setShowEditQuantityDialog}>
         <DialogContent className="max-w-xs">
           <DialogHeader>
-            <DialogTitle>Miqdorni o'zgartirish</DialogTitle>
+            <DialogTitle>{t('editQuantity')}</DialogTitle>
           </DialogHeader>
           <input
             type="number"
@@ -2177,8 +2202,8 @@ export default function POSPage() {
             autoFocus
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditQuantityDialog(false)}>Bekor</Button>
-            <Button variant="primary" onClick={handleSaveQuantity}>Saqlash</Button>
+            <Button variant="outline" onClick={() => setShowEditQuantityDialog(false)}>{t('cancel')}</Button>
+            <Button variant="primary" onClick={handleSaveQuantity}>{t('save')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -2205,7 +2230,7 @@ export default function POSPage() {
                 />
               </div>
             )}
-            
+
             {/* Payment Types */}
             <div className="grid grid-cols-2 gap-2 w-full">
               {PAYMENT_TYPES.map((pt) => (
@@ -2222,31 +2247,31 @@ export default function POSPage() {
                 </button>
               ))}
             </div>
-            
+
             {paymentType !== 'DEBT' && (
               <>
                 {/* Currency Selection */}
                 <div className="flex gap-2 w-full">
-                  <button 
-                    onClick={() => setPaymentCurrency('UZS')} 
+                  <button
+                    onClick={() => setPaymentCurrency('UZS')}
                     className={cn(
-                      'flex-1 h-10 rounded-lg text-sm font-medium border-2 transition-all', 
+                      'flex-1 h-10 rounded-lg text-sm font-medium border-2 transition-all',
                       paymentCurrency === 'UZS' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 hover:border-blue-400'
                     )}
                   >
                     So'm
                   </button>
-                  <button 
-                    onClick={() => setPaymentCurrency('USD')} 
+                  <button
+                    onClick={() => setPaymentCurrency('USD')}
                     className={cn(
-                      'flex-1 h-10 rounded-lg text-sm font-medium border-2 transition-all', 
+                      'flex-1 h-10 rounded-lg text-sm font-medium border-2 transition-all',
                       paymentCurrency === 'USD' ? 'bg-green-600 text-white border-green-600' : 'border-gray-200 hover:border-green-400'
                     )}
                   >
                     Dollar
                   </button>
                 </div>
-                
+
                 {/* Amount Input */}
                 <input
                   type="text"
@@ -2262,26 +2287,26 @@ export default function POSPage() {
                 />
               </>
             )}
-            
+
             {/* Total Summary */}
             <div className="bg-gray-50 px-3 py-2.5 rounded-lg space-y-1.5 w-full box-border">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Jami summa:</span>
+                <span className="text-sm text-gray-600">{t('totalSum')}:</span>
                 <span className="font-bold text-base">{formatMoney(finalTotal)}</span>
               </div>
               <div className="flex justify-between items-center text-xs text-gray-500">
-                <span>Dollarda:</span>
+                <span>{t('inDollars')}:</span>
                 <span>${formatNumber(finalTotal / usdRate, 2)}</span>
               </div>
             </div>
-            
+
             {/* Action Buttons */}
             <div className="flex gap-2 pt-1 w-full">
               <button
                 onClick={() => setShowPaymentDialog(false)}
                 className="flex-1 h-10 border-2 border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
               >
-                Bekor
+                {t('cancel')}
               </button>
               <button
                 onClick={processSale}
@@ -2292,7 +2317,7 @@ export default function POSPage() {
                 )}
               >
                 {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                {isEditMode ? 'Saqlash' : 'Tasdiqlash'}
+                {isEditMode ? t('save') : t('confirmSale')}
               </button>
             </div>
           </div>
@@ -2305,56 +2330,103 @@ export default function POSPage() {
           <DialogHeader className="p-4 border-b">
             <DialogTitle className="flex items-center gap-2">
               <Printer className="w-5 h-5" />
-              Chek ko'rinishi
+              {t('receiptPreview')}
             </DialogTitle>
           </DialogHeader>
-          
+
+          {/* Edit Form - Compact 2 column grid */}
+          {receiptEditMode && (
+            <div className="px-4 py-3 bg-blue-50 border-b">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="col-span-2">
+                  <input
+                    type="text"
+                    value={receiptData.companyName}
+                    onChange={(e) => setReceiptData(prev => ({ ...prev, companyName: e.target.value }))}
+                    className="w-full px-2 py-1.5 border rounded text-sm"
+                    placeholder={t('company')}
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={receiptData.customerName}
+                  onChange={(e) => setReceiptData(prev => ({ ...prev, customerName: e.target.value }))}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                  placeholder={t('customer')}
+                />
+                <input
+                  type="text"
+                  value={receiptData.customerPhone}
+                  onChange={(e) => setReceiptData(prev => ({ ...prev, customerPhone: e.target.value }))}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                  placeholder={t('phone')}
+                />
+                <input
+                  type="text"
+                  value={receiptData.customerCompany}
+                  onChange={(e) => setReceiptData(prev => ({ ...prev, customerCompany: e.target.value }))}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                  placeholder={t('companyLabel')}
+                />
+                <input
+                  type="text"
+                  value={receiptData.additionalPhone}
+                  onChange={(e) => setReceiptData(prev => ({ ...prev, additionalPhone: e.target.value }))}
+                  className="w-full px-2 py-1.5 border rounded text-sm"
+                  placeholder={t('driverPhone')}
+                />
+              </div>
+            </div>
+          )}
+
           {/* Print Content */}
-          <div className="p-4 max-h-[70vh] overflow-y-auto">
-            <div 
+          <div className="p-4 max-h-[50vh] overflow-y-auto">
+            <div
               ref={printRef}
               className="bg-white p-3 border-2 border-black rounded-lg"
               style={{ maxWidth: '80mm', fontFamily: 'Arial, sans-serif' }}
             >
               {/* Header */}
               <div className="text-center mb-2">
-                <img 
-                  src="/logo.png" 
-                  alt="Logo" 
+                <img
+                  src="/logo.png"
+                  alt="Logo"
                   className="h-24 mx-auto mb-1"
                 />
-                <h2 className="font-black text-xl tracking-tight">INTER PROFNASTIL</h2>
+                <h2 className="font-black text-xl tracking-tight">{receiptData.companyName}</h2>
                 <p className="text-sm font-bold mt-1">
                   {formatDateTashkent(new Date())} {formatTimeTashkent(new Date())}
                 </p>
               </div>
-              
+
               {/* Divider */}
               <div className="border-t-2 border-black my-2" />
-              
+
               {/* Customer info */}
-              {(customer || driverPhone) && (
+              {(receiptData.customerName || receiptData.additionalPhone) && (
                 <div className="mb-2 py-1 border-y-2 border-black text-sm">
-                  {customer && (
-                    <>
-                      <p className="font-black">Mijoz: {customer.name}</p>
-                      {customer.phone && <p className="font-bold">Tel: {customer.phone}</p>}
-                      {customer.company_name && <p className="font-bold">Kompaniya: {customer.company_name}</p>}
-                    </>
+                  {receiptData.customerName && (
+                    <p className="font-black">{t('customerLabel')}: {receiptData.customerName}</p>
                   )}
-                  {driverPhone && (
-                    <p className="font-bold">Haydovchi: {driverPhone}</p>
+                  {receiptData.customerPhone && (
+                    <p className="font-bold">{t('phoneLabel')}: {receiptData.customerPhone}</p>
+                  )}
+                  {receiptData.customerCompany && (
+                    <p className="font-bold">{t('companyLabel')}: {receiptData.customerCompany}</p>
+                  )}
+                  {receiptData.additionalPhone && (
+                    <p className="font-bold">{t('driverLabel')}: {receiptData.additionalPhone}</p>
                   )}
                 </div>
               )}
-              
+
               {/* Items Table */}
               <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
-                    <th className="border-2 border-black p-1 text-left font-black">Mahsulot</th>
-                    <th className="border-2 border-black p-1 text-center font-black w-16">Soni</th>
-                    <th className="border-2 border-black p-1 text-right font-black w-20">Summa</th>
+                    <th className="border-2 border-black p-1 text-left font-black">{t('productLabel')}</th>
+                    <th className="border-2 border-black p-1 text-center font-black w-16">{t('quantityLabel')}</th>
+                    <th className="border-2 border-black p-1 text-right font-black w-20">{t('amountLabel')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2376,7 +2448,7 @@ export default function POSPage() {
                 <tfoot>
                   <tr>
                     <td colSpan={2} className="border-2 border-black p-1 text-right font-black">
-                      Jami ({items.length} ta):
+                      {t('totalWithCount')} ({items.length} {t('unit').toLowerCase()}):
                     </td>
                     <td className="border-2 border-black p-1 text-right font-black">
                       {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0), false)}
@@ -2385,7 +2457,7 @@ export default function POSPage() {
                   {generalDiscount > 0 && (
                     <tr>
                       <td colSpan={2} className="border-2 border-black p-1 text-right font-black">
-                        Chegirma:
+                        {t('discount')}:
                       </td>
                       <td className="border-2 border-black p-1 text-right font-black">
                         -{formatMoney(generalDiscount, false)}
@@ -2394,46 +2466,57 @@ export default function POSPage() {
                   )}
                 </tfoot>
               </table>
-              
+
               {/* Grand Total Box */}
               <div className="border-4 border-black my-2 p-2 text-center bg-white">
-                <div className="text-sm font-black">YAKUNIY SUMMA:</div>
+                <div className="text-sm font-black">{t('grandTotalLabel')}:</div>
                 <div className="text-2xl font-black">
                   {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount, false)}
                 </div>
               </div>
-              
+
               {/* Footer */}
               <div className="border-t-2 border-black pt-2 text-center">
-                <p className="text-base font-black">★ RAHMAT! ★</p>
+                <p className="text-base font-black">{t('thanksMessage')}</p>
                 <p className="text-sm font-bold mt-1">{companyPhone1}</p>
                 {companyPhone2 && <p className="text-sm font-bold">{companyPhone2}</p>}
               </div>
-              
+
               {/* Bottom spacing for tear line */}
               <div className="h-10"></div>
             </div>
           </div>
-          
+
           {/* Actions */}
-          <div className="p-4 border-t flex gap-3">
+          <div className="p-4 border-t flex gap-2">
             <button
               onClick={() => setShowPrintPreview(false)}
               className="flex-1 h-10 border-2 border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              Yopish
+              {t('close')}
+            </button>
+            <button
+              onClick={() => setReceiptEditMode(!receiptEditMode)}
+              className={`h-10 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                receiptEditMode
+                  ? 'bg-blue-100 text-blue-600 border-2 border-blue-300'
+                  : 'border-2 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <Edit3 className="w-4 h-4" />
+              {t('edit')}
             </button>
             <button
               onClick={() => {
                 const printContent = printRef.current
                 if (!printContent) return
-                
+
                 const printWindow = window.open('', '_blank')
                 if (!printWindow) {
-                  toast.error('Popup bloklangan. Ruxsat bering.')
+                  toast.error(t('popupBlocked'))
                   return
                 }
-                
+
                 printWindow.document.write(`
                   <!DOCTYPE html>
                   <html>
@@ -2442,7 +2525,7 @@ export default function POSPage() {
                     <meta charset="UTF-8">
                     <style>
                       * { margin: 0; padding: 0; box-sizing: border-box; }
-                      body { 
+                      body {
                         font-family: Arial, Helvetica, sans-serif;
                         font-size: 14px;
                         width: 80mm;
@@ -2452,35 +2535,35 @@ export default function POSPage() {
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                       }
-                      
+
                       /* Header */
-                      .header { 
-                        text-align: center; 
+                      .header {
+                        text-align: center;
                         padding-bottom: 5px;
                       }
-                      .header img { 
+                      .header img {
                         height: 70px;
                         max-width: 70mm;
                       }
-                      .header h1 { 
-                        font-size: 20px; 
+                      .header h1 {
+                        font-size: 20px;
                         font-weight: 900;
                         margin: 5px 0;
                         letter-spacing: 1px;
                       }
-                      .header .date { 
-                        font-size: 14px; 
+                      .header .date {
+                        font-size: 14px;
                         font-weight: bold;
                       }
-                      
+
                       /* Divider */
-                      .divider { 
-                        border-top: 2px solid #000; 
-                        margin: 5px 0; 
+                      .divider {
+                        border-top: 2px solid #000;
+                        margin: 5px 0;
                       }
-                      
+
                       /* Customer */
-                      .customer { 
+                      .customer {
                         padding: 5px 0;
                         border-top: 2px solid #000;
                         border-bottom: 2px solid #000;
@@ -2488,7 +2571,7 @@ export default function POSPage() {
                         margin: 5px 0;
                       }
                       .customer p { margin: 2px 0; font-weight: bold; }
-                      
+
                       /* Table */
                       table {
                         width: 100%;
@@ -2511,7 +2594,7 @@ export default function POSPage() {
                       .product-price { font-size: 11px; font-weight: bold; }
                       .qty-cell { font-weight: 900; font-size: 13px; }
                       .sum-cell { font-weight: 900; font-size: 13px; }
-                      
+
                       /* Grand Total Box */
                       .grand-total-box {
                         border: 4px solid #000;
@@ -2528,7 +2611,7 @@ export default function POSPage() {
                         font-weight: 900;
                         letter-spacing: 1px;
                       }
-                      
+
                       /* Footer */
                       .footer {
                         text-align: center;
@@ -2544,20 +2627,20 @@ export default function POSPage() {
                         font-size: 13px;
                         font-weight: bold;
                       }
-                      
+
                       /* Bottom spacing for tearing */
                       .tear-space {
                         height: 15mm;
                       }
-                      
+
                       @media print {
-                        body { 
+                        body {
                           width: 80mm;
                           padding: 2mm;
                         }
-                        @page { 
+                        @page {
                           size: 80mm auto;
-                          margin: 0; 
+                          margin: 0;
                         }
                       }
                     </style>
@@ -2565,29 +2648,27 @@ export default function POSPage() {
                   <body>
                     <div class="header">
                       <img src="/logo.png" alt="Logo" onerror="this.style.display='none'" />
-                      <h1>INTER PROFNASTIL</h1>
+                      <h1>${receiptData.companyName}</h1>
                       <p class="date">${formatDateTashkent(new Date())} ${formatTimeTashkent(new Date())}</p>
                     </div>
-                    
+
                     <div class="divider"></div>
-                    
-                    ${(customer || driverPhone) ? `
+
+                    ${(receiptData.customerName || receiptData.additionalPhone) ? `
                       <div class="customer">
-                        ${customer ? `
-                          <p>Mijoz: ${customer.name}</p>
-                          ${customer.phone ? `<p>Tel: ${customer.phone}</p>` : ''}
-                          ${customer.company_name ? `<p>Kompaniya: ${customer.company_name}</p>` : ''}
-                        ` : ''}
-                        ${driverPhone ? `<p>Haydovchi: ${driverPhone}</p>` : ''}
+                        ${receiptData.customerName ? `<p>${t('customerLabel')}: ${receiptData.customerName}</p>` : ''}
+                        ${receiptData.customerPhone ? `<p>${t('phoneLabel')}: ${receiptData.customerPhone}</p>` : ''}
+                        ${receiptData.customerCompany ? `<p>${t('companyLabel')}: ${receiptData.customerCompany}</p>` : ''}
+                        ${receiptData.additionalPhone ? `<p>${t('driverLabel')}: ${receiptData.additionalPhone}</p>` : ''}
                       </div>
                     ` : ''}
-                    
+
                     <table>
                       <thead>
                         <tr>
-                          <th>Mahsulot</th>
-                          <th class="text-center" style="width:55px;">Soni</th>
-                          <th class="text-right" style="width:70px;">Summa</th>
+                          <th>${t('productLabel')}</th>
+                          <th class="text-center" style="width:55px;">${t('quantityLabel')}</th>
+                          <th class="text-right" style="width:70px;">${t('amountLabel')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2604,38 +2685,38 @@ export default function POSPage() {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colspan="2" class="text-right font-bold">Jami (${items.length} ta):</td>
+                          <td colspan="2" class="text-right font-bold">${t('totalWithCount')} (${items.length} ${t('unit').toLowerCase()}):</td>
                           <td class="text-right font-bold">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
                         </tr>
                         ${generalDiscount > 0 ? `
                           <tr>
-                            <td colspan="2" class="text-right font-bold">Chegirma:</td>
+                            <td colspan="2" class="text-right font-bold">${t('discount')}:</td>
                             <td class="text-right font-bold">-${generalDiscount.toLocaleString('uz-UZ')}</td>
                           </tr>
                         ` : ''}
                       </tfoot>
                     </table>
-                    
+
                     <div class="grand-total-box">
-                      <div class="grand-total-label">YAKUNIY SUMMA:</div>
+                      <div class="grand-total-label">${t('grandTotalLabel')}:</div>
                       <div class="grand-total-amount">${(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount).toLocaleString('uz-UZ')}</div>
                     </div>
-                    
+
                     <div class="footer">
-                      <p class="thanks">★ RAHMAT! ★</p>
+                      <p class="thanks">${t('thanksMessage')}</p>
                       <p class="contact">${companyPhone1}</p>
                       ${companyPhone2 ? `<p class="contact">${companyPhone2}</p>` : ''}
                     </div>
-                    
+
                     <!-- Bottom spacing for tearing -->
                     <div class="tear-space"></div>
                   </body>
                   </html>
                 `)
-                
+
                 printWindow.document.close()
                 printWindow.focus()
-                
+
                 // Wait for images to load
                 setTimeout(() => {
                   printWindow.print()
@@ -2645,7 +2726,7 @@ export default function POSPage() {
               className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
             >
               <Printer className="w-4 h-4" />
-              Chop etish
+              {t('printButton')}
             </button>
           </div>
         </DialogContent>

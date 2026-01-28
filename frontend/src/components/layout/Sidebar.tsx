@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -16,6 +16,7 @@ import {
   UsersRound,
   Key,
   Receipt,
+  ChevronDown,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/authStore'
@@ -52,9 +53,22 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { t } = useLanguage()
   const [showHelp, setShowHelp] = useState(false)
   const [showChangePassword, setShowChangePassword] = useState(false)
+  const [showUserMenu, setShowUserMenu] = useState(false)
   const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' })
   const [showPasswords, setShowPasswords] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -81,7 +95,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         current_password: passwordData.current,
         new_password: passwordData.new
       })
-      
+
       if (response.data) {
         alert(t('passwordChanged'))
         setShowChangePassword(false)
@@ -102,14 +116,14 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Overlay for mobile */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={onClose}
         />
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={cn(
           'fixed left-0 top-0 h-screen w-72 bg-surface border-r border-border flex flex-col z-50',
           'transition-transform duration-300 ease-in-out',
@@ -119,13 +133,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       >
         {/* Logo */}
         <div className="p-5 lg:p-6 border-b border-border flex items-center justify-between">
-          <img 
-            src="/logo.png" 
-            alt="Inter Profnastil" 
+          <img
+            src="/logo.png"
+            alt="Inter Profnastil"
             className="h-16 lg:h-20 xl:h-24 w-auto object-contain"
           />
           {/* Close button for mobile */}
-          <button 
+          <button
             onClick={onClose}
             className="lg:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
@@ -136,9 +150,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 p-3 lg:p-4 space-y-1 lg:space-y-2 overflow-y-auto">
           {filteredNavItems.map((item) => {
-            const isActive = location.pathname === item.href || 
+            const isActive = location.pathname === item.href ||
               (item.href !== '/' && location.pathname.startsWith(item.href))
-            
+
             return (
               <NavLink
                 key={item.href}
@@ -158,7 +172,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Help Button */}
         <div className="px-3 lg:px-4 py-2 border-t border-border">
-          <button 
+          <button
             onClick={() => setShowHelp(true)}
             className="flex items-center gap-3 lg:gap-4 w-full px-3 lg:px-4 py-3 rounded-xl font-medium hover:bg-gray-100 transition-colors text-text-secondary"
           >
@@ -167,30 +181,48 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </button>
         </div>
 
-        {/* User Info & Logout */}
-        <div className="p-3 lg:p-4 border-t border-border">
-          <div className="mb-3 px-3 lg:px-4">
-            <p className="font-semibold text-text-primary truncate">
-              {user?.first_name} {user?.last_name}
-            </p>
-            <p className="text-sm text-text-secondary truncate">
-              {user?.role_name}
-            </p>
-          </div>
+        {/* User Info with Dropdown */}
+        <div className="p-3 lg:p-4 border-t border-border relative" ref={userMenuRef}>
           <button
-            onClick={() => setShowChangePassword(true)}
-            className="flex items-center gap-3 w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl font-medium hover:bg-yellow-50 text-yellow-600 transition-colors mb-2"
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center justify-between w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl hover:bg-gray-100 transition-colors"
           >
-            <Key className="h-5 w-5 flex-shrink-0" />
-            <span>{t('changePassword')}</span>
+            <div className="flex-1 text-left min-w-0">
+              <p className="font-semibold text-text-primary truncate">
+                {user?.first_name} {user?.last_name}
+              </p>
+              <p className="text-sm text-text-secondary truncate">
+                {user?.role_name}
+              </p>
+            </div>
+            <ChevronDown className={cn(
+              "w-5 h-5 text-text-secondary transition-transform flex-shrink-0 ml-2",
+              showUserMenu && "rotate-180"
+            )} />
           </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 w-full px-3 lg:px-4 py-2.5 lg:py-3 rounded-xl font-medium hover:bg-danger/10 text-danger transition-colors"
-          >
-            <LogOut className="h-5 w-5 flex-shrink-0" />
-            <span>{t('logout')}</span>
-          </button>
+
+          {/* Dropdown Menu */}
+          {showUserMenu && (
+            <div className="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-xl shadow-lg border border-border overflow-hidden z-10">
+              <button
+                onClick={() => {
+                  setShowChangePassword(true)
+                  setShowUserMenu(false)
+                }}
+                className="flex items-center gap-3 w-full px-4 py-3 hover:bg-yellow-50 text-yellow-600 transition-colors border-b border-border"
+              >
+                <Key className="h-5 w-5 flex-shrink-0" />
+                <span className="font-medium">{t('changePassword')}</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full px-4 py-3 hover:bg-danger/10 text-danger transition-colors"
+              >
+                <LogOut className="h-5 w-5 flex-shrink-0" />
+                <span className="font-medium">{t('logout')}</span>
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -205,7 +237,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <h2 className="text-xl lg:text-2xl font-bold">XLAB</h2>
                   <p className="text-blue-100 text-sm">IT Solutions & Development</p>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowHelp(false)}
                   className="p-2 hover:bg-white/20 rounded-full transition-colors"
                 >
@@ -277,7 +309,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     {t('updatePasswordHint')}
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={() => {
                     setShowChangePassword(false)
                     setPasswordData({ current: '', new: '', confirm: '' })

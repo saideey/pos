@@ -447,6 +447,132 @@ type TranslationKeys = {
   // Warehouse
   movementEdited: string
   movementDeleted: string
+
+  // Warehouse page
+  addAtLeastOneProduct: string
+  allCategories: string
+  avgCostUsd: string
+  avgCostUzs: string
+  totalValue: string
+  low: string
+  productsNotFound: string
+  incomeType: string
+  soldType: string
+  clearFilters: string
+  totalCount: string
+  priceUsd: string
+  priceUzs: string
+  documentNo: string
+  supplier: string
+  supplierName: string
+  transferIn: string
+  transferOut: string
+  adjustmentPlus: string
+  adjustmentMinus: string
+  writeOff: string
+  movementHistoryNotFound: string
+  stockIncomeUsd: string
+  currentRateInfo: string
+  invoiceNo: string
+  productsLabel: string
+  measureUnit: string
+  totalUsd: string
+  inUzs: string
+  saveIncome: string
+  editMovementTitle: string
+  quantityChangeWarning: string
+  deleteMovementTitle: string
+  confirmDeleteMovement: string
+  attentionWarning: string
+  deleteMovementWarning: string
+  deleteReasonLabel: string
+  enterReasonRequired: string
+
+  // Customer dialogs
+  deleteCustomerTitle: string
+  confirmDeleteCustomer: string
+  customerHasDebt: string
+  deleting: string
+  acceptPayment: string
+  paymentAmount: string
+  enterAmount: string
+  optionalNote: string
+  accept: string
+  customerDetails: string
+  fullHistoryAndStats: string
+  totalPurchases: string
+  advanceBalance: string
+  downloadFullReport: string
+  allSalesProductsDebtInExcel: string
+  receiptNo: string
+  paidAmount: string
+  debtAmount: string
+  debtPaymentHistory: string
+  debtBefore: string
+  debtAfter: string
+  paymentTransaction: string
+  purchaseTransaction: string
+  onDebt: string
+  partial: string
+  productsList: string
+
+  // Sales page
+  lastSale: string
+  edited: string
+  unknownCustomer: string
+  deleteSaleTitle: string
+  confirmDeleteSale: string
+  saleDeleteWarning: string
+  grandTotal: string
+  editedBy: string
+  editedWhen: string
+  cancelledStatus: string
+  cancelledBy: string
+  cancelledWhen: string
+  pending: string
+  saleLoadError: string
+  saleDeletedSuccess: string
+
+  // POS page extended
+  dragToReorder: string
+  sellingPriceSum: string
+  quantityUnit: string
+  priceBelowCost: string
+  editPrice: string
+  editQuantity: string
+  inDollars: string
+  saveForLater: string
+  cartSavedForLater: string
+  receiptPreview: string
+  confirmSale: string
+
+  // POS toasts
+  saved: string
+  added: string
+  deleted: string
+  priceChanged: string
+  quantityChanged: string
+  invalidDiscount: string
+  invalidAmount: string
+  selectCustomerForDebt: string
+  enterEditReason: string
+  reasonMinLength: string
+  cartLoaded: string
+
+  // POS receipt and print
+  baseUnitLabel: string
+  customerLabel: string
+  companyLabel: string
+  company: string
+  driverLabel: string
+  productLabel: string
+  quantityLabel: string
+  amountLabel: string
+  totalWithCount: string
+  grandTotalLabel: string
+  thanksMessage: string
+  printButton: string
+  popupBlocked: string
 }
 
 export const translations: Record<LanguageCode, TranslationKeys> = {
@@ -495,7 +621,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     back: 'Orqaga',
     next: 'Keyingi',
     previous: 'Oldingi',
-    
+
     // Auth
     login: 'Kirish',
     logout: 'Chiqish',
@@ -506,7 +632,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     loginError: "Login yoki parol noto'g'ri",
     loginSuccess: 'Muvaffaqiyatli kirdingiz',
     logoutConfirm: 'Tizimdan chiqmoqchimisiz?',
-    
+
     // Navigation
     dashboard: 'Boshqaruv paneli',
     pos: 'Kassa',
@@ -517,7 +643,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     reports: 'Hisobotlar',
     settings: 'Sozlamalar',
     users: 'Foydalanuvchilar',
-    
+
     // Dashboard
     todaySales: 'Bugungi savdo',
     monthSales: 'Oylik savdo',
@@ -526,7 +652,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     recentSales: 'So\'nggi sotuvlar',
     topProducts: 'Top mahsulotlar',
     salesChart: 'Sotuv grafigi',
-    
+
     // POS
     cart: 'Savat',
     cartEmpty: "Savat bo'sh",
@@ -561,8 +687,8 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     saveLater: 'Keyinroq',
     savedCarts: 'Saqlangan xaridlar',
     loadCart: 'Yuklash',
-    driverPhone: 'Haydovchi telefoni',
-    
+    driverPhone: 'Mijoz telefoni',
+
     // Products
     productName: 'Mahsulot nomi',
     productCode: 'Mahsulot kodi',
@@ -582,7 +708,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     productSaved: 'Mahsulot saqlandi',
     importProducts: 'Import qilish',
     exportProducts: 'Eksport qilish',
-    
+
     // Customers
     customerName: 'Mijoz ismi',
     customerType: 'Mijoz turi',
@@ -604,7 +730,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     makePayment: "To'lov qilish",
     paymentReceived: "To'lov qabul qilindi",
     downloadReport: 'Hisobotni yuklash',
-    
+
     // Sales
     saleNumber: 'Sotuv raqami',
     saleDate: 'Sotuv sanasi',
@@ -621,7 +747,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     cancelSale: 'Sotuvni bekor qilish',
     saleDeleted: "Sotuv o'chirildi",
     returnSale: 'Qaytarish',
-    
+
     // Warehouse
     warehouseName: 'Ombor nomi',
     stockIn: 'Kirim',
@@ -638,7 +764,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     addMovement: "Harakat qo'shish",
     movementSaved: 'Harakat saqlandi',
     lowStockAlert: 'Kam qolgan tovarlar',
-    
+
     // Reports
     salesReport: 'Sotuvlar hisoboti',
     stockReport: 'Ombor hisoboti',
@@ -653,7 +779,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     generateReport: 'Hisobot yaratish',
     downloadExcel: 'Excel yuklash',
     downloadPdf: 'PDF yuklash',
-    
+
     // Settings
     companySettings: 'Kompaniya sozlamalari',
     companyName2: 'Kompaniya nomi',
@@ -687,7 +813,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     maxDiscountHint: 'Sotuvchi bera oladigan maksimal chegirma',
     allowDebtSales: 'Qarzga sotish imkoniyati',
     autoPrintReceipt: 'Avtomatik chek chop etish',
-    
+
     // Users
     userManagement: 'Foydalanuvchilarni boshqarish',
     addUser: "Foydalanuvchi qo'shish",
@@ -708,13 +834,13 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     newPassword: 'Yangi parol',
     confirmPassword: 'Parolni tasdiqlash',
     passwordChanged: "Parol o'zgartirildi",
-    
+
     // Roles
     director: 'Direktor',
     seller2: 'Sotuvchi',
     warehouseManager: 'Omborchi',
     accountant: 'Hisobchi',
-    
+
     // Validation messages
     required: 'Bu maydon talab qilinadi',
     invalidEmail: "Email noto'g'ri formatda",
@@ -722,19 +848,19 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     maxLength: 'Maksimal uzunlik: {max}',
     invalidPhone: "Telefon raqami noto'g'ri",
     passwordMismatch: 'Parollar mos kelmaydi',
-    
+
     // Success messages
     savedSuccess: 'Muvaffaqiyatli saqlandi',
     deletedSuccess: "Muvaffaqiyatli o'chirildi",
     updatedSuccess: 'Muvaffaqiyatli yangilandi',
-    
+
     // Error messages
     errorOccurred: 'Xatolik yuz berdi',
     notFound: 'Topilmadi',
     accessDenied: 'Ruxsat berilmagan',
     serverError: 'Server xatosi',
     networkError: 'Tarmoq xatosi',
-    
+
     // Additional translations
     product: 'Tovar',
     units: "O'lchov birliklari",
@@ -797,7 +923,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     allRightsReserved: 'Barcha huquqlar himoyalangan',
     validationError: 'Validatsiya xatosi',
     measure: "O'lchov",
-    
+
     // Reports page
     totalRevenue: 'Jami daromad',
     totalCostPrice: 'Jami tan narx',
@@ -833,7 +959,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     purchase: 'xarid',
     currentStatus: 'Joriy holat',
     currentDebts: 'Joriy qarzlar',
-    
+
     // Customer dialog
     editCustomerTitle: 'Mijozni tahrirlash',
     addCustomerTitle: "Yangi mijoz qo'shish",
@@ -849,10 +975,10 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     balanceLabel: 'Balans',
     notesLabel: 'Izoh',
     notesPlaceholder: "Qo'shimcha ma'lumot",
-    
+
     // Dashboard
     welcomeMessage: 'Xush kelibsiz',
-    
+
     // POS
     orderSaved: 'Tartib saqlandi',
     editSaleTitle: 'tahrirlash',
@@ -860,11 +986,11 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     editError: 'Tahrirlashda xatolik',
     selectProduct: 'Tovar tanlang',
     additionalInfo: "Qo'shimcha ma'lumot",
-    
+
     // Settings
     reportNotSent: 'Hisobot yuborilmadi',
     messageNotSent: 'Xabar yuborilmadi',
-    
+
     // Customer form additional
     phoneRequired: 'Telefon kiritilishi shart',
     secondaryPhone: "Qo'shimcha telefon",
@@ -876,20 +1002,146 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     creditLimit: 'Kredit limiti',
     assignedSeller: 'Biriktirilgan kassir',
     notAssigned: 'Tanlanmagan',
-    
+
     // Edit reason
     editReason: 'Tahrirlash sababi',
     editReasonPlaceholder: 'Sabab kiriting (kamida 3 ta belgi)',
-    
+
     // Settings additional
     dailyReportSent: 'Kunlik hisobot yuborildi!',
     testMessageSent: 'Test xabar yuborildi!',
-    
+
     // Warehouse
     movementEdited: 'Harakat muvaffaqiyatli tahrirlandi!',
     movementDeleted: "Harakat o'chirildi!",
+
+    // Warehouse page
+    addAtLeastOneProduct: "Kamida bitta tovar qo'shing",
+    allCategories: 'Barcha kategoriyalar',
+    avgCostUsd: "O'rtacha kelish (USD)",
+    avgCostUzs: "O'rtacha kelish (UZS)",
+    totalValue: 'Jami qiymat',
+    low: 'Kam',
+    productsNotFound: 'Tovarlar topilmadi',
+    incomeType: 'Kirim',
+    soldType: 'Sotildi',
+    clearFilters: 'Tozalash',
+    totalCount: 'Jami',
+    priceUsd: 'Narx (USD)',
+    priceUzs: 'Narx (UZS)',
+    documentNo: 'Hujjat №',
+    supplier: 'Yetkazuvchi',
+    supplierName: 'Yetkazuvchi nomi',
+    transferIn: 'Keldi',
+    transferOut: "Jo'natildi",
+    adjustmentPlus: 'Tuzatish+',
+    adjustmentMinus: 'Tuzatish-',
+    writeOff: 'Zarar',
+    movementHistoryNotFound: 'Harakatlar tarixi topilmadi',
+    stockIncomeUsd: 'Omborga kirim (USD)',
+    currentRateInfo: 'Joriy kurs',
+    invoiceNo: 'Faktura №',
+    productsLabel: 'Tovarlar',
+    measureUnit: "O'lchov",
+    totalUsd: 'Jami (USD)',
+    inUzs: "So'mda",
+    saveIncome: 'Kirimni saqlash',
+    editMovementTitle: 'Harakatni tahrirlash',
+    quantityChangeWarning: "Miqdorni o'zgartirsangiz, ombor qoldig'i avtomatik yangilanadi.",
+    deleteMovementTitle: "Harakatni o'chirish",
+    confirmDeleteMovement: "kirimini o'chirmoqchimisiz?",
+    attentionWarning: 'Diqqat!',
+    deleteMovementWarning: "Bu harakat ombor qoldig'ini teskari o'zgartiradi. Kirim o'chirilsa, tovar qoldig'i kamayadi.",
+    deleteReasonLabel: "O'chirish sababi",
+    enterReasonRequired: 'Sabab kiriting (majburiy)',
+
+    // Customer dialogs
+    deleteCustomerTitle: "Mijozni o'chirish",
+    confirmDeleteCustomer: "ni o'chirmoqchimisiz?",
+    customerHasDebt: "Diqqat: Bu mijozda qarz mavjud!",
+    deleting: "O'chirilmoqda...",
+    acceptPayment: "To'lov qabul qilish",
+    paymentAmount: "To'lov summasi",
+    enterAmount: "Summa kiriting",
+    optionalNote: "Ixtiyoriy izoh",
+    accept: "Qabul qilish",
+    customerDetails: "Mijoz ma'lumotlari",
+    fullHistoryAndStats: "To'liq tarix va statistika",
+    totalPurchases: "Jami xarid",
+    advanceBalance: "Avans",
+    downloadFullReport: "To'liq hisobot yuklash",
+    allSalesProductsDebtInExcel: "Barcha sotuvlar, tovarlar va qarz tarixi bitta Excel faylda",
+    receiptNo: "Chek №",
+    paidAmount: "To'langan",
+    debtAmount: "Qarz",
+    debtPaymentHistory: "Qarz va to'lovlar tarixi",
+    debtBefore: "Qarz oldin",
+    debtAfter: "Qarz keyin",
+    paymentTransaction: "To'lov",
+    purchaseTransaction: "Xarid",
+    onDebt: "Qarzga",
+    partial: "Qisman",
+    productsList: "Tovarlar ro'yxati",
+
+    // Sales page
+    lastSale: "Oxirgi",
+    edited: "Tahrirlangan",
+    unknownCustomer: "Noma'lum",
+    deleteSaleTitle: "Sotuvni o'chirish",
+    confirmDeleteSale: "ni o'chirmoqchimisiz?",
+    saleDeleteWarning: "Sotuv bekor qilinadi va tovarlar omborga qaytariladi. Mijoz qarzlari ham yangilanadi.",
+    grandTotal: "Umumiy",
+    editedBy: "Kim",
+    editedWhen: "Qachon",
+    cancelledStatus: "Bekor qilingan",
+    cancelledBy: "Kim",
+    cancelledWhen: "Qachon",
+    pending: "Kutilmoqda",
+    saleLoadError: "Sotuv ma'lumotlarini yuklashda xatolik",
+    saleDeletedSuccess: "Sotuv o'chirildi!",
+
+    // POS page extended
+    dragToReorder: "Tartibni o'zgartirish uchun surish",
+    sellingPriceSum: "Sotish narxi (so'm)",
+    quantityUnit: "Miqdor",
+    priceBelowCost: "Narx tan narxdan past",
+    editPrice: "Narxni o'zgartirish",
+    editQuantity: "Miqdorni o'zgartirish",
+    inDollars: "Dollarda",
+    saveForLater: "Keyinroqqa saqlash",
+    cartSavedForLater: "Xarid keyinroqqa saqlandi!",
+    receiptPreview: "Chek ko'rinishi",
+    confirmSale: "Tasdiqlash",
+
+    // POS toasts
+    saved: "Saqlandi",
+    added: "Qo'shildi",
+    deleted: "O'chirildi",
+    priceChanged: "Narx o'zgartirildi",
+    quantityChanged: "Miqdor o'zgartirildi",
+    invalidDiscount: "Chegirma summasi noto'g'ri",
+    invalidAmount: "Summa noto'g'ri",
+    selectCustomerForDebt: "Qarzga sotuv uchun mijoz tanlang!",
+    enterEditReason: "Tahrirlash sababini kiriting!",
+    reasonMinLength: "Sabab kamida 3 ta belgidan iborat bo'lishi kerak!",
+    cartLoaded: "Xarid yuklandi!",
+
+    // POS receipt and print
+    baseUnitLabel: "Asosiy",
+    customerLabel: "Mijoz",
+    companyLabel: "Kompaniya",
+    company: "Kompaniya",
+    driverLabel: "Tel",
+    productLabel: "Mahsulot",
+    quantityLabel: "Soni",
+    amountLabel: "Summa",
+    totalWithCount: "Jami",
+    grandTotalLabel: "YAKUNIY SUMMA",
+    thanksMessage: "★ RAHMAT! ★",
+    printButton: "Chop etish",
+    popupBlocked: "Popup bloklangan. Ruxsat bering.",
   },
-  
+
   ru: {
     // Common
     save: 'Сохранить',
@@ -935,7 +1187,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     back: 'Назад',
     next: 'Далее',
     previous: 'Назад',
-    
+
     // Auth
     login: 'Войти',
     logout: 'Выйти',
@@ -946,7 +1198,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     loginError: 'Неверный логин или пароль',
     loginSuccess: 'Успешный вход',
     logoutConfirm: 'Вы уверены, что хотите выйти?',
-    
+
     // Navigation
     dashboard: 'Панель управления',
     pos: 'Касса',
@@ -957,7 +1209,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     reports: 'Отчеты',
     settings: 'Настройки',
     users: 'Пользователи',
-    
+
     // Dashboard
     todaySales: 'Продажи за сегодня',
     monthSales: 'Продажи за месяц',
@@ -966,7 +1218,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     recentSales: 'Последние продажи',
     topProducts: 'Топ товары',
     salesChart: 'График продаж',
-    
+
     // POS
     cart: 'Корзина',
     cartEmpty: 'Корзина пуста',
@@ -1001,8 +1253,8 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     saveLater: 'На потом',
     savedCarts: 'Сохраненные',
     loadCart: 'Загрузить',
-    driverPhone: 'Телефон водителя',
-    
+    driverPhone: 'Телефон клиента',
+
     // Products
     productName: 'Название товара',
     productCode: 'Код товара',
@@ -1022,7 +1274,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     productSaved: 'Товар сохранен',
     importProducts: 'Импорт',
     exportProducts: 'Экспорт',
-    
+
     // Customers
     customerName: 'Имя клиента',
     customerType: 'Тип клиента',
@@ -1044,7 +1296,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     makePayment: 'Принять оплату',
     paymentReceived: 'Оплата принята',
     downloadReport: 'Скачать отчет',
-    
+
     // Sales
     saleNumber: 'Номер продажи',
     saleDate: 'Дата продажи',
@@ -1061,7 +1313,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     cancelSale: 'Отменить',
     saleDeleted: 'Продажа удалена',
     returnSale: 'Возврат',
-    
+
     // Warehouse
     warehouseName: 'Название склада',
     stockIn: 'Приход',
@@ -1078,7 +1330,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     addMovement: 'Добавить движение',
     movementSaved: 'Движение сохранено',
     lowStockAlert: 'Мало на складе',
-    
+
     // Reports
     salesReport: 'Отчет по продажам',
     stockReport: 'Отчет по складу',
@@ -1093,7 +1345,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     generateReport: 'Сформировать',
     downloadExcel: 'Скачать Excel',
     downloadPdf: 'Скачать PDF',
-    
+
     // Settings
     companySettings: 'Настройки компании',
     companyName2: 'Название компании',
@@ -1127,7 +1379,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     maxDiscountHint: 'Максимальная скидка продавца',
     allowDebtSales: 'Разрешить продажу в долг',
     autoPrintReceipt: 'Авто-печать чека',
-    
+
     // Users
     userManagement: 'Управление пользователями',
     addUser: 'Добавить пользователя',
@@ -1148,13 +1400,13 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     newPassword: 'Новый пароль',
     confirmPassword: 'Подтвердите пароль',
     passwordChanged: 'Пароль изменен',
-    
+
     // Roles
     director: 'Директор',
     seller2: 'Продавец',
     warehouseManager: 'Кладовщик',
     accountant: 'Бухгалтер',
-    
+
     // Validation messages
     required: 'Обязательное поле',
     invalidEmail: 'Неверный формат email',
@@ -1162,19 +1414,19 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     maxLength: 'Максимальная длина: {max}',
     invalidPhone: 'Неверный номер телефона',
     passwordMismatch: 'Пароли не совпадают',
-    
+
     // Success messages
     savedSuccess: 'Успешно сохранено',
     deletedSuccess: 'Успешно удалено',
     updatedSuccess: 'Успешно обновлено',
-    
+
     // Error messages
     errorOccurred: 'Произошла ошибка',
     notFound: 'Не найдено',
     accessDenied: 'Доступ запрещен',
     serverError: 'Ошибка сервера',
     networkError: 'Ошибка сети',
-    
+
     // Additional translations
     product: 'Товар',
     units: 'Единицы измерения',
@@ -1237,7 +1489,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     allRightsReserved: 'Все права защищены',
     validationError: 'Ошибка валидации',
     measure: 'Единица',
-    
+
     // Reports page
     totalRevenue: 'Общий доход',
     totalCostPrice: 'Общая себестоимость',
@@ -1273,7 +1525,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     purchase: 'покупка',
     currentStatus: 'Текущее состояние',
     currentDebts: 'Текущие долги',
-    
+
     // Customer dialog
     editCustomerTitle: 'Редактировать клиента',
     addCustomerTitle: 'Добавить клиента',
@@ -1289,10 +1541,10 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     balanceLabel: 'Баланс',
     notesLabel: 'Примечание',
     notesPlaceholder: 'Дополнительная информация',
-    
+
     // Dashboard
     welcomeMessage: 'Добро пожаловать',
-    
+
     // POS
     orderSaved: 'Порядок сохранен',
     editSaleTitle: 'редактирование',
@@ -1300,11 +1552,11 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     editError: 'Ошибка редактирования',
     selectProduct: 'Выберите товар',
     additionalInfo: 'Дополнительная информация',
-    
+
     // Settings
     reportNotSent: 'Отчет не отправлен',
     messageNotSent: 'Сообщение не отправлено',
-    
+
     // Customer form additional
     phoneRequired: 'Телефон обязателен',
     secondaryPhone: 'Дополнительный телефон',
@@ -1316,20 +1568,146 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     creditLimit: 'Кредитный лимит',
     assignedSeller: 'Назначенный кассир',
     notAssigned: 'Не назначен',
-    
+
     // Edit reason
     editReason: 'Причина редактирования',
     editReasonPlaceholder: 'Введите причину (минимум 3 символа)',
-    
+
     // Settings additional
     dailyReportSent: 'Ежедневный отчет отправлен!',
     testMessageSent: 'Тестовое сообщение отправлено!',
-    
+
     // Warehouse
     movementEdited: 'Движение успешно отредактировано!',
     movementDeleted: 'Движение удалено!',
+
+    // Warehouse page
+    addAtLeastOneProduct: 'Добавьте хотя бы один товар',
+    allCategories: 'Все категории',
+    avgCostUsd: 'Средняя цена (USD)',
+    avgCostUzs: 'Средняя цена (UZS)',
+    totalValue: 'Общая стоимость',
+    low: 'Мало',
+    productsNotFound: 'Товары не найдены',
+    incomeType: 'Приход',
+    soldType: 'Продано',
+    clearFilters: 'Очистить',
+    totalCount: 'Всего',
+    priceUsd: 'Цена (USD)',
+    priceUzs: 'Цена (UZS)',
+    documentNo: 'Документ №',
+    supplier: 'Поставщик',
+    supplierName: 'Имя поставщика',
+    transferIn: 'Получено',
+    transferOut: 'Отправлено',
+    adjustmentPlus: 'Корректировка+',
+    adjustmentMinus: 'Корректировка-',
+    writeOff: 'Списание',
+    movementHistoryNotFound: 'История движений не найдена',
+    stockIncomeUsd: 'Приход на склад (USD)',
+    currentRateInfo: 'Текущий курс',
+    invoiceNo: 'Счет-фактура №',
+    productsLabel: 'Товары',
+    measureUnit: 'Ед. изм.',
+    totalUsd: 'Итого (USD)',
+    inUzs: 'В сумах',
+    saveIncome: 'Сохранить приход',
+    editMovementTitle: 'Редактировать движение',
+    quantityChangeWarning: 'При изменении количества остаток на складе обновится автоматически.',
+    deleteMovementTitle: 'Удалить движение',
+    confirmDeleteMovement: 'удалить приход?',
+    attentionWarning: 'Внимание!',
+    deleteMovementWarning: 'Это действие изменит остаток на складе. При удалении прихода количество товара уменьшится.',
+    deleteReasonLabel: 'Причина удаления',
+    enterReasonRequired: 'Введите причину (обязательно)',
+
+    // Customer dialogs
+    deleteCustomerTitle: 'Удалить клиента',
+    confirmDeleteCustomer: 'удалить?',
+    customerHasDebt: 'Внимание: У этого клиента есть долг!',
+    deleting: 'Удаление...',
+    acceptPayment: 'Принять оплату',
+    paymentAmount: 'Сумма оплаты',
+    enterAmount: 'Введите сумму',
+    optionalNote: 'Необязательный комментарий',
+    accept: 'Принять',
+    customerDetails: 'Данные клиента',
+    fullHistoryAndStats: 'Полная история и статистика',
+    totalPurchases: 'Всего покупок',
+    advanceBalance: 'Аванс',
+    downloadFullReport: 'Скачать полный отчет',
+    allSalesProductsDebtInExcel: 'Все продажи, товары и история долга в одном Excel файле',
+    receiptNo: 'Чек №',
+    paidAmount: 'Оплачено',
+    debtAmount: 'Долг',
+    debtPaymentHistory: 'История долга и оплат',
+    debtBefore: 'Долг до',
+    debtAfter: 'Долг после',
+    paymentTransaction: 'Оплата',
+    purchaseTransaction: 'Покупка',
+    onDebt: 'В долг',
+    partial: 'Частично',
+    productsList: 'Список товаров',
+
+    // Sales page
+    lastSale: 'Последняя',
+    edited: 'Изменено',
+    unknownCustomer: 'Неизвестный',
+    deleteSaleTitle: 'Удалить продажу',
+    confirmDeleteSale: 'удалить?',
+    saleDeleteWarning: 'Продажа будет отменена, товары вернутся на склад. Долги клиента также обновятся.',
+    grandTotal: 'Всего',
+    editedBy: 'Кто',
+    editedWhen: 'Когда',
+    cancelledStatus: 'Отменено',
+    cancelledBy: 'Кто',
+    cancelledWhen: 'Когда',
+    pending: 'Ожидание',
+    saleLoadError: 'Ошибка загрузки данных продажи',
+    saleDeletedSuccess: 'Продажа удалена!',
+
+    // POS page extended
+    dragToReorder: 'Перетащите для изменения порядка',
+    sellingPriceSum: 'Цена продажи (сум)',
+    quantityUnit: 'Количество',
+    priceBelowCost: 'Цена ниже себестоимости',
+    editPrice: 'Изменить цену',
+    editQuantity: 'Изменить количество',
+    inDollars: 'В долларах',
+    saveForLater: 'Сохранить на потом',
+    cartSavedForLater: 'Покупка сохранена на потом!',
+    receiptPreview: 'Просмотр чека',
+    confirmSale: 'Подтвердить',
+
+    // POS toasts
+    saved: 'Сохранено',
+    added: 'Добавлено',
+    deleted: 'Удалено',
+    priceChanged: 'Цена изменена',
+    quantityChanged: 'Количество изменено',
+    invalidDiscount: 'Неверная сумма скидки',
+    invalidAmount: 'Неверная сумма',
+    selectCustomerForDebt: 'Выберите клиента для продажи в долг!',
+    enterEditReason: 'Введите причину редактирования!',
+    reasonMinLength: 'Причина должна содержать минимум 3 символа!',
+    cartLoaded: 'Покупка загружена!',
+
+    // POS receipt and print
+    baseUnitLabel: 'Основная',
+    customerLabel: 'Клиент',
+    companyLabel: 'Компания',
+    company: 'Компания',
+    driverLabel: 'Тел',
+    productLabel: 'Товар',
+    quantityLabel: 'Кол-во',
+    amountLabel: 'Сумма',
+    totalWithCount: 'Итого',
+    grandTotalLabel: 'ИТОГО',
+    thanksMessage: '★ СПАСИБО! ★',
+    printButton: 'Печать',
+    popupBlocked: 'Popup заблокирован. Разрешите.',
   },
-  
+
   uz_cyrl: {
     // Common
     save: 'Сақлаш',
@@ -1375,7 +1753,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     back: 'Орқага',
     next: 'Кейинги',
     previous: 'Олдинги',
-    
+
     // Auth
     login: 'Кириш',
     logout: 'Чиқиш',
@@ -1386,7 +1764,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     loginError: 'Логин ёки парол нотўғри',
     loginSuccess: 'Муваффақиятли кирдингиз',
     logoutConfirm: 'Тизимдан чиқмоқчимисиз?',
-    
+
     // Navigation
     dashboard: 'Бошқарув панели',
     pos: 'Касса',
@@ -1397,7 +1775,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     reports: 'Ҳисоботлар',
     settings: 'Созламалар',
     users: 'Фойдаланувчилар',
-    
+
     // Dashboard
     todaySales: 'Бугунги савдо',
     monthSales: 'Ойлик савдо',
@@ -1406,7 +1784,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     recentSales: 'Сўнгги сотувлар',
     topProducts: 'Топ маҳсулотлар',
     salesChart: 'Сотув графиги',
-    
+
     // POS
     cart: 'Сават',
     cartEmpty: 'Сават бўш',
@@ -1441,8 +1819,8 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     saveLater: 'Кейинроқ',
     savedCarts: 'Сақланган харидлар',
     loadCart: 'Юклаш',
-    driverPhone: 'Ҳайдовчи телефони',
-    
+    driverPhone: 'Мижоз телефони',
+
     // Products
     productName: 'Маҳсулот номи',
     productCode: 'Маҳсулот коди',
@@ -1462,7 +1840,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     productSaved: 'Маҳсулот сақланди',
     importProducts: 'Импорт қилиш',
     exportProducts: 'Экспорт қилиш',
-    
+
     // Customers
     customerName: 'Мижоз исми',
     customerType: 'Мижоз тури',
@@ -1484,7 +1862,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     makePayment: 'Тўлов қилиш',
     paymentReceived: 'Тўлов қабул қилинди',
     downloadReport: 'Ҳисоботни юклаш',
-    
+
     // Sales
     saleNumber: 'Сотув рақами',
     saleDate: 'Сотув санаси',
@@ -1501,7 +1879,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     cancelSale: 'Сотувни бекор қилиш',
     saleDeleted: 'Сотув ўчирилди',
     returnSale: 'Қайтариш',
-    
+
     // Warehouse
     warehouseName: 'Омбор номи',
     stockIn: 'Кирим',
@@ -1518,7 +1896,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     addMovement: 'Ҳаракат қўшиш',
     movementSaved: 'Ҳаракат сақланди',
     lowStockAlert: 'Кам қолган товарлар',
-    
+
     // Reports
     salesReport: 'Сотувлар ҳисоботи',
     stockReport: 'Омбор ҳисоботи',
@@ -1533,7 +1911,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     generateReport: 'Ҳисобот яратиш',
     downloadExcel: 'Excel юклаш',
     downloadPdf: 'PDF юклаш',
-    
+
     // Settings
     companySettings: 'Компания созламалари',
     companyName2: 'Компания номи',
@@ -1567,7 +1945,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     maxDiscountHint: 'Сотувчи бера оладиган максимал чегирма',
     allowDebtSales: 'Қарзга сотиш имконияти',
     autoPrintReceipt: 'Автоматик чек чоп этиш',
-    
+
     // Users
     userManagement: 'Фойдаланувчиларни бошқариш',
     addUser: 'Фойдаланувчи қўшиш',
@@ -1588,13 +1966,13 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     newPassword: 'Янги парол',
     confirmPassword: 'Паролни тасдиқлаш',
     passwordChanged: 'Парол ўзгартирилди',
-    
+
     // Roles
     director: 'Директор',
     seller2: 'Сотувчи',
     warehouseManager: 'Омборчи',
     accountant: 'Ҳисобчи',
-    
+
     // Validation messages
     required: 'Бу майдон талаб қилинади',
     invalidEmail: 'Email нотўғри форматда',
@@ -1602,19 +1980,19 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     maxLength: 'Максимал узунлик: {max}',
     invalidPhone: 'Телефон рақами нотўғри',
     passwordMismatch: 'Пароллар мос келмайди',
-    
+
     // Success messages
     savedSuccess: 'Муваффақиятли сақланди',
     deletedSuccess: 'Муваффақиятли ўчирилди',
     updatedSuccess: 'Муваффақиятли янгиланди',
-    
+
     // Error messages
     errorOccurred: 'Хатолик юз берди',
     notFound: 'Топилмади',
     accessDenied: 'Рухсат берилмаган',
     serverError: 'Сервер хатоси',
     networkError: 'Тармоқ хатоси',
-    
+
     // Additional translations
     product: 'Товар',
     units: 'Ўлчов бирликлари',
@@ -1677,7 +2055,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     allRightsReserved: 'Барча ҳуқуқлар ҳимояланган',
     validationError: 'Валидация хатоси',
     measure: 'Ўлчов',
-    
+
     // Reports page
     totalRevenue: 'Жами даромад',
     totalCostPrice: 'Жами тан нарх',
@@ -1713,7 +2091,7 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     purchase: 'харид',
     currentStatus: 'Жорий ҳолат',
     currentDebts: 'Жорий қарзлар',
-    
+
     // Customer dialog
     editCustomerTitle: 'Мижозни таҳрирлаш',
     addCustomerTitle: 'Янги мижоз қўшиш',
@@ -1729,10 +2107,10 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     balanceLabel: 'Баланс',
     notesLabel: 'Изоҳ',
     notesPlaceholder: 'Қўшимча маълумот',
-    
+
     // Dashboard
     welcomeMessage: 'Хуш келибсиз',
-    
+
     // POS
     orderSaved: 'Тартиб сақланди',
     editSaleTitle: 'таҳрирлаш',
@@ -1740,11 +2118,11 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     editError: 'Таҳрирлашда хатолик',
     selectProduct: 'Товар танланг',
     additionalInfo: 'Қўшимча маълумот',
-    
+
     // Settings
     reportNotSent: 'Ҳисобот юборилмади',
     messageNotSent: 'Хабар юборилмади',
-    
+
     // Customer form additional
     phoneRequired: 'Телефон киритилиши шарт',
     secondaryPhone: 'Қўшимча телефон',
@@ -1756,18 +2134,144 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     creditLimit: 'Кредит лимити',
     assignedSeller: 'Бириктирилган кассир',
     notAssigned: 'Танланмаган',
-    
+
     // Edit reason
     editReason: 'Таҳрирлаш сабаби',
     editReasonPlaceholder: 'Сабаб киритинг (камида 3 та белги)',
-    
+
     // Settings additional
     dailyReportSent: 'Кунлик ҳисобот юборилди!',
     testMessageSent: 'Тест хабар юборилди!',
-    
+
     // Warehouse
     movementEdited: 'Ҳаракат муваффақиятли таҳрирланди!',
     movementDeleted: 'Ҳаракат ўчирилди!',
+
+    // Warehouse page
+    addAtLeastOneProduct: 'Камида битта товар қўшинг',
+    allCategories: 'Барча категориялар',
+    avgCostUsd: 'Ўртача келиш (USD)',
+    avgCostUzs: 'Ўртача келиш (UZS)',
+    totalValue: 'Жами қиймат',
+    low: 'Кам',
+    productsNotFound: 'Товарлар топилмади',
+    incomeType: 'Кирим',
+    soldType: 'Сотилди',
+    clearFilters: 'Тозалаш',
+    totalCount: 'Жами',
+    priceUsd: 'Нарх (USD)',
+    priceUzs: 'Нарх (UZS)',
+    documentNo: 'Ҳужжат №',
+    supplier: 'Етказувчи',
+    supplierName: 'Етказувчи номи',
+    transferIn: 'Келди',
+    transferOut: 'Жўнатилди',
+    adjustmentPlus: 'Тузатиш+',
+    adjustmentMinus: 'Тузатиш-',
+    writeOff: 'Зарар',
+    movementHistoryNotFound: 'Ҳаракатлар тарихи топилмади',
+    stockIncomeUsd: 'Омборга кирим (USD)',
+    currentRateInfo: 'Жорий курс',
+    invoiceNo: 'Фактура №',
+    productsLabel: 'Товарлар',
+    measureUnit: 'Ўлчов',
+    totalUsd: 'Жами (USD)',
+    inUzs: 'Сўмда',
+    saveIncome: 'Киримни сақлаш',
+    editMovementTitle: 'Ҳаракатни таҳрирлаш',
+    quantityChangeWarning: 'Миқдорни ўзгартирсангиз, омбор қолдиғи автоматик янгиланади.',
+    deleteMovementTitle: 'Ҳаракатни ўчириш',
+    confirmDeleteMovement: 'киримини ўчирмоқчимисиз?',
+    attentionWarning: 'Диққат!',
+    deleteMovementWarning: 'Бу ҳаракат омбор қолдиғини тескари ўзгартиради. Кирим ўчирилса, товар қолдиғи камаяди.',
+    deleteReasonLabel: 'Ўчириш сабаби',
+    enterReasonRequired: 'Сабаб киритинг (мажбурий)',
+
+    // Customer dialogs
+    deleteCustomerTitle: 'Мижозни ўчириш',
+    confirmDeleteCustomer: 'ни ўчирмоқчимисиз?',
+    customerHasDebt: 'Диққат: Бу мижозда қарз мавжуд!',
+    deleting: 'Ўчирилмоқда...',
+    acceptPayment: 'Тўлов қабул қилиш',
+    paymentAmount: 'Тўлов суммаси',
+    enterAmount: 'Сумма киритинг',
+    optionalNote: 'Ихтиёрий изоҳ',
+    accept: 'Қабул қилиш',
+    customerDetails: 'Мижоз маълумотлари',
+    fullHistoryAndStats: 'Тўлиқ тарих ва статистика',
+    totalPurchases: 'Жами харид',
+    advanceBalance: 'Аванс',
+    downloadFullReport: 'Тўлиқ ҳисобот юклаш',
+    allSalesProductsDebtInExcel: 'Барча сотувлар, товарлар ва қарз тарихи битта Excel файлда',
+    receiptNo: 'Чек №',
+    paidAmount: 'Тўланган',
+    debtAmount: 'Қарз',
+    debtPaymentHistory: 'Қарз ва тўловлар тарихи',
+    debtBefore: 'Қарз олдин',
+    debtAfter: 'Қарз кейин',
+    paymentTransaction: 'Тўлов',
+    purchaseTransaction: 'Харид',
+    onDebt: 'Қарзга',
+    partial: 'Қисман',
+    productsList: 'Товарлар рўйхати',
+
+    // Sales page
+    lastSale: 'Охирги',
+    edited: 'Таҳрирланган',
+    unknownCustomer: 'Номаълум',
+    deleteSaleTitle: 'Сотувни ўчириш',
+    confirmDeleteSale: 'ни ўчирмоқчимисиз?',
+    saleDeleteWarning: 'Сотув бекор қилинади ва товарлар омборга қайтарилади. Мижоз қарзлари ҳам янгиланади.',
+    grandTotal: 'Умумий',
+    editedBy: 'Ким',
+    editedWhen: 'Қачон',
+    cancelledStatus: 'Бекор қилинган',
+    cancelledBy: 'Ким',
+    cancelledWhen: 'Қачон',
+    pending: 'Кутилмоқда',
+    saleLoadError: 'Сотув маълумотларини юклашда хатолик',
+    saleDeletedSuccess: 'Сотув ўчирилди!',
+
+    // POS page extended
+    dragToReorder: 'Тартибни ўзгартириш учун суриш',
+    sellingPriceSum: 'Сотиш нархи (сўм)',
+    quantityUnit: 'Миқдор',
+    priceBelowCost: 'Нарх тан нархдан паст',
+    editPrice: 'Нархни ўзгартириш',
+    editQuantity: 'Миқдорни ўзгартириш',
+    inDollars: 'Долларда',
+    saveForLater: 'Кейинроққа сақлаш',
+    cartSavedForLater: 'Харид кейинроққа сақланди!',
+    receiptPreview: 'Чек кўриниши',
+    confirmSale: 'Тасдиқлаш',
+
+    // POS toasts
+    saved: 'Сақланди',
+    added: 'Қўшилди',
+    deleted: 'Ўчирилди',
+    priceChanged: 'Нарх ўзгартирилди',
+    quantityChanged: 'Миқдор ўзгартирилди',
+    invalidDiscount: 'Чегирма суммаси нотўғри',
+    invalidAmount: 'Сумма нотўғри',
+    selectCustomerForDebt: 'Қарзга сотув учун мижоз танланг!',
+    enterEditReason: 'Таҳрирлаш сабабини киритинг!',
+    reasonMinLength: 'Сабаб камида 3 та белгидан иборат бўлиши керак!',
+    cartLoaded: 'Харид юкланди!',
+
+    // POS receipt and print
+    baseUnitLabel: 'Асосий',
+    customerLabel: 'Мижоз',
+    companyLabel: 'Компания',
+    company: 'Компания',
+    driverLabel: 'Тел',
+    productLabel: 'Маҳсулот',
+    quantityLabel: 'Сони',
+    amountLabel: 'Сумма',
+    totalWithCount: 'Жами',
+    grandTotalLabel: 'ЯКУНИЙ СУММА',
+    thanksMessage: '★ РАҲМАТ! ★',
+    printButton: 'Чоп этиш',
+    popupBlocked: 'Popup блокланган. Рухсат беринг.',
   },
 }
 

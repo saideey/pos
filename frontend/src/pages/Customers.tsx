@@ -950,20 +950,20 @@ export default function CustomersPage() {
 
                   <div className="flex items-center gap-6">
                     <div className="text-center hidden md:block">
-                      <p className="text-xs text-text-secondary">Jami xarid</p>
+                      <p className="text-xs text-text-secondary">{t('totalPurchases')}</p>
                       <p className="font-semibold text-primary">{formatMoney(customer.total_purchases)}</p>
                     </div>
 
                     {customer.current_debt > 0 && (
                       <div className="text-center">
-                        <p className="text-xs text-text-secondary">Qarz</p>
+                        <p className="text-xs text-text-secondary">{t('debt')}</p>
                         <p className="font-bold text-danger">{formatMoney(customer.current_debt)}</p>
                       </div>
                     )}
 
                     {customer.advance_balance > 0 && (
                       <div className="text-center">
-                        <p className="text-xs text-text-secondary">Avans</p>
+                        <p className="text-xs text-text-secondary">{t('advanceBalance')}</p>
                         <p className="font-bold text-success">{formatMoney(customer.advance_balance)}</p>
                       </div>
                     )}
@@ -972,7 +972,7 @@ export default function CustomersPage() {
                       {customer.current_debt > 0 && (
                         <Button variant="success" size="sm" onClick={() => handlePayClick(customer)}>
                           <Banknote className="w-4 h-4 mr-1" />
-                          To'lov
+                          {t('payment')}
                         </Button>
                       )}
                       <Button variant="outline" size="sm" onClick={() => handleEditClick(customer)}>
@@ -981,9 +981,9 @@ export default function CustomersPage() {
                       <Button variant="outline" size="sm" onClick={() => handleDetailClick(customer)}>
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleDeleteClick(customer)}
                         className="text-danger hover:bg-danger hover:text-white"
                       >
@@ -1113,27 +1113,27 @@ export default function CustomersPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-danger">
               <AlertTriangle className="w-5 h-5" />
-              Mijozni o'chirish
+              {t('deleteCustomerTitle')}
             </DialogTitle>
             <DialogDescription>
-              Haqiqatan ham <strong>{selectedCustomer?.name}</strong> ni o'chirmoqchimisiz?
+              {t('confirmDelete')} <strong>{selectedCustomer?.name}</strong> {t('confirmDeleteCustomer')}
               {selectedCustomer && selectedCustomer.current_debt > 0 && (
                 <span className="block mt-2 text-danger">
-                  Diqqat: Bu mijozda {formatMoney(selectedCustomer.current_debt)} qarz mavjud!
+                  {t('customerHasDebt')} ({formatMoney(selectedCustomer.current_debt)})
                 </span>
               )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
-              Bekor qilish
+              {t('cancel')}
             </Button>
-            <Button 
-              variant="danger" 
+            <Button
+              variant="danger"
               onClick={() => selectedCustomer && deleteCustomer.mutate(selectedCustomer.id)}
               disabled={deleteCustomer.isPending}
             >
-              {deleteCustomer.isPending ? 'O\'chirilmoqda...' : 'O\'chirish'}
+              {deleteCustomer.isPending ? t('deleting') : t('delete')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1143,7 +1143,7 @@ export default function CustomersPage() {
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
         <DialogContent className="max-w-[380px]">
           <DialogHeader>
-            <DialogTitle className="pr-6">To'lov qabul qilish</DialogTitle>
+            <DialogTitle className="pr-6">{t('acceptPayment')}</DialogTitle>
           </DialogHeader>
 
           {selectedCustomer && (
@@ -1158,7 +1158,7 @@ export default function CustomersPage() {
                 </div>
               </div>
               <div className="mt-2 p-2 bg-white rounded-lg text-center">
-                <p className="text-xs text-gray-500">Joriy qarz:</p>
+                <p className="text-xs text-gray-500">{t('currentDebt')}:</p>
                 <p className="text-lg font-bold text-red-600">{formatMoney(selectedCustomer.current_debt)}</p>
               </div>
             </div>
@@ -1166,7 +1166,7 @@ export default function CustomersPage() {
 
           <form onSubmit={handlePaymentSubmit(onPaymentSubmit)} className="space-y-3">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">To'lov summasi *</label>
+              <label className="text-sm font-medium">{t('paymentAmount')} *</label>
               <input
                 type="text"
                 inputMode="numeric"
@@ -1177,18 +1177,18 @@ export default function CustomersPage() {
                   setPaymentAmountDisplay(num > 0 ? formatInputNumber(num) : '')
                   setPaymentValue('amount', num)
                 }}
-                placeholder="Summa kiriting"
+                placeholder={t('enterAmount')}
                 className="w-full h-11 px-3 text-base font-bold text-center border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
               />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">To'lov turi</label>
+              <label className="text-sm font-medium">{t('paymentType')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { value: 'CASH', label: 'Naqd', icon: Banknote },
-                  { value: 'CARD', label: 'Karta', icon: CreditCard },
-                  { value: 'TRANSFER', label: "O'tkazma", icon: Building },
+                  { value: 'CASH', label: t('cash'), icon: Banknote },
+                  { value: 'CARD', label: t('card'), icon: CreditCard },
+                  { value: 'TRANSFER', label: t('transfer'), icon: Building },
                 ].map((pt) => (
                   <label key={pt.value} className="cursor-pointer">
                     <input type="radio" {...registerPayment('payment_type')} value={pt.value} className="sr-only peer" />
@@ -1202,8 +1202,8 @@ export default function CustomersPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Izoh</label>
-              <Input {...registerPayment('description')} placeholder="Ixtiyoriy izoh" className="text-sm" />
+              <label className="text-sm font-medium">{t('notesLabel')}</label>
+              <Input {...registerPayment('description')} placeholder={t('optionalNote')} className="text-sm" />
             </div>
 
             <div className="flex gap-2 pt-2">
@@ -1212,7 +1212,7 @@ export default function CustomersPage() {
                 onClick={() => setShowPaymentDialog(false)}
                 className="flex-1 h-10 border-2 border-gray-200 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
               >
-                Bekor qilish
+                {t('cancel')}
               </button>
               <button
                 type="submit"
@@ -1220,7 +1220,7 @@ export default function CustomersPage() {
                 className="flex-1 h-10 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
               >
                 {payDebt.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Banknote className="w-4 h-4" />}
-                Qabul qilish
+                {t('accept')}
               </button>
             </div>
           </form>
@@ -1231,8 +1231,8 @@ export default function CustomersPage() {
       <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Mijoz ma'lumotlari</DialogTitle>
-            <DialogDescription>To'liq tarix va statistika</DialogDescription>
+            <DialogTitle>{t('customerDetails')}</DialogTitle>
+            <DialogDescription>{t('fullHistoryAndStats')}</DialogDescription>
           </DialogHeader>
 
           {selectedCustomer && (
@@ -1287,7 +1287,7 @@ export default function CustomersPage() {
                       setTimeout(() => handlePayClick(selectedCustomer), 100)
                     }}>
                       <Banknote className="w-4 h-4 mr-2" />
-                      To'lov qabul qilish
+                      {t('acceptPayment')}
                     </Button>
                   )}
                 </div>
@@ -1297,13 +1297,13 @@ export default function CustomersPage() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-sm text-text-secondary">Jami xarid</p>
+                    <p className="text-sm text-text-secondary">{t('totalPurchases')}</p>
                     <p className="text-pos-lg font-bold text-primary">{formatMoney(selectedCustomer.total_purchases)}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-sm text-text-secondary">Joriy qarz</p>
+                    <p className="text-sm text-text-secondary">{t('currentDebt')}</p>
                     <p className={cn("text-pos-lg font-bold", selectedCustomer.current_debt > 0 ? "text-danger" : "text-success")}>
                       {formatMoney(selectedCustomer.current_debt)}
                     </p>
@@ -1311,13 +1311,13 @@ export default function CustomersPage() {
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-sm text-text-secondary">Avans</p>
+                    <p className="text-sm text-text-secondary">{t('advanceBalance')}</p>
                     <p className="text-pos-lg font-bold text-success">{formatMoney(selectedCustomer.advance_balance)}</p>
                   </CardContent>
                 </Card>
                 <Card>
                   <CardContent className="p-4 text-center">
-                    <p className="text-sm text-text-secondary">Kredit limiti</p>
+                    <p className="text-sm text-text-secondary">{t('creditLimit')}</p>
                     <p className="text-pos-lg font-bold">{formatMoney(selectedCustomer.credit_limit)}</p>
                   </CardContent>
                 </Card>
@@ -1329,19 +1329,19 @@ export default function CustomersPage() {
                   <div>
                     <h4 className="font-semibold text-gray-800 flex items-center gap-2">
                       <FileSpreadsheet className="w-5 h-5 text-green-600" />
-                      To'liq hisobot yuklash
+                      {t('downloadFullReport')}
                     </h4>
                     <p className="text-sm text-gray-600 mt-1">
-                      Barcha sotuvlar, tovarlar va qarz tarixi bitta Excel faylda
+                      {t('allSalesProductsDebtInExcel')}
                     </p>
                   </div>
-                  <Button 
-                    variant="success" 
+                  <Button
+                    variant="success"
                     onClick={exportCustomerDataToExcel}
                     className="bg-green-600 hover:bg-green-700"
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    Excel yuklash
+                    {t('downloadExcel')}
                   </Button>
                 </div>
               </div>
@@ -1351,7 +1351,7 @@ export default function CustomersPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5" />
-                    Sotuvlar tarixi ({customerSales?.data?.length || 0} ta)
+                    {t('salesHistory')} ({customerSales?.data?.length || 0})
                   </h4>
                 </div>
                 {loadingSales ? (
@@ -1364,19 +1364,19 @@ export default function CustomersPage() {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="w-10"></th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Sana</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Chek №</th>
-                          <th className="px-4 py-3 text-center text-sm font-medium">Tovarlar</th>
-                          <th className="px-4 py-3 text-right text-sm font-medium">Summa</th>
-                          <th className="px-4 py-3 text-right text-sm font-medium">To'langan</th>
-                          <th className="px-4 py-3 text-right text-sm font-medium">Qarz</th>
-                          <th className="px-4 py-3 text-center text-sm font-medium">Holat</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">{t('date')}</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">{t('receiptNo')}</th>
+                          <th className="px-4 py-3 text-center text-sm font-medium">{t('products')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium">{t('amount')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium">{t('paidAmount')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium">{t('debtAmount')}</th>
+                          <th className="px-4 py-3 text-center text-sm font-medium">{t('status')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {customerSales.data.map((sale: Sale) => (
                           <React.Fragment key={sale.id}>
-                            <tr 
+                            <tr
                               className="hover:bg-gray-50 cursor-pointer"
                               onClick={() => loadSaleItems(sale.id)}
                             >
@@ -1416,9 +1416,9 @@ export default function CustomersPage() {
                                   sale.payment_status === 'DEBT' ? 'danger' :
                                   sale.payment_status === 'PARTIAL' ? 'warning' : 'secondary'
                                 }>
-                                  {sale.payment_status === 'PAID' ? 'To\'langan' :
-                                   sale.payment_status === 'DEBT' ? 'Qarzga' :
-                                   sale.payment_status === 'PARTIAL' ? 'Qisman' : sale.payment_status}
+                                  {sale.payment_status === 'PAID' ? t('paid') :
+                                   sale.payment_status === 'DEBT' ? t('onDebt') :
+                                   sale.payment_status === 'PARTIAL' ? t('partial') : sale.payment_status}
                                 </Badge>
                               </td>
                             </tr>
@@ -1427,15 +1427,15 @@ export default function CustomersPage() {
                               <tr key={`${sale.id}-items`}>
                                 <td colSpan={8} className="p-0">
                                   <div className="bg-blue-50 p-4 border-t border-blue-200">
-                                    <h5 className="font-medium text-sm mb-2 text-blue-800">Tovarlar ro'yxati:</h5>
+                                    <h5 className="font-medium text-sm mb-2 text-blue-800">{t('productsList')}:</h5>
                                     <table className="w-full text-sm">
                                       <thead>
                                         <tr className="text-gray-600">
-                                          <th className="text-left py-1 px-2">Tovar</th>
-                                          <th className="text-center py-1 px-2">Miqdor</th>
-                                          <th className="text-right py-1 px-2">Narx</th>
-                                          <th className="text-right py-1 px-2">Chegirma</th>
-                                          <th className="text-right py-1 px-2">Jami</th>
+                                          <th className="text-left py-1 px-2">{t('product')}</th>
+                                          <th className="text-center py-1 px-2">{t('quantity')}</th>
+                                          <th className="text-right py-1 px-2">{t('price')}</th>
+                                          <th className="text-right py-1 px-2">{t('discount')}</th>
+                                          <th className="text-right py-1 px-2">{t('total')}</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -1474,7 +1474,7 @@ export default function CustomersPage() {
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="font-semibold flex items-center gap-2">
                     <Banknote className="w-5 h-5" />
-                    Qarz va to'lovlar tarixi ({customerDebtHistory?.data?.length || 0} ta)
+                    {t('debtPaymentHistory')} ({customerDebtHistory?.data?.length || 0})
                   </h4>
                 </div>
                 {customerDebtHistory?.data && customerDebtHistory.data.length > 0 ? (
@@ -1482,19 +1482,19 @@ export default function CustomersPage() {
                     <table className="w-full">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Sana</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Turi</th>
-                          <th className="px-4 py-3 text-right text-sm font-medium">Summa</th>
-                          <th className="px-4 py-3 text-right text-sm font-medium">Qarz oldin</th>
-                          <th className="px-4 py-3 text-right text-sm font-medium">Qarz keyin</th>
-                          <th className="px-4 py-3 text-left text-sm font-medium">Izoh</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">{t('date')}</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">{t('movementType')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium">{t('amount')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium">{t('debtBefore')}</th>
+                          <th className="px-4 py-3 text-right text-sm font-medium">{t('debtAfter')}</th>
+                          <th className="px-4 py-3 text-left text-sm font-medium">{t('notesLabel')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
                         {customerDebtHistory.data.map((record: DebtRecord) => {
                           const isPayment = record.transaction_type === 'PAYMENT' || record.transaction_type === 'DEBT_PAYMENT'
                           const isSale = record.transaction_type === 'SALE'
-                          
+
                           return (
                             <tr key={record.id} className="hover:bg-gray-50">
                               <td className="px-4 py-3 text-sm">
@@ -1503,7 +1503,7 @@ export default function CustomersPage() {
                               </td>
                               <td className="px-4 py-3 text-sm">
                                 <Badge variant={isPayment ? 'success' : isSale ? 'warning' : 'secondary'}>
-                                  {isPayment ? "To'lov" : isSale ? 'Xarid' : record.transaction_type}
+                                  {isPayment ? t('paymentTransaction') : isSale ? t('purchaseTransaction') : record.transaction_type}
                                 </Badge>
                               </td>
                               <td className={cn(
