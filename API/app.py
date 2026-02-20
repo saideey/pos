@@ -1,5 +1,5 @@
 """
-Metall Basa ERP System - Main Application
+G'ayrat Stroy House ERP System - Main Application
 
 Qurilish mollari do'koni uchun ERP tizimi.
 """
@@ -21,13 +21,14 @@ from routers import (
 )
 from routers.settings import router as settings_router
 from routers.sync import router as sync_router
+from routers import printers
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    logger.info("🚀 Starting Metall Basa ERP API...")
+    logger.info("🚀 Starting G'ayrat Stroy House ERP API...")
 
     # Initialize database
     try:
@@ -43,17 +44,17 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ Database initialization failed: {e}")
         raise
 
-    logger.info("✅ Metall Basa ERP API started successfully!")
+    logger.info("✅ G'ayrat Stroy House ERP API started successfully!")
 
     yield
 
     # Shutdown
-    logger.info("👋 Shutting down Metall Basa ERP API...")
+    logger.info("👋 Shutting down G'ayrat Stroy House ERP API...")
 
 
 # Create FastAPI application
 app = FastAPI(
-    title="Metall Basa ERP API",
+    title="G'ayrat Stroy House ERP API",
     description="""
     Qurilish mollari do'koni uchun ERP tizimi.
     
@@ -103,7 +104,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 async def root():
     """API root endpoint."""
     return {
-        "message": "Metall Basa ERP API",
+        "message": "G'ayrat Stroy House ERP API",
         "version": "1.0.0",
         "status": "running"
     }
@@ -133,6 +134,8 @@ async def health_check():
         )
 
 
+
+
 # Include routers
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
@@ -144,6 +147,11 @@ app.include_router(reports_router, prefix="/api/v1/reports", tags=["Reports"])
 app.include_router(sms_router, prefix="/api/v1/sms", tags=["SMS"])
 app.include_router(settings_router, prefix="/api/v1/settings", tags=["Settings"])
 app.include_router(sync_router, prefix="/api/v1/sync", tags=["Sync"])
+app.include_router(printers.router, prefix="/api/v1/printers", tags=["Printers"])
+
+
+
+
 
 
 if __name__ == "__main__":

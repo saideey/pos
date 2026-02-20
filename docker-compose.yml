@@ -3,22 +3,27 @@ services:
     build:
       context: ./db
       dockerfile: Dockerfile
-    image: metall_basa_db:latest
-    container_name: metall_basa_db
+    image: ${COMPOSE_PROJECT_NAME}_db_image:latest
+    container_name: ${COMPOSE_PROJECT_NAME}_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-metall_basa}
-      TZ: Asia/Tashkent
+      POSTGRES_DB: ${POSTGRES_DB:-metall_baza}
+      TZ: ${TZ:-Asia/Tashkent}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "${DB_PORT:-5432}:5432"
+      # Faqat localhost dan kirish mumkin (xavfsizlik uchun)
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     command:
       - "postgres"
       - "-c"
+      - "hba_file=/etc/postgresql/pg_hba.conf"
+      - "-c"
       - "max_connections=100"
+      - "-c"
+      - "shared_buffers=128MB"
       - "-c"
       - "idle_in_transaction_session_timeout=60000"
       - "-c"
@@ -31,8 +36,12 @@ services:
       - "tcp_keepalives_count=6"
       - "-c"
       - "log_statement=none"
+      - "-c"
+      - "log_connections=off"
+      - "-c"
+      - "log_disconnections=off"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-metall_basa}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-metall_baza}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -42,16 +51,16 @@ services:
     build:
       context: ./API
       dockerfile: Dockerfile
-    container_name: metall_basa_api
+    container_name: ${COMPOSE_PROJECT_NAME}_api
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-metall_basa}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-metall_baza}
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
       DEBUG: ${DEBUG:-false}
       SQL_ECHO: ${SQL_ECHO:-false}
       USE_NULL_POOL: "true"
       TELEGRAM_BOT_URL: http://telegram_bot:8081
-      TZ: Asia/Tashkent
+      TZ: ${TZ:-Asia/Tashkent}
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -71,7 +80,7 @@ services:
     build:
       context: ./telegram_bot
       dockerfile: Dockerfile
-    container_name: metall_basa_telegram_bot
+    container_name: ${COMPOSE_PROJECT_NAME}_bot
     restart: unless-stopped
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
@@ -80,9 +89,11 @@ services:
       COMPANY_PHONE: ${COMPANY_PHONE:-+998 90 123 45 67}
       BOT_HTTP_HOST: 0.0.0.0
       BOT_HTTP_PORT: 8081
-      TZ: Asia/Tashkent
+      TZ: ${TZ:-Asia/Tashkent}
     ports:
-      - "${BOT_PORT:-8081}:8081"
+      - "127.0.0.1:${BOT_PORT:-8081}:8081"
+    depends_on:
+      - api
     volumes:
       - ./telegram_bot:/app
 
@@ -91,7 +102,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       target: development
-    container_name: metall_basa_frontend
+    container_name: ${COMPOSE_PROJECT_NAME}_frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -101,28 +112,59 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:${API_PORT:-8000}
-      - TZ=Asia/Tashkent
+      VITE_API_URL: http://localhost:${API_PORT:-8000}
+      TZ: ${TZ:-Asia/Tashkent}
 
-  # Optional: pgAdmin for database management
+  # Optional: pgAdmin - faqat dev rejimida
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: metall_basa_pgadmin
+    container_name: ${COMPOSE_PROJECT_NAME}_pgadmin
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@metall.uz}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     ports:
-      - "${PGADMIN_PORT:-5050}:80"
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
     depends_on:
       - db
     profiles:
       - dev
 
+  # Backup service - har kuni 00:00 da backup oladi
+  backup:
+    build:
+      context: ./backup
+      dockerfile: Dockerfile
+    container_name: ${COMPOSE_PROJECT_NAME}_backup
+    restart: unless-stopped
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-metall_baza}
+      BACKUP_HOUR: "0"
+      BACKUP_MINUTE: "0"
+      MAX_BACKUPS: "1"
+      BACKUP_API_KEY: ${BACKUP_API_KEY:-erp-backup-secret-2026}
+      BACKUP_SERVER_PORT: "8086"
+      TZ: ${TZ:-Asia/Tashkent}
+    ports:
+      - "${BACKUP_PORT:-8086}:8086"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backup_data:/backups
+
 volumes:
   postgres_data:
+    name: ${COMPOSE_PROJECT_NAME}_postgres_data
   api_uploads:
+    name: ${COMPOSE_PROJECT_NAME}_api_uploads
+  backup_data:
+    name: ${COMPOSE_PROJECT_NAME}_backup_data
 
 networks:
   default:
-    name: metall_basa_network
+    name: ${COMPOSE_PROJECT_NAME}_network

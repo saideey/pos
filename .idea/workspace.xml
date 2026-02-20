@@ -5,9 +5,50 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4410bd95-49ec-437f-95cf-eb7c109e8a00" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/API/routers/sync.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/API/database/models/printer.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/API/routers/printers.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/API/utils/print_helper.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backup/Dockerfile" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backup/backup_server.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backup/entrypoint.sh" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/db/pg_hba.conf" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/frontend/src/pages/PrintersSettings.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/API/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/core/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/core/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/database/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/database/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/database/models/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/database/models/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/database/models/user.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/database/models/user.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/database/seed.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/database/seed.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/routers/customers.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/customers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/routers/products.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/products.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/routers/sales.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/sales.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/routers/settings.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/settings.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/routers/warehouse.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/warehouse.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/schemas/product.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/schemas/product.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/services/product.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/product.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/services/sale.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/sale.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/services/telegram_notifier.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/telegram_notifier.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/services/warehouse.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/services/warehouse.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/db/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/db/docker-entrypoint-wrapper.sh" beforeDir="false" afterPath="$PROJECT_DIR$/db/docker-entrypoint-wrapper.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/index.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/public/logo.png" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/public/logo.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/layout/MainLayout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/layout/MainLayout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/components/layout/Sidebar.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/components/layout/Sidebar.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/lib/translations.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/lib/translations.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Customers.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Customers.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Login.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/POS.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/POS.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Products.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Products.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Settings.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Warehouse.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Warehouse.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/telegram_bot/config.py" beforeDir="false" afterPath="$PROJECT_DIR$/telegram_bot/config.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/telegram_bot/excel_generator.py" beforeDir="false" afterPath="$PROJECT_DIR$/telegram_bot/excel_generator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/telegram_bot/http_server.py" beforeDir="false" afterPath="$PROJECT_DIR$/telegram_bot/http_server.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/telegram_bot/notification_service.py" beforeDir="false" afterPath="$PROJECT_DIR$/telegram_bot/notification_service.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,15 +95,15 @@
     "RunOnceActivity.git.unshallow": "true",
     "git-widget-placeholder": "main",
     "junie.onboarding.icon.badge.shown": "true",
-    "last_opened_file_path": "C:/Users/i.saidov/PycharmProjects/metall_basa",
+    "last_opened_file_path": "C:/Users/i.saidov/PycharmProjects/metall_basa/frontend/public",
     "settings.editor.selected.configurable": "preferences.pluginManager",
     "to.speed.mode.migration.done": "true"
   }
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa" />
       <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa\frontend\public" />
+      <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa" />
       <recent name="C:\Users\i.saidov\PycharmProjects\metall_basa\api" />
     </key>
   </component>

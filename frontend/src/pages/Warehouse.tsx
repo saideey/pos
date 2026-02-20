@@ -1,19 +1,19 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
-import { 
-  Search, Plus, Package, Warehouse as WarehouseIcon, AlertTriangle, 
+import {
+  Search, Plus, Package, Warehouse as WarehouseIcon, AlertTriangle,
   TrendingUp, Trash2, Calendar, DollarSign, History, Loader2, Filter, Download,
   Pencil, X, Info
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { 
+import {
   Button, Input, Card, CardContent, Badge,
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription 
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription
 } from '@/components/ui'
 import { warehouseService, productsService } from '@/services'
 import api from '@/services/api'
-import { formatMoney, formatNumber, cn, formatDateTashkent, formatTimeTashkent } from '@/lib/utils'
+import { formatMoney, formatNumber, cn, formatDateTashkent, formatTimeTashkent, debounce } from '@/lib/utils'
 import { useAuthStore } from '@/stores'
 import { useLanguage } from '@/contexts/LanguageContext'
 import type { Stock, Warehouse, Product } from '@/types'
@@ -23,7 +23,10 @@ interface IncomeItem {
   quantity: number
   uom_id: number
   unit_price_usd: number // Dollarda narx
+  unit_price_uzs: number // So'mda narx
 }
+
+type IncomeCurrency = 'USD' | 'UZS'
 
 interface IncomeFormData {
   warehouse_id: number
@@ -54,21 +57,37 @@ export default function WarehousePage() {
   const { user } = useAuthStore()
   const { t } = useLanguage()
   const isDirector = user?.role_type === 'director'
-  
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedWarehouse, setSelectedWarehouse] = useState<number | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null)
   const [showLowOnly, setShowLowOnly] = useState(false)
   const [page, setPage] = useState(1)
   const [showIncomeDialog, setShowIncomeDialog] = useState(false)
+  const [incomeCurrency, setIncomeCurrency] = useState<IncomeCurrency>('USD')
   const [activeTab, setActiveTab] = useState<'stock' | 'history'>('stock')
-  
+
   // History filters
   const [movementFilter, setMovementFilter] = useState<MovementFilter>('all')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
   const [showFilters, setShowFilters] = useState(false)
-  
+  const [movementSearchInput, setMovementSearchInput] = useState('')
+  const [movementSearch, setMovementSearch] = useState('')
+
+  // Search handler - Enter yoki button bosganda
+  const handleMovementSearch = () => {
+    setMovementSearch(movementSearchInput.trim())
+    setPage(1)
+  }
+
+  // Clear search
+  const clearMovementSearch = () => {
+    setMovementSearchInput('')
+    setMovementSearch('')
+    setPage(1)
+  }
+
   // Edit/Delete state
   const [editingMovement, setEditingMovement] = useState<MovementEditData | null>(null)
   const [deletingMovement, setDeletingMovement] = useState<{id: number, name: string} | null>(null)
@@ -89,7 +108,7 @@ export default function WarehousePage() {
   const { register, control, handleSubmit, reset, watch } = useForm<IncomeFormData>({
     defaultValues: {
       warehouse_id: 1,
-      items: [{ product_id: 0, quantity: 1, uom_id: 1, unit_price_usd: 0 }]
+      items: [{ product_id: 0, quantity: 1, uom_id: 1, unit_price_usd: 0, unit_price_uzs: 0 }]
     }
   })
 
@@ -121,13 +140,15 @@ export default function WarehousePage() {
   const { data: productsForSelect, isLoading: productsLoading } = useQuery({
     queryKey: ['products-for-select'],
     queryFn: async () => {
-      const result = await productsService.getProducts({ per_page: 500 })
+      const result = await productsService.getProducts({ per_page: 10000, is_active: true })
       return result
     },
   })
-  
-  // Safe products array
-  const productsList = productsForSelect?.data || []
+
+  // Safe products array - sort by name
+  const productsList = (productsForSelect?.data || []).sort((a: Product, b: Product) =>
+    a.name.localeCompare(b.name, 'uz')
+  )
 
   // Fetch UOMs
   const { data: uomsResponse } = useQuery({
@@ -150,29 +171,36 @@ export default function WarehousePage() {
   })
 
   // Fetch stock movements (transaction history)
-  const { data: movementsData, isLoading: loadingMovements } = useQuery({
-    queryKey: ['stock-movements', selectedWarehouse, movementFilter, startDate, endDate, page],
+  const { data: movementsData, isLoading: loadingMovements, refetch: refetchMovements } = useQuery({
+    queryKey: ['stock-movements', selectedWarehouse, movementFilter, startDate, endDate, movementSearch, page],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (selectedWarehouse) params.append('warehouse_id', selectedWarehouse.toString())
-      
+
       // Movement type filter
       if (movementFilter === 'income') {
         params.append('movement_type', 'purchase')
       } else if (movementFilter === 'outcome') {
         params.append('movement_type', 'sale')
       }
-      
+
       // Date filters
       if (startDate) params.append('start_date', startDate)
       if (endDate) params.append('end_date', endDate)
-      
+
+      // Search filter - tovar nomi bo'yicha qidirish
+      if (movementSearch && movementSearch.trim()) {
+        params.append('q', movementSearch.trim())
+      }
+
       params.append('page', page.toString())
-      params.append('per_page', '30')
+      params.append('per_page', '50')
+
       const response = await api.get(`/warehouse/movements?${params}`)
       return response.data
     },
     enabled: activeTab === 'history',
+    staleTime: 0, // Always refetch when parameters change
   })
 
   // Fetch low stock count
@@ -183,32 +211,48 @@ export default function WarehousePage() {
 
   // Stock income mutation
   const stockIncome = useMutation({
-    mutationFn: async (data: IncomeFormData) => {
-      // Convert USD prices to UZS
-      const itemsWithUzs = data.items
+    mutationFn: async (data: IncomeFormData & { currency: IncomeCurrency }) => {
+      // Convert prices based on selected currency
+      const itemsWithPrices = data.items
         .filter(item => item.product_id > 0 && item.quantity > 0)
-        .map(item => ({
-          product_id: item.product_id,
-          quantity: item.quantity,
-          uom_id: item.uom_id,
-          unit_price: item.unit_price_usd * usdRate, // Convert to UZS
-          unit_price_usd: item.unit_price_usd,
-          exchange_rate: usdRate
-        }))
-      
+        .map(item => {
+          if (data.currency === 'USD') {
+            // USD da kiritilgan - UZS ga convert qilish
+            return {
+              product_id: item.product_id,
+              quantity: item.quantity,
+              uom_id: item.uom_id,
+              unit_price: item.unit_price_usd * usdRate, // Convert to UZS
+              unit_price_usd: item.unit_price_usd,
+              exchange_rate: usdRate
+            }
+          } else {
+            // UZS da kiritilgan - USD ga convert qilish
+            return {
+              product_id: item.product_id,
+              quantity: item.quantity,
+              uom_id: item.uom_id,
+              unit_price: item.unit_price_uzs, // Already in UZS
+              unit_price_usd: item.unit_price_uzs / usdRate, // Convert to USD
+              exchange_rate: usdRate
+            }
+          }
+        })
+
       const response = await api.post('/warehouse/income', {
         ...data,
-        items: itemsWithUzs,
+        items: itemsWithPrices,
         exchange_rate: usdRate
       })
       return response.data
     },
     onSuccess: () => {
-      toast.success('Kirim muvaffaqiyatli amalga oshirildi!')
+      toast.success(t('incomeSuccess'))
       queryClient.invalidateQueries({ queryKey: ['stock'] })
       queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
       queryClient.invalidateQueries({ queryKey: ['low-stock'] })
       setShowIncomeDialog(false)
+      setIncomeCurrency('USD')
       reset()
     },
     onError: (error: any) => {
@@ -232,7 +276,7 @@ export default function WarehousePage() {
       if (data.document_number !== undefined) params.append('document_number', data.document_number)
       if (data.supplier_name !== undefined) params.append('supplier_name', data.supplier_name)
       if (data.notes !== undefined) params.append('notes', data.notes)
-      
+
       const response = await api.put(`/warehouse/movements/${data.id}?${params}`)
       return response.data
     },
@@ -266,20 +310,29 @@ export default function WarehousePage() {
   })
 
   const onSubmit = (data: IncomeFormData) => {
-    const validItems = data.items.filter(item => item.product_id > 0 && item.quantity > 0)
+    const validItems = data.items.filter(item => {
+      if (incomeCurrency === 'USD') {
+        return item.product_id > 0 && item.quantity > 0 && item.unit_price_usd > 0
+      } else {
+        return item.product_id > 0 && item.quantity > 0 && item.unit_price_uzs > 0
+      }
+    })
     if (validItems.length === 0) {
       toast.error(t('addAtLeastOneProduct'))
       return
     }
-    stockIncome.mutate(data)
+    stockIncome.mutate({ ...data, currency: incomeCurrency })
   }
 
-  // Calculate total for income form (in USD)
+  // Calculate total for income form based on currency
   const watchItems = watch('items')
-  const incomeTotalUsd = watchItems?.reduce((sum, item) => {
-    return sum + (item.quantity || 0) * (item.unit_price_usd || 0)
-  }, 0) || 0
-  const incomeTotalUzs = incomeTotalUsd * usdRate
+  const incomeTotalUsd = incomeCurrency === 'USD'
+    ? (watchItems?.reduce((sum, item) => sum + (item.quantity || 0) * (item.unit_price_usd || 0), 0) || 0)
+    : (watchItems?.reduce((sum, item) => sum + (item.quantity || 0) * (item.unit_price_uzs || 0), 0) || 0) / usdRate
+
+  const incomeTotalUzs = incomeCurrency === 'UZS'
+    ? (watchItems?.reduce((sum, item) => sum + (item.quantity || 0) * (item.unit_price_uzs || 0), 0) || 0)
+    : incomeTotalUsd * usdRate
 
   return (
     <div className="space-y-4 lg:space-y-6">
@@ -293,7 +346,7 @@ export default function WarehousePage() {
           </div>
           <Button size="lg" variant="success" onClick={() => setShowIncomeDialog(true)} className="w-full sm:w-auto text-sm lg:text-base">
             <TrendingUp className="w-4 h-4 lg:w-5 lg:h-5 mr-2" />
-            {t('stockIn')} (USD)
+            {t('stockIn')}
           </Button>
         </div>
       </div>
@@ -480,9 +533,55 @@ export default function WarehousePage() {
       {/* History Tab */}
       {activeTab === 'history' && (
         <>
-          {/* Filter Panel */}
+          {/* Search & Filter Panel */}
           <Card className="mb-4">
-            <CardContent className="p-4">
+            <CardContent className="p-4 space-y-4">
+              {/* Search Input */}
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    value={movementSearchInput}
+                    onChange={(e) => setMovementSearchInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleMovementSearch()}
+                    placeholder={t('Qidiruv: ') + '... (Olma, Kraska, ...)'}
+                    className="w-full pl-10 pr-10 py-2.5 border border-border rounded-lg focus:outline-none focus:border-primary"
+                  />
+                  {movementSearchInput && (
+                    <button
+                      onClick={clearMovementSearch}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  onClick={handleMovementSearch}
+                  className="px-4"
+                >
+                  <Search className="w-4 h-4 mr-1" />
+                  {t('search')}
+                </Button>
+              </div>
+
+              {/* Active search indicator */}
+              {movementSearch && (
+                <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg text-sm">
+                  <span className="text-blue-700">
+                    🔍 Qidiruv: "<strong>{movementSearch}</strong>"
+                  </span>
+                  <button
+                    onClick={clearMovementSearch}
+                    className="ml-auto text-blue-600 hover:text-blue-800 text-xs"
+                  >
+                    Tozalash
+                  </button>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-4">
                 {/* Movement Type Filter */}
                 <div className="flex items-center gap-2">
@@ -704,13 +803,42 @@ export default function WarehousePage() {
 
       {/* Income Dialog */}
       <Dialog open={showIncomeDialog} onOpenChange={setShowIncomeDialog}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-visible">
           <DialogHeader>
-            <DialogTitle>{t('stockIncomeUsd')}</DialogTitle>
+            <DialogTitle>{t('stockIncome')}</DialogTitle>
             <DialogDescription>{t('currentRateInfo')}: 1$ = {formatNumber(usdRate)} {t('sum')}</DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {/* Currency Selection */}
+            <div className="flex items-center justify-center gap-2 p-2 bg-gray-100 rounded-pos">
+              <span className="text-sm font-medium mr-2">{t('currency')}:</span>
+              <div className="flex rounded-lg overflow-hidden border-2 border-border">
+                <button
+                  type="button"
+                  onClick={() => setIncomeCurrency('USD')}
+                  className={`px-4 py-2 font-bold text-sm transition-all ${
+                    incomeCurrency === 'USD'
+                      ? 'bg-primary text-white'
+                      : 'bg-white text-text-secondary hover:bg-gray-50'
+                  }`}
+                >
+                  $ USD
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIncomeCurrency('UZS')}
+                  className={`px-4 py-2 font-bold text-sm transition-all ${
+                    incomeCurrency === 'UZS'
+                      ? 'bg-success text-white'
+                      : 'bg-white text-text-secondary hover:bg-gray-50'
+                  }`}
+                >
+                  UZS {t('sum')}
+                </button>
+              </div>
+            </div>
+
             {/* Warehouse & Document */}
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -742,38 +870,44 @@ export default function WarehousePage() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => append({ product_id: 0, quantity: 1, uom_id: 1, unit_price_usd: 0 })}
+                  onClick={() => append({ product_id: 0, quantity: 1, uom_id: 1, unit_price_usd: 0, unit_price_uzs: 0 })}
                 >
                   <Plus className="w-4 h-4 mr-1" />
                   {t('add')}
                 </Button>
               </div>
 
-              <div className="border border-border rounded-pos overflow-hidden">
+              <div className="border border-border rounded-pos">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-3 py-2 text-left text-sm font-medium">{t('product')}</th>
                       <th className="px-3 py-2 text-center text-sm font-medium w-32">{t('quantity')}</th>
                       <th className="px-3 py-2 text-center text-sm font-medium w-24">{t('measureUnit')}</th>
-                      <th className="px-3 py-2 text-center text-sm font-medium w-36">{t('price')} ($)</th>
-                      <th className="px-3 py-2 text-right text-sm font-medium w-36">{t('total')} ($)</th>
+                      <th className="px-3 py-2 text-center text-sm font-medium w-36">
+                        {t('price')} {incomeCurrency === 'USD' ? '($)' : '(UZS)'}
+                      </th>
+                      <th className="px-3 py-2 text-right text-sm font-medium w-36">
+                        {t('total')} {incomeCurrency === 'USD' ? '($)' : '(UZS)'}
+                      </th>
                       <th className="px-3 py-2 w-12"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
                     {fields.map((field, index) => {
                       const item = watchItems?.[index]
-                      const itemTotal = (item?.quantity || 0) * (item?.unit_price_usd || 0)
+                      const itemTotal = incomeCurrency === 'USD'
+                        ? (item?.quantity || 0) * (item?.unit_price_usd || 0)
+                        : (item?.quantity || 0) * (item?.unit_price_uzs || 0)
                       return (
                         <tr key={field.id}>
-                          <td className="px-3 py-2">
+                          <td className="px-3 py-2 min-w-[200px]">
                             <select
                               {...register(`items.${index}.product_id`, { valueAsNumber: true })}
-                              className="w-full px-2 py-2 border border-border rounded text-sm"
+                              className="w-full px-2 py-2 border border-border rounded text-sm bg-white"
                             >
                               <option value={0}>
-                                {productsLoading ? t('loading') : t('selectProduct')}
+                                {productsLoading ? t('loading') : `${t('selectProduct')} (${productsList.length} ta)`}
                               </option>
                               {productsList.map((p: Product) => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
@@ -799,19 +933,32 @@ export default function WarehousePage() {
                             </select>
                           </td>
                           <td className="px-3 py-2">
-                            <div className="relative">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary">$</span>
+                            {incomeCurrency === 'USD' ? (
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-text-secondary font-bold">$</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  {...register(`items.${index}.unit_price_usd`, { valueAsNumber: true })}
+                                  className="text-center text-sm pl-6 w-full"
+                                  placeholder="0.00"
+                                />
+                              </div>
+                            ) : (
                               <Input
                                 type="number"
-                                step="0.01"
-                                {...register(`items.${index}.unit_price_usd`, { valueAsNumber: true })}
-                                className="text-center text-sm pl-6 w-full"
-                                placeholder="0.00"
+                                step="1"
+                                {...register(`items.${index}.unit_price_uzs`, { valueAsNumber: true })}
+                                className="text-center text-sm w-full"
+                                placeholder="0"
                               />
-                            </div>
+                            )}
                           </td>
                           <td className="px-3 py-2 text-right font-semibold text-success">
-                            ${formatNumber(itemTotal, 2)}
+                            {incomeCurrency === 'USD'
+                              ? `$${formatNumber(itemTotal, 2)}`
+                              : formatMoney(itemTotal)
+                            }
                           </td>
                           <td className="px-3 py-2">
                             <Button
@@ -839,21 +986,36 @@ export default function WarehousePage() {
             </div>
 
             {/* Total */}
-            <div className="bg-gradient-to-r from-primary/10 to-success/10 p-4 rounded-pos">
+            <div className={`p-4 rounded-pos ${incomeCurrency === 'USD' ? 'bg-gradient-to-r from-primary/10 to-success/10' : 'bg-gradient-to-r from-success/10 to-primary/10'}`}>
               <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-text-secondary">{t('totalUsd')}:</p>
-                  <p className="text-pos-xl font-bold text-primary">${formatNumber(incomeTotalUsd, 2)}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-text-secondary">{t('inUzs')}:</p>
-                  <p className="text-pos-lg font-bold text-success">{formatMoney(incomeTotalUzs)}</p>
-                </div>
+                {incomeCurrency === 'USD' ? (
+                  <>
+                    <div>
+                      <p className="text-sm text-text-secondary">{t('totalUsd')}:</p>
+                      <p className="text-pos-xl font-bold text-primary">${formatNumber(incomeTotalUsd, 2)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-text-secondary">≈ {t('inUzs')}:</p>
+                      <p className="text-pos-lg font-bold text-success">{formatMoney(incomeTotalUzs)}</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-sm text-text-secondary">{t('totalUzs')}:</p>
+                      <p className="text-pos-xl font-bold text-success">{formatMoney(incomeTotalUzs)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-text-secondary">≈ {t('inUsd')}:</p>
+                      <p className="text-pos-lg font-bold text-primary">${formatNumber(incomeTotalUsd, 2)}</p>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowIncomeDialog(false)}>{t('cancel')}</Button>
+              <Button type="button" variant="outline" onClick={() => { setShowIncomeDialog(false); setIncomeCurrency('USD'); }}>{t('cancel')}</Button>
               <Button type="submit" variant="success" disabled={stockIncome.isPending}>
                 {stockIncome.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <TrendingUp className="w-4 h-4 mr-2" />}
                 {t('saveIncome')}
@@ -936,6 +1098,7 @@ export default function WarehousePage() {
                   <label className="font-medium text-sm">{t('priceUzs')}</label>
                   <Input
                     type="number"
+                    step="1"
                     value={editingMovement.unit_price}
                     onChange={(e) => setEditingMovement({...editingMovement, unit_price: parseFloat(e.target.value) || 0})}
                   />

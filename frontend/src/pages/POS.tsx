@@ -140,10 +140,15 @@ export default function POSPage() {
   // NEW: Driver phone for receipt
   const [driverPhone, setDriverPhone] = useState('')
   
+  // NEW: Barcode scanner
+  const barcodeInputRef = useRef<HTMLInputElement>(null)
+  const [barcodeValue, setBarcodeValue] = useState('')
+  const [barcodeLoading, setBarcodeLoading] = useState(false)
+
   // NEW: Receipt edit mode
   const [receiptEditMode, setReceiptEditMode] = useState(false)
   const [receiptData, setReceiptData] = useState({
-    companyName: 'INTER PROFNASTIL',
+    companyName: 'GAYRAT STROY HOUSE',
     customerName: '',
     customerPhone: '',
     customerCompany: '',
@@ -196,7 +201,7 @@ export default function POSPage() {
   useEffect(() => {
     if (showPrintPreview) {
       setReceiptData({
-        companyName: 'INTER PROFNASTIL',
+        companyName: 'GAYRAT STROY HOUSE',
         customerName: customer?.name || '',
         customerPhone: customer?.phone || '',
         customerCompany: customer?.company_name || '',
@@ -385,6 +390,56 @@ export default function POSPage() {
       quantity: 1
     })
     setShowAddProductDialog(true)
+  }
+
+  // Barcode scanner handler - scan and add to cart instantly
+  const handleBarcodeSubmit = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'Enter') return
+
+    const barcode = barcodeValue.trim()
+    if (!barcode) return
+
+    setBarcodeLoading(true)
+
+    try {
+      const product = await productsService.getProductByBarcode(barcode)
+
+      if (product) {
+        const baseStock = Number(product.current_stock) || 0
+
+        if (baseStock <= 0) {
+          toast.error(`${product.name} - ${t('outOfStock')}`)
+          setBarcodeValue('')
+          barcodeInputRef.current?.focus()
+          return
+        }
+
+        // Add to cart with base UOM and quantity 1
+        const salePrice = getSalePrice(product)
+        addItemToCart(
+          product,
+          product.base_uom_id,
+          product.base_uom_symbol,
+          product.base_uom_name || product.base_uom_symbol,
+          1,
+          salePrice
+        )
+
+        // Clear barcode input and refocus
+        setBarcodeValue('')
+        barcodeInputRef.current?.focus()
+      }
+    } catch (error: any) {
+      if (error?.response?.status === 404) {
+        toast.error(`Shtrix kod topilmadi: ${barcode}`)
+      } else {
+        toast.error('Xatolik yuz berdi')
+      }
+      setBarcodeValue('')
+      barcodeInputRef.current?.focus()
+    } finally {
+      setBarcodeLoading(false)
+    }
   }
 
   // Handle UOM change in add product dialog
@@ -1051,8 +1106,30 @@ export default function POSPage() {
 
       {/* CENTER - Products */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Search */}
+        {/* Search & Barcode */}
         <div className="p-3 lg:p-4 bg-white border-b flex items-center gap-2 lg:gap-4">
+          {/* Barcode Scanner Input */}
+          <div className="relative w-40 lg:w-48">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              {barcodeLoading ? (
+                <Loader2 className="w-4 h-4 lg:w-5 lg:h-5 animate-spin" />
+              ) : (
+                <span className="text-sm lg:text-base">📦</span>
+              )}
+            </div>
+            <input
+              ref={barcodeInputRef}
+              type="text"
+              value={barcodeValue}
+              onChange={(e) => setBarcodeValue(e.target.value)}
+              onKeyDown={handleBarcodeSubmit}
+              placeholder="Shtrix kod..."
+              className="w-full h-10 lg:h-11 pl-10 lg:pl-11 pr-4 text-sm lg:text-[15px] border-2 border-green-500 rounded-lg focus:border-green-600 focus:outline-none bg-green-50"
+              autoFocus
+            />
+          </div>
+
+          {/* Search */}
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-5 lg:h-5 text-gray-400" />
             <input
@@ -2521,15 +2598,22 @@ export default function POSPage() {
                   <!DOCTYPE html>
                   <html>
                   <head>
-                    <title>Chek - INTER PROFNASTIL</title>
+                    <title>Chek - GAYRAT STROY HOUSE</title>
                     <meta charset="UTF-8">
                     <style>
                       * { margin: 0; padding: 0; box-sizing: border-box; }
+                      html {
+                        height: auto !important;
+                      }
                       body {
-                        font-family: Arial, Helvetica, sans-serif;
-                        font-size: 14px;
-                        width: 80mm;
-                        padding: 3mm;
+                        font-family: 'Courier New', monospace;
+                        font-size: 12px;
+                        width: 76mm;
+                        height: auto !important;
+                        min-height: auto !important;
+                        max-height: none !important;
+                        padding: 1mm;
+                        margin: 0;
                         color: #000;
                         background: #fff;
                         -webkit-print-color-adjust: exact;
@@ -2539,108 +2623,123 @@ export default function POSPage() {
                       /* Header */
                       .header {
                         text-align: center;
-                        padding-bottom: 5px;
+                        padding-bottom: 2px;
                       }
                       .header img {
-                        height: 70px;
-                        max-width: 70mm;
+                        height: 40px;
+                        max-width: 50mm;
                       }
                       .header h1 {
-                        font-size: 20px;
+                        font-size: 14px;
                         font-weight: 900;
-                        margin: 5px 0;
-                        letter-spacing: 1px;
+                        margin: 2px 0;
+                        letter-spacing: 0px;
                       }
                       .header .date {
-                        font-size: 14px;
+                        font-size: 11px;
                         font-weight: bold;
                       }
 
                       /* Divider */
                       .divider {
-                        border-top: 2px solid #000;
-                        margin: 5px 0;
+                        border-top: 1px dashed #000;
+                        margin: 2px 0;
                       }
 
                       /* Customer */
                       .customer {
-                        padding: 5px 0;
-                        border-top: 2px solid #000;
-                        border-bottom: 2px solid #000;
-                        font-size: 13px;
-                        margin: 5px 0;
+                        padding: 2px 0;
+                        border-top: 1px dashed #000;
+                        border-bottom: 1px dashed #000;
+                        font-size: 10px;
+                        margin: 2px 0;
                       }
-                      .customer p { margin: 2px 0; font-weight: bold; }
+                      .customer p { margin: 1px 0; font-weight: bold; }
 
                       /* Table */
                       table {
                         width: 100%;
                         border-collapse: collapse;
-                        margin: 5px 0;
+                        margin: 3px 0;
+                        table-layout: fixed;
                       }
                       th, td {
-                        border: 2px solid #000;
-                        padding: 4px 3px;
-                        font-size: 12px;
+                        border: 1px solid #000;
+                        padding: 2px 1px;
+                        font-size: 10px;
+                        word-wrap: break-word;
+                        overflow: hidden;
                       }
                       th {
                         font-weight: 900;
                         text-align: left;
                       }
+                      .col-product { width: 50%; }
+                      .col-qty { width: 22%; text-align: center; }
+                      .col-sum { width: 28%; text-align: right; }
                       .text-center { text-align: center; }
                       .text-right { text-align: right; }
                       .font-bold { font-weight: 900; }
-                      .product-name { font-weight: bold; }
-                      .product-price { font-size: 11px; font-weight: bold; }
-                      .qty-cell { font-weight: 900; font-size: 13px; }
-                      .sum-cell { font-weight: 900; font-size: 13px; }
+                      .product-name { font-weight: bold; font-size: 10px; }
+                      .product-price { font-size: 9px; font-weight: bold; }
+                      .qty-cell { font-weight: 900; font-size: 10px; }
+                      .sum-cell { font-weight: 900; font-size: 10px; }
 
                       /* Grand Total Box */
                       .grand-total-box {
-                        border: 4px solid #000;
-                        padding: 8px;
-                        margin: 8px 0;
+                        border: 2px solid #000;
+                        padding: 3px;
+                        margin: 3px 0;
                         text-align: center;
                       }
                       .grand-total-label {
-                        font-size: 14px;
+                        font-size: 11px;
                         font-weight: 900;
                       }
                       .grand-total-amount {
-                        font-size: 24px;
+                        font-size: 16px;
                         font-weight: 900;
-                        letter-spacing: 1px;
+                        letter-spacing: 0px;
                       }
 
                       /* Footer */
                       .footer {
                         text-align: center;
-                        padding-top: 8px;
-                        border-top: 2px solid #000;
+                        padding-top: 3px;
+                        border-top: 1px dashed #000;
                       }
                       .footer .thanks {
-                        font-size: 16px;
+                        font-size: 11px;
                         font-weight: 900;
-                        margin-bottom: 5px;
+                        margin-bottom: 1px;
                       }
                       .footer .contact {
-                        font-size: 13px;
+                        font-size: 10px;
                         font-weight: bold;
                       }
 
                       /* Bottom spacing for tearing */
                       .tear-space {
-                        height: 15mm;
+                        height: 5mm;
                       }
 
                       @media print {
-                        body {
-                          width: 80mm;
-                          padding: 2mm;
+                        html, body {
+                          width: 76mm;
+                          height: auto !important;
+                          padding: 1mm;
+                          margin: 0 !important;
                         }
                         @page {
-                          size: 80mm auto;
-                          margin: 0;
+                          size: 80mm auto !important;
+                          margin: 2mm !important;
+                          padding: 0 !important;
+                        }
+                        * {
+                          page-break-inside: avoid;
+                        }
+                        table {
+                          width: 100% !important;
                         }
                       }
                     </style>
@@ -2666,32 +2765,32 @@ export default function POSPage() {
                     <table>
                       <thead>
                         <tr>
-                          <th>${t('productLabel')}</th>
-                          <th class="text-center" style="width:55px;">${t('quantityLabel')}</th>
-                          <th class="text-right" style="width:70px;">${t('amountLabel')}</th>
+                          <th class="col-product">${t('productLabel')}</th>
+                          <th class="col-qty">${t('quantityLabel')}</th>
+                          <th class="col-sum">${t('amountLabel')}</th>
                         </tr>
                       </thead>
                       <tbody>
                         ${items.map((item, index) => `
                           <tr>
-                            <td>
+                            <td class="col-product">
                               <div class="product-name">${index + 1}. ${item.product_name}</div>
                               <div class="product-price">(${item.unit_price.toLocaleString('uz-UZ')} x)</div>
                             </td>
-                            <td class="text-center qty-cell">${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}</td>
-                            <td class="text-right sum-cell">${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</td>
+                            <td class="col-qty qty-cell">${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}</td>
+                            <td class="col-sum sum-cell">${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</td>
                           </tr>
                         `).join('')}
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colspan="2" class="text-right font-bold">${t('totalWithCount')} (${items.length} ${t('unit').toLowerCase()}):</td>
-                          <td class="text-right font-bold">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
+                          <td colspan="2" class="text-right font-bold" style="font-size:10px;">${t('totalWithCount')} (${items.length}):</td>
+                          <td class="col-sum font-bold" style="font-size:10px;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
                         </tr>
                         ${generalDiscount > 0 ? `
                           <tr>
-                            <td colspan="2" class="text-right font-bold">${t('discount')}:</td>
-                            <td class="text-right font-bold">-${generalDiscount.toLocaleString('uz-UZ')}</td>
+                            <td colspan="2" class="text-right font-bold" style="font-size:10px;">${t('discount')}:</td>
+                            <td class="col-sum font-bold" style="font-size:10px;">-${generalDiscount.toLocaleString('uz-UZ')}</td>
                           </tr>
                         ` : ''}
                       </tfoot>

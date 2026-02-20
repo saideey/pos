@@ -39,9 +39,9 @@ async def get_warehouses(
     """Get all warehouses."""
     service = WarehouseService(db)
     warehouses = service.get_warehouses(include_inactive)
-    
+
     stock_service = StockService(db)
-    
+
     data = []
     for w in warehouses:
         value = stock_service.get_stock_value(w.id)
@@ -58,7 +58,7 @@ async def get_warehouses(
             "created_at": w.created_at,
             "updated_at": w.updated_at
         })
-    
+
     return WarehouseListResponse(data=data, count=len(data))
 
 
@@ -81,10 +81,10 @@ async def create_warehouse(
         address=data.address,
         created_by_id=current_user.id
     )
-    
+
     if not warehouse:
         raise HTTPException(status_code=400, detail=message)
-    
+
     return {"success": True, "data": {"id": warehouse.id, "name": warehouse.name}, "message": message}
 
 
@@ -116,9 +116,9 @@ async def get_stock(
         page=page,
         per_page=per_page
     )
-    
+
     total_value = service.get_stock_value(warehouse_id)
-    
+
     data = [{
         "id": s.id,
         "product_id": s.product_id,
@@ -135,7 +135,7 @@ async def get_stock(
         "min_stock_level": s.product.min_stock_level,
         "is_below_minimum": s.quantity < s.product.min_stock_level
     } for s in stocks]
-    
+
     return {
         "success": True,
         "data": data,
@@ -158,7 +158,7 @@ async def get_low_stock(
     """Get products below minimum stock level."""
     service = StockService(db)
     low_stock = service.get_low_stock_products(warehouse_id)
-    
+
     return {
         "success": True,
         "data": low_stock,
@@ -178,7 +178,7 @@ async def get_stock_value(
     """Get total stock value."""
     service = StockService(db)
     value = service.get_stock_value(warehouse_id)
-    
+
     return {
         "success": True,
         "total_value": value,
@@ -198,6 +198,7 @@ async def get_movements(
     movement_type: Optional[str] = None,
     start_date: Optional[date] = None,
     end_date: Optional[date] = None,
+    q: Optional[str] = None,
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
     current_user: User = Depends(get_current_active_user),
@@ -211,10 +212,11 @@ async def get_movements(
         movement_type=movement_type,
         start_date=start_date,
         end_date=end_date,
+        search=q,
         page=page,
         per_page=per_page
     )
-    
+
     data = [{
         "id": m.id,
         "product_id": m.product_id,
@@ -242,7 +244,7 @@ async def get_movements(
         "created_by_name": m.created_by.first_name + " " + m.created_by.last_name if m.created_by else None,
         "updated_by_name": m.updated_by.first_name + " " + m.updated_by.last_name if getattr(m, 'updated_by', None) else None
     } for m in movements]
-    
+
     return {
         "success": True,
         "data": data,
@@ -264,7 +266,7 @@ async def stock_income(
 ):
     """Record stock income (purchase/arrival)."""
     service = StockService(db)
-    
+
     results = []
     for item in data.items:
         stock, movement = service.add_stock(
@@ -287,7 +289,7 @@ async def stock_income(
             "new_quantity": stock.quantity,
             "movement_id": movement.id
         })
-    
+
     return {
         "success": True,
         "message": f"{len(results)} ta tovar kirim qilindi",
@@ -307,9 +309,9 @@ async def stock_adjustment(
 ):
     """Create stock adjustment (manual correction)."""
     service = StockService(db)
-    
+
     movement_type = MovementType(data.movement_type)
-    
+
     if movement_type in [MovementType.ADJUSTMENT_PLUS]:
         # Adding stock
         stock, movement = service.add_stock(
@@ -337,7 +339,7 @@ async def stock_adjustment(
         )
         if not stock:
             raise HTTPException(status_code=400, detail=msg)
-    
+
     return {
         "success": True,
         "message": "Qoldiq tuzatildi",
@@ -363,9 +365,9 @@ async def create_transfer(
 ):
     """Create stock transfer between warehouses."""
     service = StockTransferService(db)
-    
+
     items = [item.model_dump() for item in data.items]
-    
+
     transfer, message = service.create_transfer(
         from_warehouse_id=data.from_warehouse_id,
         to_warehouse_id=data.to_warehouse_id,
@@ -373,10 +375,10 @@ async def create_transfer(
         notes=data.notes,
         created_by_id=current_user.id
     )
-    
+
     if not transfer:
         raise HTTPException(status_code=400, detail=message)
-    
+
     return {
         "success": True,
         "message": message,
@@ -401,10 +403,10 @@ async def complete_transfer(
     """Complete pending transfer."""
     service = StockTransferService(db)
     success, message = service.complete_transfer(transfer_id, current_user.id)
-    
+
     if not success:
         raise HTTPException(status_code=400, detail=message)
-    
+
     return SuccessResponse(message=message)
 
 
@@ -421,10 +423,10 @@ async def cancel_transfer(
     """Cancel pending transfer."""
     service = StockTransferService(db)
     success, message = service.cancel_transfer(transfer_id, current_user.id)
-    
+
     if not success:
         raise HTTPException(status_code=400, detail=message)
-    
+
     return SuccessResponse(message=message)
 
 
@@ -441,15 +443,15 @@ async def get_movement(
 ):
     """Get single stock movement by ID."""
     from database.models import StockMovement
-    
+
     movement = db.query(StockMovement).filter(
         StockMovement.id == movement_id,
         StockMovement.is_deleted == False
     ).first()
-    
+
     if not movement:
         raise HTTPException(status_code=404, detail="Harakat topilmadi")
-    
+
     return {
         "success": True,
         "data": {
@@ -501,85 +503,127 @@ async def update_movement(
     """
     from database.models import StockMovement, Stock, ProductUOMConversion, UnitOfMeasure
     from datetime import datetime
-    
+
     movement = db.query(StockMovement).filter(
         StockMovement.id == movement_id,
         StockMovement.is_deleted == False
     ).first()
-    
+
     if not movement:
         raise HTTPException(status_code=404, detail="Harakat topilmadi")
-    
+
     # Only allow editing PURCHASE type movements
     if movement.movement_type.value not in ['purchase', 'adjustment_plus', 'adjustment_minus']:
         raise HTTPException(status_code=400, detail="Faqat kirim va tuzatish harakatlarini tahrirlash mumkin")
-    
+
     # Get current stock
     stock = db.query(Stock).filter(
         Stock.product_id == movement.product_id,
         Stock.warehouse_id == movement.warehouse_id
     ).first()
-    
+
     old_quantity = movement.base_quantity
-    
+
     # Handle UOM change
     target_uom_id = uom_id if uom_id is not None else movement.uom_id
     target_quantity = quantity if quantity is not None else movement.quantity
-    
+
     # Calculate new base quantity
     product_uom = db.query(ProductUOMConversion).filter(
         ProductUOMConversion.product_id == movement.product_id,
         ProductUOMConversion.uom_id == target_uom_id
     ).first()
-    
+
     if product_uom:
         new_base_quantity = target_quantity * Decimal(str(product_uom.conversion_factor))
     else:
         # If no conversion found, assume 1:1 (same as base UOM)
         new_base_quantity = target_quantity
-    
+
     # Update stock if quantity changed
     if stock and (quantity is not None or uom_id is not None):
         quantity_diff = new_base_quantity - old_quantity
         stock.quantity = Decimal(str(stock.quantity)) + quantity_diff
         movement.stock_after = stock.quantity
-    
+
     # Update movement fields
     if quantity is not None or uom_id is not None:
         movement.quantity = target_quantity
         movement.base_quantity = new_base_quantity
-    
+
     if uom_id is not None:
         movement.uom_id = uom_id
         # Get UOM symbol for response
         uom = db.query(UnitOfMeasure).filter(UnitOfMeasure.id == uom_id).first()
         if uom:
             movement.uom_symbol = uom.symbol
-    
+
     if unit_price is not None:
         movement.unit_cost = unit_price
         movement.total_cost = unit_price * movement.quantity
-    
+
     if unit_price_usd is not None:
         movement.unit_price_usd = unit_price_usd
-    
+
     if exchange_rate is not None:
         movement.exchange_rate = exchange_rate
-    
+
     if document_number is not None:
         movement.document_number = document_number
-    
+
     if supplier_name is not None:
         movement.supplier_name = supplier_name
-    
+
     if notes is not None:
         movement.notes = notes
-    
+
+    # ===== RECALCULATE AVERAGE COST IN STOCK =====
+    # If price changed, we need to recalculate average cost
+    if unit_price_usd is not None or unit_price is not None:
+        # Get all purchase movements for this product in this warehouse
+        all_purchases = db.query(StockMovement).filter(
+            StockMovement.product_id == movement.product_id,
+            StockMovement.warehouse_id == movement.warehouse_id,
+            StockMovement.movement_type.in_([MovementType.PURCHASE, MovementType.ADJUSTMENT_PLUS]),
+            StockMovement.is_deleted == False
+        ).all()
+
+        # Calculate weighted average cost
+        total_qty = Decimal('0')
+        total_cost_uzs = Decimal('0')
+
+        for m in all_purchases:
+            qty = Decimal(str(m.base_quantity or 0))
+            if qty > 0:
+                total_qty += qty
+                # UZS cost
+                if m.unit_cost:
+                    total_cost_uzs += qty * Decimal(str(m.unit_cost))
+
+        # Update stock average cost
+        if stock and total_qty > 0:
+            stock.average_cost = total_cost_uzs / total_qty
+            # Also update last_purchase_cost_usd if USD price was changed
+            if unit_price_usd is not None:
+                stock.last_purchase_cost_usd = unit_price_usd
+            if unit_price is not None:
+                stock.last_purchase_cost = unit_price
+
+        # ===== UPDATE PRODUCT COST PRICE =====
+        from database.models import Product
+        product = db.query(Product).filter(Product.id == movement.product_id).first()
+        if product:
+            # Update product cost_price with new average cost or last purchase cost
+            if stock and total_qty > 0:
+                product.cost_price = total_cost_uzs / total_qty
+            elif unit_price is not None:
+                product.cost_price = unit_price
+
     # Track who edited
     movement.updated_by_id = current_user.id
-    
+
     db.commit()
-    
+
     return {
         "success": True,
         "message": "Harakat muvaffaqiyatli tahrirlandi",
@@ -607,25 +651,25 @@ async def delete_movement(
     """
     from database.models import StockMovement, Stock
     from datetime import datetime
-    
+
     movement = db.query(StockMovement).filter(
         StockMovement.id == movement_id,
         StockMovement.is_deleted == False
     ).first()
-    
+
     if not movement:
         raise HTTPException(status_code=404, detail="Harakat topilmadi")
-    
+
     # Only allow deleting PURCHASE type movements
     if movement.movement_type.value not in ['purchase', 'adjustment_plus', 'adjustment_minus']:
         raise HTTPException(status_code=400, detail="Faqat kirim va tuzatish harakatlarini o'chirish mumkin")
-    
+
     # Get current stock and reverse the change
     stock = db.query(Stock).filter(
         Stock.product_id == movement.product_id,
         Stock.warehouse_id == movement.warehouse_id
     ).first()
-    
+
     if stock:
         if movement.movement_type.value in ['purchase', 'adjustment_plus']:
             # Reverse addition
@@ -633,19 +677,19 @@ async def delete_movement(
         else:
             # Reverse subtraction
             stock.quantity = Decimal(str(stock.quantity)) + movement.base_quantity
-        
+
         # Ensure stock doesn't go negative
         if stock.quantity < 0:
             stock.quantity = 0
-    
+
     # Soft delete
     movement.is_deleted = True
     movement.deleted_by_id = current_user.id
     movement.deleted_at = get_tashkent_now().isoformat()
     movement.deleted_reason = reason
-    
+
     db.commit()
-    
+
     return {
         "success": True,
         "message": "Harakat o'chirildi",

@@ -18,6 +18,8 @@ from schemas.sale import (
 )
 from schemas.base import SuccessResponse
 from services.sale import SaleService
+from services.telegram_notifier import send_payment_notification_sync
+from utils.print_helper import queue_receipt_for_printing
 
 
 router = APIRouter()
@@ -280,6 +282,36 @@ async def create_sale(
     
     if not sale:
         raise HTTPException(status_code=400, detail=message)
+
+    try:
+        # Get company phones from settings
+        company_phones_setting = db.query(SystemSetting).filter(
+            SystemSetting.key == "company_phones"
+        ).first()
+
+        company_phones = []
+        if company_phones_setting and company_phones_setting.value:
+            import json
+            phones_data = json.loads(company_phones_setting.value)
+            if phones_data.get('phone1'):
+                company_phones.append(phones_data['phone1'])
+            if phones_data.get('phone2'):
+                company_phones.append(phones_data['phone2'])
+
+        # Queue receipt
+        print_job_id = queue_receipt_for_printing(
+            db=db,
+            sale=sale,  # Sale object with items loaded
+            user_id=current_user.id,
+            company_name="METALL BAZA",  # Yoki settings dan oling
+            company_phones=company_phones
+        )
+
+        if print_job_id:
+            print(f"[PRINT] Receipt queued: job_id={print_job_id}")
+    except Exception as e:
+        # Print error should not fail the sale
+        print(f"[PRINT ERROR] {e}")
     
     return {
         "success": True,
@@ -365,6 +397,13 @@ async def add_payment(
     """Add payment to existing sale."""
     service = SaleService(db)
     
+    # Get sale before payment to get previous debt
+    sale_before = service.get_sale_by_id(sale_id)
+    if not sale_before:
+        raise HTTPException(status_code=404, detail="Sotuv topilmadi")
+    
+    previous_debt = float(sale_before.debt_amount) if sale_before else 0
+    
     payment, message = service.add_payment(
         sale_id=sale_id,
         payment_type=data.payment_type,
@@ -378,6 +417,31 @@ async def add_payment(
         raise HTTPException(status_code=400, detail=message)
     
     sale = service.get_sale_by_id(sale_id)
+    
+    # Send Telegram notification for payment
+    try:
+        from database.models import Customer
+        customer = None
+        if sale.customer_id:
+            customer = db.query(Customer).filter(Customer.id == sale.customer_id).first()
+        
+        operator_name = f"{current_user.first_name} {current_user.last_name}"
+        
+        send_payment_notification_sync(
+            customer_telegram_id=customer.telegram_id if customer else None,
+            customer_name=customer.name if customer else "Noma'lum mijoz",
+            customer_phone=customer.phone if customer else "",
+            customer_type=customer.customer_type.name if customer else "STANDARD",
+            payment_date=payment.created_at,
+            payment_amount=float(data.amount),
+            payment_type=data.payment_type.value,
+            previous_debt=previous_debt,
+            current_debt=float(sale.debt_amount),
+            operator_name=operator_name
+        )
+    except Exception as e:
+        import logging
+        logging.error(f"Failed to send payment notification: {e}")
     
     return {
         "success": True,
@@ -791,7 +855,7 @@ async def get_receipt(
         raise HTTPException(status_code=404, detail="Sotuv topilmadi")
     
     # Get company info from settings (simplified)
-    company_name = "Metall Basa"
+    company_name = "G'ayrat Stroy House"
     company_address = "Toshkent sh."
     company_phone = "+998 90 123 45 67"
     

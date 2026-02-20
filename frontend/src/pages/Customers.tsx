@@ -200,7 +200,7 @@ export default function CustomersPage() {
       
       // Create workbook
       const workbook = new ExcelJS.Workbook()
-      workbook.creator = 'Inter Profnastil ERP'
+      workbook.creator = 'Gayrat Stroy House ERP'
       workbook.created = new Date()
       
       const ws = workbook.addWorksheet('Mijoz hisoboti', {
@@ -238,7 +238,7 @@ export default function CustomersPage() {
       // ═══════════════════════════════════════════════════════════════
       ws.mergeCells(`A${currentRow}:K${currentRow}`)
       const titleCell = ws.getCell(`A${currentRow}`)
-      titleCell.value = '🏢 INTER PROFNASTIL - MIJOZ HISOBOTI'
+      titleCell.value = '🏢 Gayrat Stroy House - MIJOZ HISOBOTI'
       titleCell.font = { bold: true, size: 18, color: { argb: 'FF' + colors.white } }
       titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + colors.header } }
       titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
@@ -602,7 +602,7 @@ export default function CustomersPage() {
       // ═══════════════════════════════════════════════════════════════
       ws.mergeCells(`A${currentRow}:K${currentRow}`)
       const footerCell = ws.getCell(`A${currentRow}`)
-      footerCell.value = '© Inter Profnastil ERP System | Hisobot avtomatik tarzda yaratildi'
+      footerCell.value = '© Gayrat Stroy House ERP System | Hisobot avtomatik tarzda yaratildi'
       footerCell.font = { italic: true, size: 10, color: { argb: 'FF' + colors.gray } }
       footerCell.alignment = { horizontal: 'center' }
       
