@@ -22,6 +22,7 @@ interface Sale {
   sale_date: string
   customer_id: number | null
   customer_name: string | null
+  customer_phone: string | null
   seller_id: number
   seller_name: string
   total_amount: number
@@ -97,7 +98,7 @@ export default function SalesPage() {
   const { loadSaleForEdit, resetPOS } = usePOSStore()
   const { t } = useLanguage()
   const isDirector = user?.role_type === 'director'
-  
+
   // Filters
   const today = new Date()
   const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -107,7 +108,7 @@ export default function SalesPage() {
   const [paymentStatus, setPaymentStatus] = useState<string>('')
   const [showCancelled, setShowCancelled] = useState(false)
   const [page, setPage] = useState(1)
-  
+
   // Dialogs
   const [viewingSale, setViewingSale] = useState<SaleDetail | null>(null)
   const [deletingSale, setDeletingSale] = useState<{id: number, sale_number: string} | null>(null)
@@ -125,7 +126,7 @@ export default function SalesPage() {
       params.append('per_page', '20')
       params.append('is_cancelled', showCancelled.toString())
       if (paymentStatus) params.append('payment_status', paymentStatus)
-      
+
       const response = await api.get(`/sales?${params}`)
       return response.data
     }
@@ -228,6 +229,7 @@ export default function SalesPage() {
     return (
       sale.sale_number.toLowerCase().includes(query) ||
       sale.customer_name?.toLowerCase().includes(query) ||
+      sale.customer_phone?.toLowerCase().includes(query) ||
       sale.seller_name.toLowerCase().includes(query)
     )
   }) || []
@@ -394,7 +396,24 @@ export default function SalesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="font-medium">{sale.customer_name || t('unknownCustomer')}</p>
+                        {sale.customer_name ? (
+                          <>
+                            <p className="font-medium">{sale.customer_name}</p>
+                            {sale.customer_phone && (
+                              <p className="text-xs text-text-secondary flex items-center gap-1">
+                                <Phone className="w-3 h-3" />
+                                {sale.customer_phone}
+                              </p>
+                            )}
+                          </>
+                        ) : sale.customer_phone ? (
+                          <p className="font-medium flex items-center gap-1.5">
+                            <Phone className="w-3.5 h-3.5 text-blue-500" />
+                            {sale.customer_phone}
+                          </p>
+                        ) : (
+                          <p className="text-text-secondary text-sm">{t('unknownCustomer')}</p>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-sm text-text-secondary">
                         {sale.seller_name}
@@ -506,8 +525,17 @@ export default function SalesPage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-text-secondary">{t('customer')}</p>
-                  <p className="font-medium">{viewingSale.customer_name || t('unknownCustomer')}</p>
-                  {viewingSale.customer_phone && (
+                  {viewingSale.customer_name ? (
+                    <p className="font-medium">{viewingSale.customer_name}</p>
+                  ) : viewingSale.customer_phone ? (
+                    <p className="font-medium flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-blue-500" />
+                      {viewingSale.customer_phone}
+                    </p>
+                  ) : (
+                    <p className="font-medium text-text-secondary">{t('unknownCustomer')}</p>
+                  )}
+                  {viewingSale.customer_name && viewingSale.customer_phone && (
                     <p className="text-sm text-text-secondary flex items-center gap-1">
                       <Phone className="w-3 h-3" />
                       {viewingSale.customer_phone}

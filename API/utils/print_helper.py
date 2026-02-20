@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 
 
 def queue_receipt_for_printing(
-        db: Session,
-        sale,
-        user_id: int,
-        company_name: str = "METALL BAZA",
-        company_phones: list = None
+    db: Session,
+    sale,
+    user_id: int,
+    company_name: str = "METALL BAZA",
+    company_phones: list = None
 ) -> Optional[int]:
     """
     Queue a receipt for printing.
