@@ -264,30 +264,33 @@ class QuickSaleRequest(BaseSchema):
     payment_type: str = "CASH"
     payment_amount: Decimal
     
+    # Contact phone (when customer not selected)
+    contact_phone: Optional[str] = None
+
     notes: Optional[str] = None
 
 
 class SaleReceiptResponse(BaseModel):
     """Receipt data for printing."""
-    
+
     sale_number: str
     sale_date: datetime
-    
+
     # Company info
     company_name: str
     company_address: Optional[str] = None
     company_phone: Optional[str] = None
-    
+
     # Customer
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
-    
+
     # Seller
     seller_name: str
-    
+
     # Items
     items: List[dict]  # Simplified item format for receipt
-    
+
     # Totals
     subtotal: Decimal
     discount_amount: Decimal
@@ -296,10 +299,10 @@ class SaleReceiptResponse(BaseModel):
     paid_amount: Decimal
     debt_amount: Decimal
     change_amount: Decimal  # Qaytim (if overpaid)
-    
+
     # Payment info
     payment_type: str
-    
+
     # Footer
     thank_you_message: str = "Xaridingiz uchun rahmat!"
 
@@ -308,12 +311,12 @@ class SaleReceiptResponse(BaseModel):
 
 class SaleReturnItemCreate(BaseSchema):
     """Schema for creating a return item."""
-    
+
     original_sale_item_id: int
     quantity: Decimal
     reason: Optional[str] = None
     condition: str = "good"  # good, damaged, defective
-    
+
     @field_validator("quantity")
     @classmethod
     def validate_quantity(cls, v: Decimal) -> Decimal:
@@ -325,7 +328,7 @@ class SaleReturnItemCreate(BaseSchema):
 
 class SaleReturnCreate(BaseSchema):
     """Schema for creating a sale return."""
-    
+
     original_sale_id: int
     items: List[SaleReturnItemCreate]
     return_reason: Optional[str] = None
@@ -334,7 +337,7 @@ class SaleReturnCreate(BaseSchema):
 
 class SaleReturnResponse(BaseSchema, TimestampMixin):
     """Sale return response schema."""
-    
+
     id: int
     return_number: str
     return_date: date

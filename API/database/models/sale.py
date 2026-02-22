@@ -100,6 +100,9 @@ class Sale(BaseModel):
     # SMS sent flag
     sms_sent = Column(Boolean, default=False)
     
+    # Contact phone (when customer not selected)
+    contact_phone = Column(String(20), nullable=True)  # Driver/contact phone number
+
     # Relationships
     customer = relationship("Customer", back_populates="sales")
     seller = relationship("User", foreign_keys=[seller_id], back_populates="sales")
@@ -109,7 +112,7 @@ class Sale(BaseModel):
     discount_approved_by = relationship("User", foreign_keys=[discount_approved_by_id])
     items = relationship("SaleItem", back_populates="sale", lazy="dynamic", cascade="all, delete-orphan")
     payments = relationship("Payment", back_populates="sale", lazy="dynamic")
-    
+
     __table_args__ = (
         Index('ix_sales_customer_id', 'customer_id'),
         Index('ix_sales_seller_id', 'seller_id'),
@@ -120,23 +123,23 @@ class Sale(BaseModel):
         CheckConstraint('total_amount >= 0', name='ck_sale_total_non_negative'),
         CheckConstraint('discount_percent >= 0 AND discount_percent <= 100', name='ck_sale_discount_valid'),
     )
-    
+
     def calculate_proportional_discount(self, new_total: Decimal):
         """
         Distribute discount proportionally when total is changed.
-        
+
         Example:
         - Original total: 3,500,000 so'm
         - New total: 3,000,000 so'm
         - Each item gets proportionally reduced
-        
+
         This method should be called from service layer.
         """
         if self.subtotal == 0:
             return
-        
+
         discount_ratio = Decimal(str(new_total)) / Decimal(str(self.subtotal))
-        
+
         for item in self.items:
             original_item_total = item.original_price * item.quantity
             new_item_total = (original_item_total * discount_ratio).quantize(
@@ -150,7 +153,7 @@ class Sale(BaseModel):
                 Decimal('0.01'), rounding=ROUND_HALF_UP
             )
             item.discount_amount = original_item_total - new_item_total
-        
+
         self.total_amount = new_total
         self.discount_amount = self.subtotal - new_total
         self.discount_percent = ((self.discount_amount / self.subtotal) * 100).quantize(
@@ -161,54 +164,54 @@ class Sale(BaseModel):
 class SaleItem(BaseModel):
     """
     Sale line item.
-    
+
     Stores both original price and final price for reporting.
     """
-    
+
     __tablename__ = 'sale_items'
-    
+
     sale_id = Column(Integer, ForeignKey('sales.id', ondelete='CASCADE'), nullable=False)
     product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
-    
+
     # Quantity and UOM
     quantity = Column(Numeric(20, 4), nullable=False)
     uom_id = Column(Integer, ForeignKey('units_of_measure.id'), nullable=False)
     base_quantity = Column(Numeric(20, 4), nullable=False)  # In product's base UOM
-    
+
     # Pricing
     original_price = Column(Numeric(20, 4), nullable=False)  # Catalog price per unit
     unit_price = Column(Numeric(20, 4), nullable=False)  # Actual sale price per unit
-    
+
     # Discount on this item
     discount_percent = Column(Numeric(5, 2), default=0)
     discount_amount = Column(Numeric(20, 4), default=0)
-    
+
     # Totals
     total_price = Column(Numeric(20, 4), nullable=False)  # Final total for this line
-    
+
     # Cost for profit calculation
     unit_cost = Column(Numeric(20, 4), default=0)  # Cost price at time of sale
-    
+
     # Notes
     notes = Column(Text, nullable=True)
-    
+
     # Relationships
     sale = relationship("Sale", back_populates="items")
     product = relationship("Product")
     uom = relationship("UnitOfMeasure")
-    
+
     __table_args__ = (
         Index('ix_sale_items_sale_id', 'sale_id'),
         Index('ix_sale_items_product_id', 'product_id'),
         CheckConstraint('quantity > 0', name='ck_sale_item_positive_quantity'),
         CheckConstraint('unit_price >= 0', name='ck_sale_item_price_non_negative'),
     )
-    
+
     @property
     def profit(self) -> Decimal:
         """Calculate profit for this line item."""
         return Decimal(str(self.total_price)) - (Decimal(str(self.unit_cost)) * Decimal(str(self.quantity)))
-    
+
     @property
     def profit_margin(self) -> Decimal:
         """Calculate profit margin percentage."""
@@ -220,46 +223,46 @@ class SaleItem(BaseModel):
 class Payment(BaseModel):
     """
     Payment transaction.
-    
+
     A sale can have multiple payments (partial payments, mixed types).
     """
-    
+
     __tablename__ = 'payments'
-    
+
     # Reference number
     payment_number = Column(String(50), unique=True, nullable=False, index=True)
     payment_date = Column(Date, nullable=False)
-    
+
     # Links
     sale_id = Column(Integer, ForeignKey('sales.id'), nullable=True)  # Can be debt payment without sale
     customer_id = Column(Integer, ForeignKey('customers.id'), nullable=True)
-    
+
     # Payment details
     payment_type = Column(Enum(PaymentType), nullable=False)
     amount = Column(Numeric(20, 4), nullable=False)
-    
+
     # For card/transfer payments
     transaction_id = Column(String(100), nullable=True)  # External transaction ID
-    
+
     # Cash register
     cash_register_id = Column(Integer, ForeignKey('cash_registers.id'), nullable=True)
-    
+
     # Notes
     notes = Column(Text, nullable=True)
-    
+
     # Status
     is_confirmed = Column(Boolean, default=True)
     is_cancelled = Column(Boolean, default=False)
-    
+
     # Audit
     received_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    
+
     # Relationships
     sale = relationship("Sale", back_populates="payments")
     customer = relationship("Customer", back_populates="payments")
     cash_register = relationship("CashRegister")
     received_by = relationship("User")
-    
+
     __table_args__ = (
         Index('ix_payments_sale_id', 'sale_id'),
         Index('ix_payments_customer_id', 'customer_id'),
@@ -273,37 +276,37 @@ class SaleReturn(BaseModel):
     """
     Customer return/refund transaction.
     """
-    
+
     __tablename__ = 'sale_returns'
-    
+
     # Reference
     return_number = Column(String(50), unique=True, nullable=False, index=True)
     return_date = Column(Date, nullable=False)
-    
+
     # Original sale reference
     original_sale_id = Column(Integer, ForeignKey('sales.id'), nullable=False)
     customer_id = Column(Integer, ForeignKey('customers.id'), nullable=True)
     warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=False)
-    
+
     # Amounts
     total_amount = Column(Numeric(20, 4), nullable=False)
     refund_amount = Column(Numeric(20, 4), default=0)  # Cash refund
     credit_amount = Column(Numeric(20, 4), default=0)  # Applied to customer balance
-    
+
     # Reason
     return_reason = Column(Text, nullable=True)
-    
+
     # Status
     status = Column(String(20), default='pending')  # pending, approved, completed, rejected
-    
+
     # Stock handling
     restock_items = Column(Boolean, default=True)  # Return items to stock
-    
+
     # Audit
     created_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     approved_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     approved_at = Column(String(50), nullable=True)
-    
+
     # Relationships
     original_sale = relationship("Sale")
     customer = relationship("Customer")
@@ -311,7 +314,7 @@ class SaleReturn(BaseModel):
     created_by = relationship("User", foreign_keys=[created_by_id])
     approved_by = relationship("User", foreign_keys=[approved_by_id])
     items = relationship("SaleReturnItem", back_populates="sale_return", cascade="all, delete-orphan")
-    
+
     __table_args__ = (
         Index('ix_sale_returns_original_sale_id', 'original_sale_id'),
         Index('ix_sale_returns_customer_id', 'customer_id'),
@@ -324,32 +327,32 @@ class SaleReturnItem(BaseModel):
     """
     Return line items.
     """
-    
+
     __tablename__ = 'sale_return_items'
-    
+
     sale_return_id = Column(Integer, ForeignKey('sale_returns.id', ondelete='CASCADE'), nullable=False)
     original_sale_item_id = Column(Integer, ForeignKey('sale_items.id'), nullable=False)
     product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
-    
+
     # Quantities
     quantity = Column(Numeric(20, 4), nullable=False)
     uom_id = Column(Integer, ForeignKey('units_of_measure.id'), nullable=False)
     base_quantity = Column(Numeric(20, 4), nullable=False)
-    
+
     # Refund price (from original sale)
     unit_price = Column(Numeric(20, 4), nullable=False)
     total_price = Column(Numeric(20, 4), nullable=False)
-    
+
     # Reason
     reason = Column(Text, nullable=True)
     condition = Column(String(50), default='good')  # good, damaged, defective
-    
+
     # Relationships
     sale_return = relationship("SaleReturn", back_populates="items")
     original_sale_item = relationship("SaleItem")
     product = relationship("Product")
     uom = relationship("UnitOfMeasure")
-    
+
     __table_args__ = (
         Index('ix_return_items_return_id', 'sale_return_id'),
         Index('ix_return_items_product_id', 'product_id'),
@@ -361,25 +364,25 @@ class Receipt(BaseModel):
     Receipt/Invoice storage.
     Stores generated receipt documents.
     """
-    
+
     __tablename__ = 'receipts'
-    
+
     sale_id = Column(Integer, ForeignKey('sales.id'), nullable=False, unique=True)
-    
+
     receipt_number = Column(String(50), unique=True, nullable=False)
     receipt_type = Column(String(20), default='sale')  # sale, return, invoice
-    
+
     # Document storage
     document_url = Column(String(500), nullable=True)  # PDF/image URL
     document_data = Column(Text, nullable=True)  # JSON receipt data
-    
+
     # Print tracking
     print_count = Column(Integer, default=0)
     last_printed_at = Column(String(50), nullable=True)
-    
+
     # Relationships
     sale = relationship("Sale")
-    
+
     __table_args__ = (
         Index('ix_receipts_sale_id', 'sale_id'),
         Index('ix_receipts_receipt_number', 'receipt_number'),

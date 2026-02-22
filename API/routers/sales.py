@@ -81,7 +81,8 @@ async def get_sales(
         "sale_number": s.sale_number,
         "sale_date": s.sale_date.isoformat(),
         "customer_id": s.customer_id,
-        "customer_name": s.customer.name if s.customer else None,
+        "customer_name": s.customer.name if s.customer else (s.contact_phone if s.contact_phone else None),
+        "contact_phone": s.contact_phone,
         "seller_id": s.seller_id,
         "seller_name": f"{s.seller.first_name} {s.seller.last_name}",
         "total_amount": s.total_amount,
@@ -202,8 +203,9 @@ async def get_sale(
             "sale_number": sale.sale_number,
             "sale_date": sale.sale_date.isoformat(),
             "customer_id": sale.customer_id,
-            "customer_name": sale.customer.name if sale.customer else None,
-            "customer_phone": sale.customer.phone if sale.customer else None,
+            "customer_name": sale.customer.name if sale.customer else (sale.contact_phone if sale.contact_phone else None),
+            "customer_phone": sale.customer.phone if sale.customer else sale.contact_phone,
+            "contact_phone": sale.contact_phone,
             "seller_id": sale.seller_id,
             "seller_name": f"{sale.seller.first_name} {sale.seller.last_name}",
             "warehouse_id": sale.warehouse_id,
@@ -364,6 +366,11 @@ async def quick_sale(
 
     if not sale:
         raise HTTPException(status_code=400, detail=message)
+
+    # Save contact phone if provided (when customer not selected)
+    if data.contact_phone:
+        sale.contact_phone = data.contact_phone
+        db.commit()
 
     # ========== AVTOMATIK CHEK CHIQARISH ==========
     try:

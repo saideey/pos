@@ -5,10 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4410bd95-49ec-437f-95cf-eb7c109e8a00" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.env" beforeDir="false" afterPath="$PROJECT_DIR$/.env" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/database/models/sale.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/database/models/sale.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/API/routers/sales.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/sales.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/API/utils/print_helper.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/utils/print_helper.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Sales.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Sales.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/schemas/sale.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/schemas/sale.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/POS.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/POS.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
