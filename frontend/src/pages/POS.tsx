@@ -148,7 +148,7 @@ export default function POSPage() {
   // NEW: Receipt edit mode
   const [receiptEditMode, setReceiptEditMode] = useState(false)
   const [receiptData, setReceiptData] = useState({
-    companyName: 'GAYRAT STROY HOUSE',
+    companyName: 'INTER PROFNASTIL',
     customerName: '',
     customerPhone: '',
     customerCompany: '',
@@ -201,7 +201,7 @@ export default function POSPage() {
   useEffect(() => {
     if (showPrintPreview) {
       setReceiptData({
-        companyName: 'GAYRAT STROY HOUSE',
+        companyName: 'INTER PROFNASTIL',
         customerName: customer?.name || '',
         customerPhone: customer?.phone || '',
         customerCompany: customer?.company_name || '',
@@ -2603,7 +2603,7 @@ export default function POSPage() {
                   <!DOCTYPE html>
                   <html>
                   <head>
-                    <title>Chek - GAYRAT STROY HOUSE</title>
+                    <title>Chek - INTER PROFNASTIL</title>
                     <meta charset="UTF-8">
                     <style>
                       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2612,7 +2612,7 @@ export default function POSPage() {
                       }
                       body {
                         font-family: 'Courier New', monospace;
-                        font-size: 12px;
+                        font-size: 13px;
                         width: 76mm;
                         height: auto !important;
                         min-height: auto !important;
@@ -2635,13 +2635,13 @@ export default function POSPage() {
                         max-width: 50mm;
                       }
                       .header h1 {
-                        font-size: 14px;
+                        font-size: 15px;
                         font-weight: 900;
                         margin: 2px 0;
                         letter-spacing: 0px;
                       }
                       .header .date {
-                        font-size: 11px;
+                        font-size: 12px;
                         font-weight: bold;
                       }
 
@@ -2656,7 +2656,7 @@ export default function POSPage() {
                         padding: 2px 0;
                         border-top: 1px dashed #000;
                         border-bottom: 1px dashed #000;
-                        font-size: 10px;
+                        font-size: 11px;
                         margin: 2px 0;
                       }
                       .customer p { margin: 1px 0; font-weight: bold; }
@@ -2671,7 +2671,7 @@ export default function POSPage() {
                       th, td {
                         border: 1px solid #000;
                         padding: 2px 1px;
-                        font-size: 10px;
+                        font-size: 11px;
                         word-wrap: break-word;
                         overflow: hidden;
                       }
@@ -2685,10 +2685,10 @@ export default function POSPage() {
                       .text-center { text-align: center; }
                       .text-right { text-align: right; }
                       .font-bold { font-weight: 900; }
-                      .product-name { font-weight: bold; font-size: 10px; }
-                      .product-price { font-size: 9px; font-weight: bold; }
-                      .qty-cell { font-weight: 900; font-size: 10px; }
-                      .sum-cell { font-weight: 900; font-size: 10px; }
+                      .product-name { font-weight: bold; font-size: 11px; }
+                      .product-price { font-size: 10px; font-weight: bold; }
+                      .qty-cell { font-weight: 900; font-size: 11px; }
+                      .sum-cell { font-weight: 900; font-size: 11px; }
 
                       /* Grand Total Box */
                       .grand-total-box {
@@ -2698,11 +2698,11 @@ export default function POSPage() {
                         text-align: center;
                       }
                       .grand-total-label {
-                        font-size: 11px;
+                        font-size: 12px;
                         font-weight: 900;
                       }
                       .grand-total-amount {
-                        font-size: 16px;
+                        font-size: 18px;
                         font-weight: 900;
                         letter-spacing: 0px;
                       }
@@ -2714,18 +2714,18 @@ export default function POSPage() {
                         border-top: 1px dashed #000;
                       }
                       .footer .thanks {
-                        font-size: 11px;
+                        font-size: 12px;
                         font-weight: 900;
                         margin-bottom: 1px;
                       }
                       .footer .contact {
-                        font-size: 10px;
+                        font-size: 11px;
                         font-weight: bold;
                       }
 
                       /* Bottom spacing for tearing */
                       .tear-space {
-                        height: 5mm;
+                        height: 15mm;
                       }
 
                       @media print {
@@ -2789,13 +2789,13 @@ export default function POSPage() {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colspan="2" class="text-right font-bold" style="font-size:10px;">${t('totalWithCount')} (${items.length}):</td>
-                          <td class="col-sum font-bold" style="font-size:10px;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
+                          <td colspan="2" class="text-right font-bold" style="font-size:11px;">${t('totalWithCount')} (${items.length}):</td>
+                          <td class="col-sum font-bold" style="font-size:11px;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
                         </tr>
                         ${generalDiscount > 0 ? `
                           <tr>
-                            <td colspan="2" class="text-right font-bold" style="font-size:10px;">${t('discount')}:</td>
-                            <td class="col-sum font-bold" style="font-size:10px;">-${generalDiscount.toLocaleString('uz-UZ')}</td>
+                            <td colspan="2" class="text-right font-bold" style="font-size:11px;">${t('discount')}:</td>
+                            <td class="col-sum font-bold" style="font-size:11px;">-${generalDiscount.toLocaleString('uz-UZ')}</td>
                           </tr>
                         ` : ''}
                       </tfoot>
