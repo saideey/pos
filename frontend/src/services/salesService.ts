@@ -31,7 +31,8 @@ export const salesService = {
 
   async quickSale(data: {
     warehouse_id: number
-    customer_id?: number
+    customer_id?: number | null
+    contact_phone?: string | null
     items: { product_id: number; quantity: number; uom_id: number; unit_price?: number }[]
     final_total?: number
     payment_type: string

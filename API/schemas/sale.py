@@ -111,22 +111,23 @@ class SaleCreate(BaseSchema):
     """
     
     customer_id: Optional[int] = None
+    contact_phone: Optional[str] = None  # Driver/contact phone number
     warehouse_id: int
     items: List[SaleItemCreate]
-    
+
     # Optional: Override total (triggers proportional discount)
     final_total: Optional[Decimal] = None
-    
+
     # Payments (can be multiple for mixed payment)
     payments: List[PaymentCreate] = []
-    
+
     # Additional info
     notes: Optional[str] = None
     requires_delivery: bool = False
     delivery_address: Optional[str] = None
     delivery_date: Optional[date] = None
     delivery_cost: Decimal = Decimal("0")
-    
+
     @field_validator("items")
     @classmethod
     def validate_items(cls, v: List[SaleItemCreate]) -> List[SaleItemCreate]:
@@ -138,24 +139,24 @@ class SaleCreate(BaseSchema):
 
 class SaleResponse(BaseSchema, TimestampMixin):
     """Full sale response schema."""
-    
+
     id: int
     sale_number: str
     sale_date: date
-    
+
     # Customer info
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None
-    
+
     # Seller info
     seller_id: int
     seller_name: str
-    
+
     # Warehouse
     warehouse_id: int
     warehouse_name: str
-    
+
     # Amounts
     subtotal: Decimal  # Before discount
     discount_amount: Decimal
@@ -163,40 +164,41 @@ class SaleResponse(BaseSchema, TimestampMixin):
     total_amount: Decimal  # After discount
     paid_amount: Decimal
     debt_amount: Decimal
-    
+
     # Status
     payment_status: str
     payment_type: Optional[str] = None
-    
+
     # Items and payments
     items: List[SaleItemResponse] = []
     payments: List[PaymentResponse] = []
-    
+
     # Delivery
     requires_delivery: bool
     delivery_address: Optional[str] = None
     delivery_date: Optional[date] = None
     delivery_cost: Decimal
-    
+
     # Flags
     is_vip_sale: bool
     is_wholesale: bool
     is_cancelled: bool
     cancelled_reason: Optional[str] = None
     sms_sent: bool
-    
+
     # Notes
     notes: Optional[str] = None
 
 
 class SaleListItem(BaseSchema):
     """Simplified sale for lists."""
-    
+
     id: int
     sale_number: str
     sale_date: date
     customer_id: Optional[int] = None
     customer_name: Optional[str] = None
+    customer_phone: Optional[str] = None
     seller_name: str
     total_amount: Decimal
     paid_amount: Decimal
@@ -205,14 +207,14 @@ class SaleListItem(BaseSchema):
     items_count: int
     is_cancelled: bool
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class SaleListResponse(BaseModel):
     """Sale list response with pagination."""
-    
+
     success: bool = True
     data: List[SaleListItem]
     total: int
@@ -226,7 +228,7 @@ class SaleListResponse(BaseModel):
 
 class SaleSearchParams(BaseModel):
     """Sale search parameters."""
-    
+
     q: Optional[str] = None  # Search by sale number
     customer_id: Optional[int] = None
     seller_id: Optional[int] = None
@@ -242,7 +244,7 @@ class SaleSearchParams(BaseModel):
 
 class SaleCancelRequest(BaseModel):
     """Sale cancellation request."""
-    
+
     reason: str
     return_to_stock: bool = True  # Return items to stock
 
@@ -252,20 +254,18 @@ class QuickSaleRequest(BaseSchema):
     Quick sale request for POS.
     Simplified version for fast checkout.
     """
-    
+
     items: List[SaleItemCreate]
     customer_id: Optional[int] = None
+    contact_phone: Optional[str] = None  # Driver/contact phone number
     warehouse_id: int
-    
+
     # Final amount (optional - for manual total override)
     final_total: Optional[Decimal] = None
-    
+
     # Single payment (for quick checkout)
     payment_type: str = "CASH"
     payment_amount: Decimal
-    
-    # Contact phone (when customer not selected)
-    contact_phone: Optional[str] = None
 
     notes: Optional[str] = None
 

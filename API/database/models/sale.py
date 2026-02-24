@@ -55,33 +55,34 @@ class Sale(BaseModel):
     
     # Parties
     customer_id = Column(Integer, ForeignKey('customers.id'), nullable=True)  # Can be anonymous
+    contact_phone = Column(String(20), nullable=True)  # Driver/contact phone number
     seller_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     warehouse_id = Column(Integer, ForeignKey('warehouses.id'), nullable=False)
-    
+
     # Amounts
     subtotal = Column(Numeric(20, 4), nullable=False)  # Sum before discount (catalog prices)
     discount_amount = Column(Numeric(20, 4), default=0)  # Total discount amount
     discount_percent = Column(Numeric(5, 2), default=0)  # Overall discount percentage
     total_amount = Column(Numeric(20, 4), nullable=False)  # Final amount after discount
-    
+
     # Payment tracking
     paid_amount = Column(Numeric(20, 4), default=0)  # Amount already paid
     debt_amount = Column(Numeric(20, 4), default=0)  # Amount on credit
-    
+
     # Status
     payment_status = Column(Enum(PaymentStatus), default=PaymentStatus.PENDING, nullable=False)
     payment_type = Column(Enum(PaymentType), nullable=True)  # Primary payment type
-    
+
     # Additional info
     notes = Column(Text, nullable=True)
     internal_notes = Column(Text, nullable=True)  # Only for staff
-    
+
     # Delivery info
     requires_delivery = Column(Boolean, default=False)
     delivery_address = Column(Text, nullable=True)
     delivery_date = Column(Date, nullable=True)
     delivery_cost = Column(Numeric(20, 4), default=0)
-    
+
     # Flags
     is_vip_sale = Column(Boolean, default=False)  # VIP prices applied
     is_wholesale = Column(Boolean, default=False)  # Wholesale sale
@@ -89,19 +90,16 @@ class Sale(BaseModel):
     cancelled_reason = Column(Text, nullable=True)
     cancelled_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     cancelled_at = Column(String(50), nullable=True)
-    
+
     # Edit tracking
     updated_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     edit_reason = Column(Text, nullable=True)
-    
+
     # Approval for large discounts
     discount_approved_by_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    
+
     # SMS sent flag
     sms_sent = Column(Boolean, default=False)
-    
-    # Contact phone (when customer not selected)
-    contact_phone = Column(String(20), nullable=True)  # Driver/contact phone number
 
     # Relationships
     customer = relationship("Customer", back_populates="sales")

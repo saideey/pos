@@ -23,6 +23,7 @@ interface Sale {
   customer_id: number | null
   customer_name: string | null
   customer_phone: string | null
+  contact_phone: string | null
   seller_id: number
   seller_name: string
   total_amount: number
@@ -47,6 +48,7 @@ interface SaleDetail {
   customer_id: number | null
   customer_name: string | null
   customer_phone: string | null
+  contact_phone: string | null
   seller_id: number
   seller_name: string
   warehouse_id: number
@@ -230,6 +232,7 @@ export default function SalesPage() {
       sale.sale_number.toLowerCase().includes(query) ||
       sale.customer_name?.toLowerCase().includes(query) ||
       sale.customer_phone?.toLowerCase().includes(query) ||
+      sale.contact_phone?.toLowerCase().includes(query) ||
       sale.seller_name.toLowerCase().includes(query)
     )
   }) || []
@@ -396,7 +399,7 @@ export default function SalesPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        {sale.customer_name ? (
+                        {sale.customer_id && sale.customer_name ? (
                           <>
                             <p className="font-medium">{sale.customer_name}</p>
                             {sale.customer_phone && (
@@ -406,10 +409,10 @@ export default function SalesPage() {
                               </p>
                             )}
                           </>
-                        ) : sale.customer_phone ? (
+                        ) : (sale.contact_phone || sale.customer_phone) ? (
                           <p className="font-medium flex items-center gap-1.5">
                             <Phone className="w-3.5 h-3.5 text-blue-500" />
-                            {sale.customer_phone}
+                            {sale.contact_phone || sale.customer_phone}
                           </p>
                         ) : (
                           <p className="text-text-secondary text-sm">{t('unknownCustomer')}</p>
@@ -525,21 +528,23 @@ export default function SalesPage() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm text-text-secondary">{t('customer')}</p>
-                  {viewingSale.customer_name ? (
-                    <p className="font-medium">{viewingSale.customer_name}</p>
-                  ) : viewingSale.customer_phone ? (
+                  {viewingSale.customer_id && viewingSale.customer_name ? (
+                    <>
+                      <p className="font-medium">{viewingSale.customer_name}</p>
+                      {viewingSale.customer_phone && (
+                        <p className="text-sm text-text-secondary flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {viewingSale.customer_phone}
+                        </p>
+                      )}
+                    </>
+                  ) : (viewingSale.contact_phone || viewingSale.customer_phone) ? (
                     <p className="font-medium flex items-center gap-1.5">
                       <Phone className="w-3.5 h-3.5 text-blue-500" />
-                      {viewingSale.customer_phone}
+                      {viewingSale.contact_phone || viewingSale.customer_phone}
                     </p>
                   ) : (
                     <p className="font-medium text-text-secondary">{t('unknownCustomer')}</p>
-                  )}
-                  {viewingSale.customer_name && viewingSale.customer_phone && (
-                    <p className="text-sm text-text-secondary flex items-center gap-1">
-                      <Phone className="w-3 h-3" />
-                      {viewingSale.customer_phone}
-                    </p>
                   )}
                 </div>
                 <div className="space-y-1">

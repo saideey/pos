@@ -447,6 +447,7 @@ def upgrade() -> None:
         sa.Column('sale_number', sa.String(50), nullable=False),
         sa.Column('sale_date', sa.Date(), nullable=False),
         sa.Column('customer_id', sa.Integer(), nullable=True),
+        sa.Column('contact_phone', sa.String(20), nullable=True),
         sa.Column('seller_id', sa.Integer(), nullable=False),
         sa.Column('warehouse_id', sa.Integer(), nullable=False),
         sa.Column('subtotal', sa.Numeric(20, 4), nullable=False),
@@ -490,7 +491,7 @@ def upgrade() -> None:
     op.create_index('ix_sales_sale_date', 'sales', ['sale_date'])
     op.create_index('ix_sales_payment_status', 'sales', ['payment_status'])
     op.create_index('ix_sales_created_at', 'sales', ['created_at'])
-    
+
     # ========================================
     # SALE ITEMS TABLE
     # ========================================
@@ -520,7 +521,7 @@ def upgrade() -> None:
     )
     op.create_index('ix_sale_items_sale_id', 'sale_items', ['sale_id'])
     op.create_index('ix_sale_items_product_id', 'sale_items', ['product_id'])
-    
+
     # ========================================
     # PAYMENTS TABLE
     # ========================================
@@ -555,7 +556,7 @@ def upgrade() -> None:
     op.create_index('ix_payments_customer_id', 'payments', ['customer_id'])
     op.create_index('ix_payments_payment_date', 'payments', ['payment_date'])
     op.create_index('ix_payments_payment_type', 'payments', ['payment_type'])
-    
+
     # ========================================
     # SUPPLIERS TABLE
     # ========================================
@@ -592,7 +593,7 @@ def upgrade() -> None:
     op.create_index('ix_suppliers_name', 'suppliers', ['name'])
     op.create_index('ix_suppliers_phone', 'suppliers', ['phone'])
     op.create_index('ix_suppliers_is_active', 'suppliers', ['is_active'])
-    
+
     # ========================================
     # PURCHASE ORDERS TABLE
     # ========================================
@@ -638,7 +639,7 @@ def upgrade() -> None:
     op.create_index('ix_purchase_orders_warehouse_id', 'purchase_orders', ['warehouse_id'])
     op.create_index('ix_purchase_orders_status', 'purchase_orders', ['status'])
     op.create_index('ix_purchase_orders_order_date', 'purchase_orders', ['order_date'])
-    
+
     # ========================================
     # PURCHASE ORDER ITEMS TABLE
     # ========================================
@@ -668,7 +669,7 @@ def upgrade() -> None:
     )
     op.create_index('ix_po_items_order_id', 'purchase_order_items', ['purchase_order_id'])
     op.create_index('ix_po_items_product_id', 'purchase_order_items', ['product_id'])
-    
+
     # ========================================
     # SYSTEM SETTINGS TABLE
     # ========================================
@@ -689,7 +690,7 @@ def upgrade() -> None:
     )
     op.create_index('ix_settings_key', 'system_settings', ['key'])
     op.create_index('ix_settings_category', 'system_settings', ['category'])
-    
+
     # ========================================
     # AUDIT LOGS TABLE
     # ========================================
@@ -715,7 +716,7 @@ def upgrade() -> None:
     op.create_index('ix_audit_logs_table', 'audit_logs', ['table_name'])
     op.create_index('ix_audit_logs_record', 'audit_logs', ['table_name', 'record_id'])
     op.create_index('ix_audit_logs_created_at', 'audit_logs', ['created_at'])
-    
+
     # ========================================
     # SMS TEMPLATES TABLE
     # ========================================
@@ -734,7 +735,7 @@ def upgrade() -> None:
         sa.UniqueConstraint('code')
     )
     op.create_index('ix_sms_templates_code', 'sms_templates', ['code'])
-    
+
     # ========================================
     # SMS LOGS TABLE
     # ========================================
@@ -767,7 +768,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop all tables in reverse order."""
-    
+
     # Drop tables in reverse order of creation (respecting foreign keys)
     op.drop_table('sms_logs')
     op.drop_table('sms_templates')
@@ -789,15 +790,15 @@ def downgrade() -> None:
     op.drop_table('products')
     op.drop_table('categories')
     op.drop_table('user_sessions')
-    
+
     # Remove foreign key before dropping users
     op.drop_constraint('fk_warehouses_manager_id', 'warehouses', type_='foreignkey')
-    
+
     op.drop_table('users')
     op.drop_table('warehouses')
     op.drop_table('units_of_measure')
     op.drop_table('roles')
-    
+
     # Drop enums
     op.execute('DROP TYPE IF EXISTS roletype')
     op.execute('DROP TYPE IF EXISTS movementtype')

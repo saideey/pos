@@ -24,6 +24,60 @@ from routers.sync import router as sync_router
 from routers import printers
 
 
+def ensure_missing_columns():
+    """
+    Agar migratsiya xato bilan o'tib ketgan bo'lsa,
+    muhim ustunlarni qo'lda qo'shish.
+    """
+    from sqlalchemy import text, inspect
+
+    with db.get_session() as session:
+        inspector = inspect(session.bind)
+
+        # sales jadvalidagi ustunlarni tekshirish
+        sales_columns = [col['name'] for col in inspector.get_columns('sales')]
+
+        missing_columns = []
+
+        if 'contact_phone' not in sales_columns:
+            session.execute(text(
+                "ALTER TABLE sales ADD COLUMN contact_phone VARCHAR(20)"
+            ))
+            missing_columns.append('sales.contact_phone')
+
+        if 'updated_by_id' not in sales_columns:
+            session.execute(text(
+                "ALTER TABLE sales ADD COLUMN updated_by_id INTEGER REFERENCES users(id)"
+            ))
+            missing_columns.append('sales.updated_by_id')
+
+        if 'edit_reason' not in sales_columns:
+            session.execute(text(
+                "ALTER TABLE sales ADD COLUMN edit_reason TEXT"
+            ))
+            missing_columns.append('sales.edit_reason')
+
+        # users jadvalidagi ustunlarni tekshirish
+        users_columns = [col['name'] for col in inspector.get_columns('users')]
+
+        if 'telegram_id' not in users_columns:
+            session.execute(text(
+                "ALTER TABLE users ADD COLUMN telegram_id VARCHAR(50)"
+            ))
+            missing_columns.append('users.telegram_id')
+
+        if 'language' not in users_columns:
+            session.execute(text(
+                "ALTER TABLE users ADD COLUMN language VARCHAR(10) DEFAULT 'uz'"
+            ))
+            missing_columns.append('users.language')
+
+        if missing_columns:
+            logger.warning(f"⚠️  Qo'shilgan ustunlar: {', '.join(missing_columns)}")
+        else:
+            logger.info("✅ Barcha ustunlar mavjud")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
@@ -34,6 +88,9 @@ async def lifespan(app: FastAPI):
     try:
         init_db()
         logger.info("✅ Database initialized")
+
+        # Migratsiya o'tib ketgan bo'lsa, muhim ustunlarni qo'shish
+        ensure_missing_columns()
 
         # Seed initial data
         with db.get_session() as session:

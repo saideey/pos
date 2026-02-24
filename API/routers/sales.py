@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 
 from database import get_db
-from database.models import User, PermissionType, SystemSetting
+from database.models import User, PermissionType
 from database.models.sale import PaymentStatus
 from core.dependencies import get_current_active_user, PermissionChecker
 from schemas.sale import (
@@ -82,6 +82,7 @@ async def get_sales(
         "sale_date": s.sale_date.isoformat(),
         "customer_id": s.customer_id,
         "customer_name": s.customer.name if s.customer else (s.contact_phone if s.contact_phone else None),
+        "customer_phone": s.customer.phone if s.customer else s.contact_phone,
         "contact_phone": s.contact_phone,
         "seller_id": s.seller_id,
         "seller_name": f"{s.seller.first_name} {s.seller.last_name}",
@@ -303,15 +304,16 @@ async def create_sale(
         # Queue receipt
         print_job_id = queue_receipt_for_printing(
             db=db,
-            sale=sale,
+            sale=sale,  # Sale object with items loaded
             user_id=current_user.id,
-            company_name="METALL BAZA",
+            company_name="METALL BAZA",  # Yoki settings dan oling
             company_phones=company_phones
         )
 
         if print_job_id:
             print(f"[PRINT] Receipt queued: job_id={print_job_id}")
     except Exception as e:
+        # Print error should not fail the sale
         print(f"[PRINT ERROR] {e}")
 
     return {
@@ -359,6 +361,7 @@ async def quick_sale(
         warehouse_id=data.warehouse_id,
         items=items,
         customer_id=data.customer_id,
+        contact_phone=data.contact_phone,
         final_total=data.final_total,
         payments=payments,
         notes=data.notes
@@ -366,46 +369,6 @@ async def quick_sale(
 
     if not sale:
         raise HTTPException(status_code=400, detail=message)
-
-    # Save contact phone if provided (when customer not selected)
-    if data.contact_phone:
-        sale.contact_phone = data.contact_phone
-        db.commit()
-
-    # ========== AVTOMATIK CHEK CHIQARISH ==========
-    try:
-        import json
-
-        # Get company phones from settings
-        company_phones_setting = db.query(SystemSetting).filter(
-            SystemSetting.key == "company_phones"
-        ).first()
-
-        company_phones = []
-        if company_phones_setting and company_phones_setting.value:
-            try:
-                phones_data = json.loads(company_phones_setting.value)
-                if phones_data.get('phone1'):
-                    company_phones.append(phones_data['phone1'])
-                if phones_data.get('phone2'):
-                    company_phones.append(phones_data['phone2'])
-            except:
-                pass
-
-        # Queue receipt for printing
-        print_job_id = queue_receipt_for_printing(
-            db=db,
-            sale=sale,
-            user_id=current_user.id,
-            company_name="METALL BAZA",
-            company_phones=company_phones
-        )
-
-        if print_job_id:
-            print(f"[PRINT] Quick sale receipt queued: job_id={print_job_id}")
-    except Exception as e:
-        print(f"[PRINT ERROR] {e}")
-    # ==============================================
 
     # Calculate change
     change = max(Decimal("0"), data.payment_amount - sale.total_amount)
@@ -827,6 +790,7 @@ async def full_update_sale(
     discount_percent = (discount_amount / subtotal * 100) if subtotal > 0 else Decimal('0')
 
     sale.customer_id = data.customer_id
+    sale.contact_phone = data.contact_phone if not data.customer_id else None
     sale.warehouse_id = data.warehouse_id
     sale.subtotal = subtotal
     sale.discount_amount = discount_amount
@@ -921,7 +885,7 @@ async def get_receipt(
             "company_address": company_address,
             "company_phone": company_phone,
             "customer_name": sale.customer.name if sale.customer else "Noma'lum mijoz",
-            "customer_phone": sale.customer.phone if sale.customer else None,
+            "customer_phone": sale.customer.phone if sale.customer else sale.contact_phone,
             "seller_name": f"{sale.seller.first_name} {sale.seller.last_name}",
             "items": items,
             "subtotal": float(sale.subtotal),

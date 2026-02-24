@@ -99,6 +99,7 @@ class SaleService:
         warehouse_id: int,
         items: List[dict],
         customer_id: int = None,
+        contact_phone: str = None,
         final_total: Decimal = None,
         payments: List[dict] = None,
         notes: str = None,
@@ -109,10 +110,10 @@ class SaleService:
     ) -> Tuple[Optional[Sale], str]:
         """
         Create new sale with proportional discount distribution.
-        
+
         Key feature: If final_total differs from calculated subtotal,
         discount is distributed proportionally across all items.
-        
+
         Args:
             seller_id: Seller user ID
             warehouse_id: Warehouse ID
@@ -122,9 +123,9 @@ class SaleService:
             payments: List of {payment_type, amount}
             notes: Sale notes
         """
-        
+
         payments = payments or []
-        
+
         # Validate customer if provided
         customer = None
         is_vip_sale = False
@@ -133,12 +134,13 @@ class SaleService:
             if not customer:
                 return None, "Mijoz topilmadi"
             is_vip_sale = customer.customer_type == CustomerType.VIP
-        
+
         # Create sale
         sale = Sale(
             sale_number=self.num_gen.get_next_sale_number(),
             sale_date=get_tashkent_today(),
             customer_id=customer_id,
+            contact_phone=contact_phone,
             seller_id=seller_id,
             warehouse_id=warehouse_id,
             subtotal=Decimal("0"),
