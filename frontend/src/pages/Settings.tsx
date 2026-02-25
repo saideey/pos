@@ -8,6 +8,7 @@ import { formatNumber, formatDateTimeTashkent } from '@/lib/utils'
 import { useLanguage } from '@/contexts/LanguageContext'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import PrintersSettings from './PrintersSettings'
+import ReceiptSettings from './ReceiptSettings'
 
 export default function SettingsPage() {
   const queryClient = useQueryClient()
@@ -793,6 +794,11 @@ export default function SettingsPage() {
         {/* Printers Settings - Full Width */}
         <div className="lg:col-span-2">
           <PrintersSettings />
+        </div>
+
+        {/* Receipt Design Settings - Full Width */}
+        <div className="lg:col-span-2">
+          <ReceiptSettings />
         </div>
 
         {/* Sales Settings Card */}

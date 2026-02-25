@@ -360,6 +360,80 @@ async def test_telegram_notification(
         }
 
 
+# ========================================
+# RECEIPT CONFIG (/{key} dan OLDIN bo'lishi kerak!)
+# ========================================
+
+class ReceiptConfigUpdate(BaseModel):
+    config: dict
+
+
+@router.get(
+    "/receipt-config",
+    summary="Chek sozlamalarini olish"
+)
+async def get_receipt_config(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get receipt configuration."""
+    import json
+
+    setting = db.query(SystemSetting).filter(
+        SystemSetting.key == "receipt_config"
+    ).first()
+
+    if setting and setting.value:
+        try:
+            config = json.loads(setting.value)
+        except Exception:
+            config = {}
+    else:
+        config = {}
+
+    return {"success": True, "data": config}
+
+
+@router.put(
+    "/receipt-config",
+    summary="Chek sozlamalarini saqlash"
+)
+async def update_receipt_config(
+    data: ReceiptConfigUpdate,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Update receipt configuration."""
+    import json
+
+    setting = db.query(SystemSetting).filter(
+        SystemSetting.key == "receipt_config"
+    ).first()
+
+    config_json = json.dumps(data.config, ensure_ascii=False)
+
+    if not setting:
+        setting = SystemSetting(
+            key="receipt_config",
+            value=config_json,
+            value_type="json",
+            category="receipt",
+            description="Chek dizayni sozlamalari",
+            is_public=True,
+            is_editable=True
+        )
+        db.add(setting)
+    else:
+        setting.value = config_json
+
+    db.commit()
+
+    return {
+        "success": True,
+        "message": "Chek sozlamalari saqlandi"
+    }
+
+
 @router.get(
     "/{key}",
     summary="Bitta sozlama"

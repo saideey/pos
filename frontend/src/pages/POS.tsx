@@ -348,6 +348,33 @@ export default function POSPage() {
   const companyPhone1 = companyPhonesData?.data?.phone1 || '+998 XX XXX XX XX'
   const companyPhone2 = companyPhonesData?.data?.phone2 || ''
 
+  // Fetch receipt config
+  const { data: receiptConfigData } = useQuery({
+    queryKey: ['receipt-config'],
+    queryFn: async () => {
+      const response = await api.get('/settings/receipt-config')
+      return response.data?.data
+    },
+    staleTime: 60000,
+  })
+  const rc = {
+    companyName: 'INTER PROFNASTIL',
+    phone1: '+998 99 964 12 22',
+    phone2: '+998 90 557 80 30',
+    thanksMessage: '★ RAHMAT! ★',
+    bodyWidth: 78, bodyPadding: 0.5, pageMarginSide: 0.5,
+    logoHeight: 30, showLogo: true,
+    companyNameSize: 16, companyNameWeight: 900, dateSize: 13,
+    customerFontSize: 12,
+    tableFontSize: 12, productNameSize: 12, productPriceSize: 11,
+    qtySize: 12, sumSize: 12, tfootSize: 12,
+    colProductWidth: 48, colQtyWidth: 24, colSumWidth: 28,
+    grandTotalLabelSize: 13, grandTotalAmountSize: 20, grandTotalWeight: 900, grandTotalBorder: 2,
+    thanksSize: 14, thanksWeight: 900, contactSize: 13, contactWeight: 900,
+    tearSpaceHeight: 20,
+    ...(receiptConfigData || {}),
+  }
+
   const debouncedSearch = useCallback(
     debounce((value: string) => setSearchQuery(value), 300),
     []
@@ -2420,15 +2447,6 @@ export default function POSPage() {
           {receiptEditMode && (
             <div className="px-4 py-3 bg-blue-50 border-b">
               <div className="grid grid-cols-2 gap-2">
-                <div className="col-span-2">
-                  <input
-                    type="text"
-                    value={receiptData.companyName}
-                    onChange={(e) => setReceiptData(prev => ({ ...prev, companyName: e.target.value }))}
-                    className="w-full px-2 py-1.5 border rounded text-sm"
-                    placeholder={t('company')}
-                  />
-                </div>
                 <input
                   type="text"
                   value={receiptData.customerName}
@@ -2462,66 +2480,77 @@ export default function POSPage() {
           )}
 
           {/* Print Content */}
-          <div className="p-4 max-h-[50vh] overflow-y-auto">
+          <div className="p-4 max-h-[50vh] overflow-y-auto flex justify-center">
             <div
               ref={printRef}
-              className="bg-white p-3 border-2 border-black rounded-lg"
-              style={{ maxWidth: '80mm', fontFamily: 'Arial, sans-serif' }}
+              className="bg-white border-2 border-black rounded-lg"
+              style={{
+                width: `${rc.bodyWidth}mm`,
+                maxWidth: '100%',
+                fontFamily: "'Courier New', monospace",
+                fontSize: `${rc.tableFontSize}px`,
+                padding: `2mm ${rc.bodyPadding}mm`,
+                color: '#000',
+              }}
             >
               {/* Header */}
-              <div className="text-center mb-2">
-                <img
-                  src="/logo.png"
-                  alt="Logo"
-                  className="h-24 mx-auto mb-1"
-                />
-                <h2 className="font-black text-xl tracking-tight">{receiptData.companyName}</h2>
-                <p className="text-sm font-bold mt-1">
+              <div style={{ textAlign: 'center', paddingBottom: '1px' }}>
+                {rc.showLogo && (
+                  <img
+                    src="/logo.png"
+                    alt="Logo"
+                    style={{ height: `${rc.logoHeight}px`, maxWidth: '40mm', margin: '0 auto 2px' }}
+                  />
+                )}
+                <div style={{ fontSize: `${rc.companyNameSize}px`, fontWeight: rc.companyNameWeight, margin: '1px 0', letterSpacing: '0.5px' }}>
+                  {rc.companyName}
+                </div>
+                <div style={{ fontSize: `${rc.dateSize}px`, fontWeight: 'bold' }}>
                   {formatDateTashkent(new Date())} {formatTimeTashkent(new Date())}
-                </p>
+                </div>
               </div>
 
               {/* Divider */}
-              <div className="border-t-2 border-black my-2" />
+              <div style={{ borderTop: '1px dashed #000', margin: '2px 0' }} />
 
               {/* Customer info */}
               {(receiptData.customerName || receiptData.additionalPhone) && (
-                <div className="mb-2 py-1 border-y-2 border-black text-sm">
+                <div style={{ padding: '2px 0', borderTop: '1px dashed #000', borderBottom: '1px dashed #000', fontSize: `${rc.customerFontSize}px`, margin: '2px 0' }}>
                   {receiptData.customerName && (
-                    <p className="font-black">{t('customerLabel')}: {receiptData.customerName}</p>
+                    <p style={{ margin: '1px 0', fontWeight: 'bold' }}>{t('customerLabel')}: {receiptData.customerName}</p>
                   )}
                   {receiptData.customerPhone && (
-                    <p className="font-bold">{t('phoneLabel')}: {receiptData.customerPhone}</p>
+                    <p style={{ margin: '1px 0', fontWeight: 'bold' }}>{t('phoneLabel')}: {receiptData.customerPhone}</p>
                   )}
                   {receiptData.customerCompany && (
-                    <p className="font-bold">{t('companyLabel')}: {receiptData.customerCompany}</p>
+                    <p style={{ margin: '1px 0', fontWeight: 'bold' }}>{t('companyLabel')}: {receiptData.customerCompany}</p>
                   )}
                   {receiptData.additionalPhone && (
-                    <p className="font-bold">{t('driverLabel')}: {receiptData.additionalPhone}</p>
+                    <p style={{ margin: '1px 0', fontWeight: 'bold' }}>{t('driverLabel')}: {receiptData.additionalPhone}</p>
                   )}
                 </div>
               )}
 
               {/* Items Table */}
-              <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', margin: '3px 0', tableLayout: 'fixed' }}>
                 <thead>
                   <tr>
-                    <th className="border-2 border-black p-1 text-left font-black">{t('productLabel')}</th>
-                    <th className="border-2 border-black p-1 text-center font-black w-16">{t('quantityLabel')}</th>
-                    <th className="border-2 border-black p-1 text-right font-black w-20">{t('amountLabel')}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.tableFontSize}px`, fontWeight: 900, textAlign: 'left', width: `${rc.colProductWidth}%` }}>{t('productLabel')}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.tableFontSize}px`, fontWeight: 900, textAlign: 'center', width: `${rc.colQtyWidth}%` }}>{t('quantityLabel')}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.tableFontSize}px`, fontWeight: 900, textAlign: 'right', width: `${rc.colSumWidth}%` }}>{t('amountLabel')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
                     <tr key={item.id}>
-                      <td className="border-2 border-black p-1">
-                        <div className="font-bold">{index + 1}. {item.product_name}</div>
-                        <div className="font-bold text-xs">({formatMoney(item.unit_price, false)} x)</div>
+                      <td style={{ border: '1px solid #000', padding: '2px' }}>
+                        <div style={{ fontWeight: 'bold', fontSize: `${rc.productNameSize}px` }}>{index + 1}. {item.product_name}</div>
+                        <div style={{ fontSize: `${rc.productPriceSize}px`, fontWeight: 'bold' }}>({formatMoney(item.unit_price, false)} x)</div>
                       </td>
-                      <td className="border-2 border-black p-1 text-center font-black">
+                      <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontWeight: 900, fontSize: `${rc.qtySize}px` }}>
                         {formatNumber(item.quantity)} {item.uom_symbol}
                       </td>
-                      <td className="border-2 border-black p-1 text-right font-black">
+                      <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.sumSize}px` }}>
                         {formatMoney(item.quantity * item.unit_price, false)}
                       </td>
                     </tr>
@@ -2529,19 +2558,19 @@ export default function POSPage() {
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={2} className="border-2 border-black p-1 text-right font-black">
-                      {t('totalWithCount')} ({items.length} {t('unit').toLowerCase()}):
+                    <td colSpan={2} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
+                      {t('totalWithCount')} ({items.length}):
                     </td>
-                    <td className="border-2 border-black p-1 text-right font-black">
+                    <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
                       {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0), false)}
                     </td>
                   </tr>
                   {generalDiscount > 0 && (
                     <tr>
-                      <td colSpan={2} className="border-2 border-black p-1 text-right font-black">
+                      <td colSpan={2} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
                         {t('discount')}:
                       </td>
-                      <td className="border-2 border-black p-1 text-right font-black">
+                      <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
                         -{formatMoney(generalDiscount, false)}
                       </td>
                     </tr>
@@ -2550,22 +2579,24 @@ export default function POSPage() {
               </table>
 
               {/* Grand Total Box */}
-              <div className="border-4 border-black my-2 p-2 text-center bg-white">
-                <div className="text-sm font-black">{t('grandTotalLabel')}:</div>
-                <div className="text-2xl font-black">
+              <div style={{ border: `${rc.grandTotalBorder}px solid #000`, padding: '4px', margin: '3px 0', textAlign: 'center' }}>
+                <div style={{ fontSize: `${rc.grandTotalLabelSize}px`, fontWeight: rc.grandTotalWeight }}>{t('grandTotalLabel')}:</div>
+                <div style={{ fontSize: `${rc.grandTotalAmountSize}px`, fontWeight: rc.grandTotalWeight, letterSpacing: '0.5px' }}>
                   {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0) - generalDiscount, false)}
                 </div>
               </div>
 
               {/* Footer */}
-              <div className="border-t-2 border-black pt-2 text-center">
-                <p className="text-base font-black">{t('thanksMessage')}</p>
-                <p className="text-sm font-bold mt-1">{companyPhone1}</p>
-                {companyPhone2 && <p className="text-sm font-bold">{companyPhone2}</p>}
+              <div style={{ textAlign: 'center', paddingTop: '3px', borderTop: '1px dashed #000' }}>
+                <p style={{ fontSize: `${rc.thanksSize}px`, fontWeight: rc.thanksWeight, marginBottom: '2px' }}>{rc.thanksMessage}</p>
+                <p style={{ fontSize: `${rc.contactSize}px`, fontWeight: rc.contactWeight, margin: '1px 0' }}>{rc.phone1}</p>
+                {rc.phone2 && <p style={{ fontSize: `${rc.contactSize}px`, fontWeight: rc.contactWeight, margin: '1px 0' }}>{rc.phone2}</p>}
               </div>
 
-              {/* Bottom spacing for tear line */}
-              <div className="h-10"></div>
+              {/* Tear space indicator */}
+              <div style={{ height: `${rc.tearSpaceHeight}mm`, borderTop: '1px dashed #ccc', marginTop: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '8px', color: '#ccc' }}>✂ qirqish joyi ({rc.tearSpaceHeight}mm)</span>
+              </div>
             </div>
           </div>
 
@@ -2603,156 +2634,65 @@ export default function POSPage() {
                   <!DOCTYPE html>
                   <html>
                   <head>
-                    <title>Chek - INTER PROFNASTIL</title>
+                    <title>Chek - ${rc.companyName}</title>
                     <meta charset="UTF-8">
                     <style>
                       * { margin: 0; padding: 0; box-sizing: border-box; }
-                      html {
-                        height: auto !important;
-                      }
+                      html { height: auto !important; }
                       body {
                         font-family: 'Courier New', monospace;
-                        font-size: 13px;
-                        width: 76mm;
+                        font-size: ${rc.tableFontSize}px;
+                        width: ${rc.bodyWidth}mm;
                         height: auto !important;
                         min-height: auto !important;
                         max-height: none !important;
-                        padding: 1mm;
+                        padding: 0 ${rc.bodyPadding}mm;
                         margin: 0;
                         color: #000;
                         background: #fff;
                         -webkit-print-color-adjust: exact;
                         print-color-adjust: exact;
                       }
-
-                      /* Header */
-                      .header {
-                        text-align: center;
-                        padding-bottom: 2px;
-                      }
-                      .header img {
-                        height: 40px;
-                        max-width: 50mm;
-                      }
-                      .header h1 {
-                        font-size: 15px;
-                        font-weight: 900;
-                        margin: 2px 0;
-                        letter-spacing: 0px;
-                      }
-                      .header .date {
-                        font-size: 12px;
-                        font-weight: bold;
-                      }
-
-                      /* Divider */
-                      .divider {
-                        border-top: 1px dashed #000;
-                        margin: 2px 0;
-                      }
-
-                      /* Customer */
-                      .customer {
-                        padding: 2px 0;
-                        border-top: 1px dashed #000;
-                        border-bottom: 1px dashed #000;
-                        font-size: 11px;
-                        margin: 2px 0;
-                      }
+                      .header { text-align: center; padding-bottom: 1px; }
+                      .header img { height: ${rc.logoHeight}px; max-width: 40mm; }
+                      .header h1 { font-size: ${rc.companyNameSize}px; font-weight: ${rc.companyNameWeight}; margin: 1px 0; letter-spacing: 0.5px; }
+                      .header .date { font-size: ${rc.dateSize}px; font-weight: bold; }
+                      .divider { border-top: 1px dashed #000; margin: 2px 0; }
+                      .customer { padding: 2px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; font-size: ${rc.customerFontSize}px; margin: 2px 0; }
                       .customer p { margin: 1px 0; font-weight: bold; }
-
-                      /* Table */
-                      table {
-                        width: 100%;
-                        border-collapse: collapse;
-                        margin: 3px 0;
-                        table-layout: fixed;
-                      }
-                      th, td {
-                        border: 1px solid #000;
-                        padding: 2px 1px;
-                        font-size: 11px;
-                        word-wrap: break-word;
-                        overflow: hidden;
-                      }
-                      th {
-                        font-weight: 900;
-                        text-align: left;
-                      }
-                      .col-product { width: 50%; }
-                      .col-qty { width: 22%; text-align: center; }
-                      .col-sum { width: 28%; text-align: right; }
+                      table { width: 100%; border-collapse: collapse; margin: 3px 0; table-layout: fixed; }
+                      th, td { border: 1px solid #000; padding: 2px 2px; font-size: ${rc.tableFontSize}px; word-wrap: break-word; overflow: hidden; }
+                      th { font-weight: 900; text-align: left; }
+                      .col-product { width: ${rc.colProductWidth}%; }
+                      .col-qty { width: ${rc.colQtyWidth}%; text-align: center; }
+                      .col-sum { width: ${rc.colSumWidth}%; text-align: right; }
                       .text-center { text-align: center; }
                       .text-right { text-align: right; }
                       .font-bold { font-weight: 900; }
-                      .product-name { font-weight: bold; font-size: 11px; }
-                      .product-price { font-size: 10px; font-weight: bold; }
-                      .qty-cell { font-weight: 900; font-size: 11px; }
-                      .sum-cell { font-weight: 900; font-size: 11px; }
-
-                      /* Grand Total Box */
-                      .grand-total-box {
-                        border: 2px solid #000;
-                        padding: 3px;
-                        margin: 3px 0;
-                        text-align: center;
-                      }
-                      .grand-total-label {
-                        font-size: 12px;
-                        font-weight: 900;
-                      }
-                      .grand-total-amount {
-                        font-size: 18px;
-                        font-weight: 900;
-                        letter-spacing: 0px;
-                      }
-
-                      /* Footer */
-                      .footer {
-                        text-align: center;
-                        padding-top: 3px;
-                        border-top: 1px dashed #000;
-                      }
-                      .footer .thanks {
-                        font-size: 12px;
-                        font-weight: 900;
-                        margin-bottom: 1px;
-                      }
-                      .footer .contact {
-                        font-size: 11px;
-                        font-weight: bold;
-                      }
-
-                      /* Bottom spacing for tearing */
-                      .tear-space {
-                        height: 15mm;
-                      }
-
+                      .product-name { font-weight: bold; font-size: ${rc.productNameSize}px; }
+                      .product-price { font-size: ${rc.productPriceSize}px; font-weight: bold; }
+                      .qty-cell { font-weight: 900; font-size: ${rc.qtySize}px; }
+                      .sum-cell { font-weight: 900; font-size: ${rc.sumSize}px; }
+                      .grand-total-box { border: ${rc.grandTotalBorder}px solid #000; padding: 4px; margin: 3px 0; text-align: center; }
+                      .grand-total-label { font-size: ${rc.grandTotalLabelSize}px; font-weight: ${rc.grandTotalWeight}; }
+                      .grand-total-amount { font-size: ${rc.grandTotalAmountSize}px; font-weight: ${rc.grandTotalWeight}; letter-spacing: 0.5px; }
+                      .footer { text-align: center; padding-top: 3px; border-top: 1px dashed #000; }
+                      .footer .thanks { font-size: ${rc.thanksSize}px; font-weight: ${rc.thanksWeight}; margin-bottom: 2px; }
+                      .footer .contact { font-size: ${rc.contactSize}px; font-weight: ${rc.contactWeight}; margin: 1px 0; }
+                      .tear-space { height: ${rc.tearSpaceHeight}mm; min-height: ${rc.tearSpaceHeight}mm; }
                       @media print {
-                        html, body {
-                          width: 76mm;
-                          height: auto !important;
-                          padding: 1mm;
-                          margin: 0 !important;
-                        }
-                        @page {
-                          size: 80mm auto !important;
-                          margin: 2mm !important;
-                          padding: 0 !important;
-                        }
-                        * {
-                          page-break-inside: avoid;
-                        }
-                        table {
-                          width: 100% !important;
-                        }
+                        html, body { width: ${rc.bodyWidth}mm; height: auto !important; padding: 0; margin: 0 !important; }
+                        @page { size: 80mm auto !important; margin: 0mm ${rc.pageMarginSide}mm !important; padding: 0 !important; }
+                        * { page-break-inside: avoid; }
+                        table { width: 100% !important; }
+                        .tear-space { height: ${rc.tearSpaceHeight}mm !important; min-height: ${rc.tearSpaceHeight}mm !important; display: block !important; }
                       }
                     </style>
                   </head>
                   <body>
                     <div class="header">
-                      <img src="/logo.png" alt="Logo" onerror="this.style.display='none'" />
-                      <h1>${receiptData.companyName}</h1>
+                      ${rc.showLogo ? `<img src="/logo.png" alt="Logo" onerror="this.style.display='none'" />` : ''}
+                      <h1>${rc.companyName}</h1>
                       <p class="date">${formatDateTashkent(new Date())} ${formatTimeTashkent(new Date())}</p>
                     </div>
 
@@ -2789,13 +2729,13 @@ export default function POSPage() {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colspan="2" class="text-right font-bold" style="font-size:11px;">${t('totalWithCount')} (${items.length}):</td>
-                          <td class="col-sum font-bold" style="font-size:11px;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
+                          <td colspan="2" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('totalWithCount')} (${items.length}):</td>
+                          <td class="col-sum font-bold" style="font-size:${rc.tfootSize}px;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
                         </tr>
                         ${generalDiscount > 0 ? `
                           <tr>
-                            <td colspan="2" class="text-right font-bold" style="font-size:11px;">${t('discount')}:</td>
-                            <td class="col-sum font-bold" style="font-size:11px;">-${generalDiscount.toLocaleString('uz-UZ')}</td>
+                            <td colspan="2" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('discount')}:</td>
+                            <td class="col-sum font-bold" style="font-size:${rc.tfootSize}px;">-${generalDiscount.toLocaleString('uz-UZ')}</td>
                           </tr>
                         ` : ''}
                       </tfoot>
@@ -2807,9 +2747,9 @@ export default function POSPage() {
                     </div>
 
                     <div class="footer">
-                      <p class="thanks">${t('thanksMessage')}</p>
-                      <p class="contact">${companyPhone1}</p>
-                      ${companyPhone2 ? `<p class="contact">${companyPhone2}</p>` : ''}
+                      <p class="thanks">${rc.thanksMessage}</p>
+                      <p class="contact">${rc.phone1}</p>
+                      ${rc.phone2 ? `<p class="contact">${rc.phone2}</p>` : ''}
                     </div>
 
                     <!-- Bottom spacing for tearing -->
