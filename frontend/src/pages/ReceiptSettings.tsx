@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Save, Loader2, RotateCcw, Eye, Printer, Type, Maximize2, Phone, MessageSquare } from 'lucide-react'
+import { Save, Loader2, RotateCcw, Eye, Printer, Type, Maximize2, Phone, MessageSquare, Calculator } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { Button, Input, Card, CardContent } from '@/components/ui'
 import api from '@/services/api'
@@ -46,6 +46,11 @@ const DEFAULT_CONFIG = {
   grandTotalAmountSize: 20,
   grandTotalWeight: 900,
   grandTotalBorder: 2,  // px
+
+  // Calc info table (calculator details on receipt)
+  showCalcInfo: true,
+  calcInfoSize: 10,
+  calcInfoHeaderSize: 10,
 
   // Footer
   thanksSize: 14,
@@ -251,6 +256,31 @@ export default function ReceiptSettings() {
         </tfoot>
       </table>
 
+      <!-- Calc Detail Table -->
+      ${config.showCalcInfo ? `
+      <div style="margin:3px 0; border-top:1px dashed #000; padding-top:2px;">
+        <div style="font-size:${config.calcInfoHeaderSize}px; font-weight:bold; text-align:center; margin-bottom:2px;">📐 Hisob-kitob</div>
+        <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #000; padding:1px 2px; font-size:${config.calcInfoSize}px; font-weight:bold; text-align:left; width:30%;">Tovar</th>
+              <th style="border:1px solid #000; padding:1px 2px; font-size:${config.calcInfoSize}px; font-weight:bold; text-align:center; width:36%;">Soni</th>
+              <th style="border:1px solid #000; padding:1px 2px; font-size:${config.calcInfoSize}px; font-weight:bold; text-align:right; width:16%;">Narxi</th>
+              <th style="border:1px solid #000; padding:1px 2px; font-size:${config.calcInfoSize}px; font-weight:bold; text-align:right; width:18%;">Summa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border:1px solid #000; padding:1px 2px; font-size:${config.calcInfoSize}px;">Temir truba</td>
+              <td style="border:1px solid #000; padding:1px 2px; font-size:${config.calcInfoSize}px; text-align:center;">3 dona × 2 m = 6 m</td>
+              <td style="border:1px solid #000; padding:1px 2px; font-size:${config.calcInfoSize}px; text-align:right;">45 000</td>
+              <td style="border:1px solid #000; padding:1px 2px; font-size:${config.calcInfoSize}px; text-align:right;">270 000</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      ` : ''}
+
       <!-- Grand Total -->
       <div style="border:${config.grandTotalBorder}px solid #000; padding:4px; margin:3px 0; text-align:center;">
         <div style="font-size:${config.grandTotalLabelSize}px; font-weight:${config.grandTotalWeight};">JAMI:</div>
@@ -430,6 +460,27 @@ export default function ReceiptSettings() {
                   </div>
                 </div>
               </div>
+            </Section>
+
+            {/* Calc Info */}
+            <Section title="Kalkulyator jadvali" icon={<Calculator className="w-4 h-4" />}>
+              <ConfigRow label="Chekda ko'rsatish">
+                <input
+                  type="checkbox"
+                  checked={config.showCalcInfo}
+                  onChange={(e) => set('showCalcInfo', e.target.checked)}
+                  className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </ConfigRow>
+              <ConfigRow label="Sarlavha o'lchami">
+                <NumInput value={config.calcInfoHeaderSize} onChange={(v) => set('calcInfoHeaderSize', v)} min={7} max={16} />
+              </ConfigRow>
+              <ConfigRow label="Jadval shrifti">
+                <NumInput value={config.calcInfoSize} onChange={(v) => set('calcInfoSize', v)} min={7} max={16} />
+              </ConfigRow>
+              <p className="text-[10px] text-gray-400">
+                Masalan: Temir truba | 3 dona × 2 m = 6 m | 45 000 | 270 000
+              </p>
             </Section>
 
             {/* Grand Total */}

@@ -15,7 +15,7 @@ import {
 import { productsService, salesService, customersService } from '@/services'
 import api from '@/services/api'
 import { formatMoney, formatNumber, formatInputNumber, cn, debounce, formatDateTashkent, formatTimeTashkent } from '@/lib/utils'
-import { usePOSStore } from '@/stores'
+import { usePOSStore, useAuthStore } from '@/stores'
 import { useLanguage } from '@/contexts/LanguageContext'
 import type { Product, Customer, UOMConversion } from '@/types'
 
@@ -49,12 +49,14 @@ interface CartItem {
   original_price: number
   unit_price: number
   available_stock: number
+  calcInfo?: { pieces: number; perPiece: number; uom: string } | null
 }
 
 export default function POSPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { t } = useLanguage()
+  const currentUser = useAuthStore(s => s.user)
 
   // Get edit mode state from posStore
   const {
@@ -135,7 +137,7 @@ export default function POSPage() {
 
   // NEW: Customer search
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
-  const [customerSellerFilter, setCustomerSellerFilter] = useState<number | ''>('')
+  const [customerSellerFilter, setCustomerSellerFilter] = useState<number | ''>(currentUser?.id || '')
 
   // NEW: Calculator mode for add product dialog
   const [calcMode, setCalcMode] = useState(false)
@@ -331,15 +333,21 @@ export default function POSPage() {
     staleTime: 30000,
   })
 
-  // Fetch sellers for customer filter
-  const { data: sellersData } = useQuery({
-    queryKey: ['sellers-pos'],
-    queryFn: async () => {
-      const response = await api.get('/users?per_page=100')
-      return response.data
-    },
-    staleTime: 60000,
-  })
+  // Derive sellers list from customers data (no need for /users endpoint)
+  const sellersList = useMemo(() => {
+    if (!customersData?.data) return currentUser ? [{ id: currentUser.id, name: `${currentUser.first_name} ${currentUser.last_name}` }] : []
+    const sellersMap = new Map<number, string>()
+    // Always include current user first
+    if (currentUser) {
+      sellersMap.set(currentUser.id, `${currentUser.first_name} ${currentUser.last_name}`)
+    }
+    customersData.data.forEach((c: Customer) => {
+      if (c.manager_id && c.manager_name) {
+        sellersMap.set(c.manager_id, c.manager_name)
+      }
+    })
+    return Array.from(sellersMap.entries()).map(([id, name]) => ({ id, name }))
+  }, [customersData, currentUser])
 
   // Fetch company phones for receipt
   const { data: companyPhonesData } = useQuery({
@@ -375,6 +383,7 @@ export default function POSPage() {
     qtySize: 12, sumSize: 12, tfootSize: 12,
     colProductWidth: 48, colQtyWidth: 24, colSumWidth: 28,
     grandTotalLabelSize: 13, grandTotalAmountSize: 20, grandTotalWeight: 900, grandTotalBorder: 2,
+    showCalcInfo: true, calcInfoSize: 10, calcInfoHeaderSize: 10,
     thanksSize: 14, thanksWeight: 900, contactSize: 13, contactWeight: 900,
     tearSpaceHeight: 20,
     ...(receiptConfigData || {}),
@@ -506,6 +515,11 @@ export default function POSPage() {
   const handleConfirmAddProduct = () => {
     if (!addProductData.product) return
 
+    // Build calcInfo if calculator mode was used
+    const itemCalcInfo = calcMode && (parseFloat(calcPieces) || 0) > 0 && (parseFloat(calcPerPiece) || 0) > 0
+      ? { pieces: parseFloat(calcPieces) || 0, perPiece: parseFloat(calcPerPiece) || 0, uom: addProductData.selectedUomSymbol }
+      : null
+
     const existingItem = items.find(i =>
       i.product_id === addProductData.product!.id &&
       i.uom_id === addProductData.selectedUomId
@@ -514,7 +528,7 @@ export default function POSPage() {
     if (existingItem) {
       setItems(items.map(item =>
         item.id === existingItem.id
-          ? { ...item, quantity: item.quantity + addProductData.quantity, unit_price: addProductData.unitPrice }
+          ? { ...item, quantity: item.quantity + addProductData.quantity, unit_price: addProductData.unitPrice, calcInfo: itemCalcInfo || item.calcInfo }
           : item
       ))
     } else {
@@ -533,6 +547,7 @@ export default function POSPage() {
         original_price: addProductData.unitPrice,
         unit_price: addProductData.unitPrice,
         available_stock: Number(addProductData.product.current_stock) || 0,
+        calcInfo: itemCalcInfo,
       }])
     }
 
@@ -1497,6 +1512,11 @@ export default function POSPage() {
                     </div>
                     <p className="text-sm font-bold">{formatMoney(item.unit_price * item.quantity, false)}</p>
                   </div>
+                  {item.calcInfo && (
+                    <div className="mt-1 px-2 py-0.5 bg-violet-50 border border-violet-200 rounded text-xs text-violet-600">
+                      📐 {item.calcInfo.pieces} dona × {item.calcInfo.perPiece} {item.calcInfo.uom} = {formatNumber(item.quantity)} {item.uom_symbol}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1829,6 +1849,11 @@ export default function POSPage() {
                         </div>
                         <p className="font-bold">{formatMoney(item.unit_price * item.quantity, false)}</p>
                       </div>
+                      {item.calcInfo && (
+                        <div className="mt-1 px-2 py-0.5 bg-violet-50 border border-violet-200 rounded text-xs text-violet-600">
+                          📐 {item.calcInfo.pieces} dona × {item.calcInfo.perPiece} {item.calcInfo.uom} = {formatNumber(item.quantity)} {item.uom_symbol}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2225,7 +2250,7 @@ export default function POSPage() {
         setShowCustomerDialog(open)
         if (!open) {
           setCustomerSearchQuery('')
-          setCustomerSellerFilter('')
+          setCustomerSellerFilter(currentUser?.id || '')
         }
       }}>
         <DialogContent className="max-w-2xl w-[95vw] max-h-[90vh] flex flex-col">
@@ -2247,9 +2272,9 @@ export default function POSPage() {
                 className="w-full h-11 px-3 border-2 border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">{t('all')}</option>
-                {sellersData?.data?.map((seller: any) => (
+                {sellersList.map((seller) => (
                   <option key={seller.id} value={seller.id}>
-                    {seller.first_name} {seller.last_name}
+                    {seller.name}
                   </option>
                 ))}
               </select>
@@ -2276,7 +2301,7 @@ export default function POSPage() {
           <div className="flex-1 overflow-y-auto py-3 -mx-4 px-4 sm:-mx-6 sm:px-6" style={{ maxHeight: 'calc(90vh - 220px)', minHeight: '300px' }}>
             {/* Oddiy xaridor */}
             <button
-              onClick={() => { setCustomer(null); setShowCustomerDialog(false); setCustomerSearchQuery(''); setCustomerSellerFilter('') }}
+              onClick={() => { setCustomer(null); setShowCustomerDialog(false); setCustomerSearchQuery(''); setCustomerSellerFilter(currentUser?.id || '') }}
               className="w-full p-4 mb-3 text-left rounded-xl border-2 border-dashed border-gray-300 hover:border-blue-400 hover:bg-blue-50 transition-all"
             >
               <div className="flex items-center gap-3">
@@ -2301,7 +2326,7 @@ export default function POSPage() {
                 {filteredCustomers.map((c: Customer) => (
                   <button
                     key={c.id}
-                    onClick={() => { setCustomer(c); setShowCustomerDialog(false); setCustomerSearchQuery(''); setCustomerSellerFilter('') }}
+                    onClick={() => { setCustomer(c); setShowCustomerDialog(false); setCustomerSearchQuery(''); setCustomerSellerFilter(currentUser?.id || '') }}
                     className={cn(
                       "w-full p-4 text-left rounded-xl border-2 hover:shadow-md transition-all",
                       customer?.id === c.id
@@ -2683,6 +2708,35 @@ export default function POSPage() {
                 </tfoot>
               </table>
 
+              {/* Calc Detail Table */}
+              {rc.showCalcInfo && items.some(item => item.calcInfo) && (
+                <div style={{ margin: '3px 0', borderTop: '1px dashed #000', paddingTop: '2px' }}>
+                  <div style={{ fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 'bold', textAlign: 'center', marginBottom: '2px' }}>📐 Hisob-kitob</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: 'bold', textAlign: 'left', width: '30%' }}>Tovar</th>
+                        <th style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: 'bold', textAlign: 'center', width: '36%' }}>Soni</th>
+                        <th style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: 'bold', textAlign: 'right', width: '16%' }}>Narxi</th>
+                        <th style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: 'bold', textAlign: 'right', width: '18%' }}>Summa</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.filter(item => item.calcInfo).map((item) => (
+                        <tr key={`calc-${item.id}`}>
+                          <td style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px` }}>{item.product_name}</td>
+                          <td style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, textAlign: 'center' }}>
+                            {item.calcInfo!.pieces} dona × {item.calcInfo!.perPiece} {item.calcInfo!.uom} = {formatNumber(item.quantity)} {item.uom_symbol}
+                          </td>
+                          <td style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, textAlign: 'right' }}>{formatMoney(item.unit_price, false)}</td>
+                          <td style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, textAlign: 'right' }}>{formatMoney(item.quantity * item.unit_price, false)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
               {/* Grand Total Box */}
               <div style={{ border: `${rc.grandTotalBorder}px solid #000`, padding: '4px', margin: '3px 0', textAlign: 'center' }}>
                 <div style={{ fontSize: `${rc.grandTotalLabelSize}px`, fontWeight: rc.grandTotalWeight }}>{t('grandTotalLabel')}:</div>
@@ -2845,6 +2899,32 @@ export default function POSPage() {
                         ` : ''}
                       </tfoot>
                     </table>
+
+                    ${rc.showCalcInfo && items.some(item => item.calcInfo) ? `
+                    <div style="margin:3px 0; border-top:1px dashed #000; padding-top:2px;">
+                      <div style="font-size:${rc.calcInfoHeaderSize}px; font-weight:bold; text-align:center; margin-bottom:2px;">📐 Hisob-kitob</div>
+                      <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+                        <thead>
+                          <tr>
+                            <th style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; font-weight:bold; text-align:left; width:30%;">Tovar</th>
+                            <th style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; font-weight:bold; text-align:center; width:36%;">Soni</th>
+                            <th style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; font-weight:bold; text-align:right; width:16%;">Narxi</th>
+                            <th style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; font-weight:bold; text-align:right; width:18%;">Summa</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          ${items.filter(item => item.calcInfo).map(item => `
+                            <tr>
+                              <td style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px;">${item.product_name}</td>
+                              <td style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; text-align:center;">${item.calcInfo!.pieces} dona × ${item.calcInfo!.perPiece} ${item.calcInfo!.uom} = ${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}</td>
+                              <td style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; text-align:right;">${item.unit_price.toLocaleString('uz-UZ')}</td>
+                              <td style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; text-align:right;">${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</td>
+                            </tr>
+                          `).join('')}
+                        </tbody>
+                      </table>
+                    </div>
+                    ` : ''}
 
                     <div class="grand-total-box">
                       <div class="grand-total-label">${t('grandTotalLabel')}:</div>
