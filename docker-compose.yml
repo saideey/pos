@@ -89,6 +89,7 @@ services:
       COMPANY_PHONE: ${COMPANY_PHONE:-+998 90 123 45 67}
       BOT_HTTP_HOST: 0.0.0.0
       BOT_HTTP_PORT: 8081
+      API_URL: http://api:8000/api/v1
       TZ: ${TZ:-Asia/Tashkent}
     ports:
       - "127.0.0.1:${BOT_PORT:-8081}:8081"

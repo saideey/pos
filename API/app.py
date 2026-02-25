@@ -22,6 +22,7 @@ from routers import (
 from routers.settings import router as settings_router
 from routers.sync import router as sync_router
 from routers import printers
+from routers.bot_api import router as bot_api_router
 
 
 def ensure_missing_columns():
@@ -205,6 +206,9 @@ app.include_router(sms_router, prefix="/api/v1/sms", tags=["SMS"])
 app.include_router(settings_router, prefix="/api/v1/settings", tags=["Settings"])
 app.include_router(sync_router, prefix="/api/v1/sync", tags=["Sync"])
 app.include_router(printers.router, prefix="/api/v1/printers", tags=["Printers"])
+
+# Internal Bot API (no JWT auth - internal network only)
+app.include_router(bot_api_router, prefix="/internal/bot", tags=["Bot Internal"])
 
 
 

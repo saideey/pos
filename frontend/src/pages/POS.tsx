@@ -4,11 +4,11 @@ import { useNavigate } from 'react-router-dom'
 import {
   Search, Trash2, User, ShoppingCart, CreditCard,
   Banknote, Building, Check, AlertCircle, Edit3,
-  Loader2, Ruler, Star, Grid3X3, X, ChevronUp, GripVertical, Plus, Minus, Phone, Printer, ArrowLeft, Bookmark, Clock, FolderOpen
+  Loader2, Ruler, Star, Grid3X3, X, ChevronUp, GripVertical, Plus, Minus, Phone, Printer, ArrowLeft, Bookmark, Clock, FolderOpen, Calculator
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { 
-  Button, 
+import {
+  Button,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
   Input
 } from '@/components/ui'
@@ -30,7 +30,7 @@ const PAYMENT_TYPES = [
 ]
 
 const CATEGORY_COLORS = [
-  '#2563EB', '#059669', '#D97706', '#DC2626', '#7C3AED', 
+  '#2563EB', '#059669', '#D97706', '#DC2626', '#7C3AED',
   '#DB2777', '#0891B2', '#65A30D', '#EA580C', '#4F46E5'
 ]
 
@@ -55,11 +55,11 @@ export default function POSPage() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const { t } = useLanguage()
-  
+
   // Get edit mode state from posStore
-  const { 
-    editingSaleId, 
-    editingSaleNumber, 
+  const {
+    editingSaleId,
+    editingSaleNumber,
     items: editItems,
     customer: editCustomer,
     warehouseId: editWarehouseId,
@@ -73,9 +73,9 @@ export default function POSPage() {
     addSavedCart,
     removeSavedCart,
   } = usePOSStore()
-  
+
   const isEditMode = !!editingSaleId
-  
+
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<number | 'favorites' | null>('favorites')
   const [showPaymentDialog, setShowPaymentDialog] = useState(false)
@@ -92,25 +92,25 @@ export default function POSPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [selectedProductForUOM, setSelectedProductForUOM] = useState<Product | null>(null)
   const [changingUOMItemId, setChangingUOMItemId] = useState<string | null>(null)
-  
+
   // General discount
   const [generalDiscount, setGeneralDiscount] = useState<number>(0)
   const [showDiscountInput, setShowDiscountInput] = useState(false)
-  
+
   // Edit mode reason
   const [editReason, setEditReason] = useState('')
-  
+
   // Drag and drop state
   const [draggedProduct, setDraggedProduct] = useState<Product | null>(null)
   const [dragOverProduct, setDragOverProduct] = useState<number | null>(null)
-  
+
   // Mobile cart visibility
   const [mobileCartOpen, setMobileCartOpen] = useState(false)
-  
+
   // Print preview state
   const [showPrintPreview, setShowPrintPreview] = useState(false)
   const printRef = useRef<HTMLDivElement>(null)
-  
+
   // NEW: Add product dialog state
   const [showAddProductDialog, setShowAddProductDialog] = useState(false)
   const [addProductData, setAddProductData] = useState<{
@@ -132,14 +132,19 @@ export default function POSPage() {
     costPrice: 0,
     quantity: 1
   })
-  
+
   // NEW: Customer search
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [customerSellerFilter, setCustomerSellerFilter] = useState<number | ''>('')
-  
+
+  // NEW: Calculator mode for add product dialog
+  const [calcMode, setCalcMode] = useState(false)
+  const [calcPieces, setCalcPieces] = useState('1')
+  const [calcPerPiece, setCalcPerPiece] = useState('1')
+
   // NEW: Driver phone for receipt
   const [driverPhone, setDriverPhone] = useState('')
-  
+
   // NEW: Barcode scanner
   const barcodeInputRef = useRef<HTMLInputElement>(null)
   const [barcodeValue, setBarcodeValue] = useState('')
@@ -542,6 +547,9 @@ export default function POSPage() {
       costPrice: 0,
       quantity: 1
     })
+    setCalcMode(false)
+    setCalcPieces('1')
+    setCalcPerPiece('1')
     toast.success(t('added'))
   }
 
@@ -1921,6 +1929,9 @@ export default function POSPage() {
             costPrice: 0,
             quantity: 1
           })
+          setCalcMode(false)
+          setCalcPieces('1')
+          setCalcPerPiece('1')
         }
       }}>
         <DialogContent className="max-w-[340px]">
@@ -1999,52 +2010,146 @@ export default function POSPage() {
                 )}
               </div>
 
-              {/* Quantity Input */}
+              {/* Quantity Input with Calculator */}
               <div className="w-full">
-                <label className="block text-xs font-medium text-gray-600 mb-1.5">{t('quantityUnit')} ({addProductData.selectedUomSymbol})</label>
-                <div className="flex items-center gap-2 w-full">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-medium text-gray-600">{t('quantityUnit')} ({addProductData.selectedUomSymbol})</label>
                   <button
                     type="button"
-                    onClick={() => setAddProductData(prev => ({ ...prev, quantity: Math.max(0.5, prev.quantity - 1) }))}
-                    className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95 transition-transform"
-                  >
-                    <Minus className="w-5 h-5" />
-                  </button>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={addProductData.quantity === 0 ? '' : addProductData.quantity}
-                    onChange={(e) => {
-                      const value = e.target.value
-                      // Allow empty input
-                      if (value === '' || value === '0') {
-                        setAddProductData(prev => ({ ...prev, quantity: 0 }))
-                        return
-                      }
-                      // Parse and set number
-                      const num = parseFloat(value)
-                      if (!isNaN(num) && num >= 0) {
-                        setAddProductData(prev => ({ ...prev, quantity: num }))
-                      }
-                    }}
-                    onFocus={(e) => e.target.select()}
-                    onBlur={(e) => {
-                      // Set minimum value on blur if empty or zero
-                      if (!e.target.value || parseFloat(e.target.value) <= 0) {
+                    onClick={() => {
+                      const newMode = !calcMode
+                      setCalcMode(newMode)
+                      if (newMode) {
+                        // Entering calc mode - reset calculator
+                        setCalcPieces('1')
+                        setCalcPerPiece('1')
                         setAddProductData(prev => ({ ...prev, quantity: 1 }))
                       }
                     }}
-                    className="flex-1 min-w-0 h-11 px-3 text-center text-lg font-bold border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none box-border"
-                    placeholder="1"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setAddProductData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
-                    className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95 transition-transform"
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all",
+                      calcMode
+                        ? "bg-violet-100 text-violet-700 border border-violet-300"
+                        : "bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200"
+                    )}
                   >
-                    <Plus className="w-5 h-5" />
+                    <Calculator className="w-3.5 h-3.5" />
+                    Kalkulyator
                   </button>
                 </div>
+
+                {calcMode ? (
+                  /* ═══ CALCULATOR MODE ═══ */
+                  <div className="space-y-2">
+                    <div className="bg-violet-50 border-2 border-violet-200 rounded-lg p-3 space-y-3">
+                      {/* Row 1: Dona (pieces) */}
+                      <div>
+                        <label className="block text-xs font-medium text-violet-600 mb-1">Dona (nechta)</label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={calcPieces}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            // Allow: empty, digits, one dot, digits after dot
+                            if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                              setCalcPieces(raw)
+                              const numPieces = parseFloat(raw) || 0
+                              const numPerPiece = parseFloat(calcPerPiece) || 0
+                              setAddProductData(prev => ({ ...prev, quantity: parseFloat((numPieces * numPerPiece).toFixed(4)) }))
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          onBlur={() => {
+                            if (calcPieces === '' || calcPieces === '.') setCalcPieces('1')
+                          }}
+                          className="w-full h-11 px-3 text-center text-lg font-bold border-2 border-violet-300 rounded-lg focus:border-violet-500 outline-none bg-white"
+                          placeholder="1"
+                        />
+                      </div>
+
+                      {/* Row 2: Per piece size */}
+                      <div>
+                        <label className="block text-xs font-medium text-violet-600 mb-1">
+                          Har biri ({addProductData.selectedUomSymbol})
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          value={calcPerPiece}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            // Allow: empty, digits, one dot, digits after dot
+                            if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                              setCalcPerPiece(raw)
+                              const numPieces = parseFloat(calcPieces) || 0
+                              const numPerPiece = parseFloat(raw) || 0
+                              setAddProductData(prev => ({ ...prev, quantity: parseFloat((numPieces * numPerPiece).toFixed(4)) }))
+                            }
+                          }}
+                          onFocus={(e) => e.target.select()}
+                          onBlur={() => {
+                            if (calcPerPiece === '' || calcPerPiece === '.') setCalcPerPiece('1')
+                          }}
+                          className="w-full h-11 px-3 text-center text-lg font-bold border-2 border-violet-300 rounded-lg focus:border-violet-500 outline-none bg-white"
+                          placeholder="1"
+                        />
+                      </div>
+
+                      {/* Calculation result */}
+                      <div className="bg-violet-100 rounded-lg px-3 py-2 text-center">
+                        <div className="text-xs text-violet-600 mb-0.5">
+                          {parseFloat(calcPieces) || 0} dona × {parseFloat(calcPerPiece) || 0} {addProductData.selectedUomSymbol}
+                        </div>
+                        <div className="text-lg font-bold text-violet-800">
+                          = {parseFloat(((parseFloat(calcPieces) || 0) * (parseFloat(calcPerPiece) || 0)).toFixed(4))} {addProductData.selectedUomSymbol}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* ═══ NORMAL MODE ═══ */
+                  <div className="flex items-center gap-2 w-full">
+                    <button
+                      type="button"
+                      onClick={() => setAddProductData(prev => ({ ...prev, quantity: Math.max(0.5, prev.quantity - 1) }))}
+                      className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95 transition-transform"
+                    >
+                      <Minus className="w-5 h-5" />
+                    </button>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={addProductData.quantity === 0 ? '' : addProductData.quantity}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        if (value === '' || value === '0') {
+                          setAddProductData(prev => ({ ...prev, quantity: 0 }))
+                          return
+                        }
+                        const num = parseFloat(value)
+                        if (!isNaN(num) && num >= 0) {
+                          setAddProductData(prev => ({ ...prev, quantity: num }))
+                        }
+                      }}
+                      onFocus={(e) => e.target.select()}
+                      onBlur={(e) => {
+                        if (!e.target.value || parseFloat(e.target.value) <= 0) {
+                          setAddProductData(prev => ({ ...prev, quantity: 1 }))
+                        }
+                      }}
+                      className="flex-1 min-w-0 h-11 px-3 text-center text-lg font-bold border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none box-border"
+                      placeholder="1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setAddProductData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                      className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95 transition-transform"
+                    >
+                      <Plus className="w-5 h-5" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Total */}

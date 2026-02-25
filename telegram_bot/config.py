@@ -21,13 +21,13 @@ class Config:
     HTTP_HOST = os.getenv("BOT_HTTP_HOST", "0.0.0.0")
     HTTP_PORT = int(os.getenv("BOT_HTTP_PORT", "8081"))
     
-    # API URL (for fetching additional data if needed)
+    # API URL (for fetching customer data and other info)
     API_URL = os.getenv("API_URL", "http://api:8000/api/v1")
-    
+
     # Company info for messages
-    COMPANY_NAME = os.getenv("COMPANY_NAME", "G'ayrat stroy house")
+    COMPANY_NAME = os.getenv("COMPANY_NAME", "Inter Prod")
     COMPANY_PHONE = os.getenv("COMPANY_PHONE", "+998 99 777 55 99")
-    
+
     @classmethod
     def get_director_ids(cls) -> List[str]:
         """Get list of director Telegram IDs."""
@@ -35,18 +35,18 @@ class Config:
             return []
         # Split by comma, strip whitespace, filter empty
         return [id.strip() for id in cls._DIRECTOR_IDS_STR.split(",") if id.strip()]
-    
+
     @classmethod
     def validate(cls):
         """Validate required configuration."""
         errors = []
-        
+
         if not cls.BOT_TOKEN:
             errors.append("TELEGRAM_BOT_TOKEN is required")
-        
+
         if errors:
             raise ValueError(f"Configuration errors: {', '.join(errors)}")
-        
+
         return True
 
 
