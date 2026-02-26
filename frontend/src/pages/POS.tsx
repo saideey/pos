@@ -139,8 +139,7 @@ export default function POSPage() {
   const [customerSearchQuery, setCustomerSearchQuery] = useState('')
   const [customerSellerFilter, setCustomerSellerFilter] = useState<number | ''>(currentUser?.id || '')
 
-  // NEW: Calculator mode for add product dialog
-  const [calcMode, setCalcMode] = useState(false)
+  // Calculator always on
   const [calcPieces, setCalcPieces] = useState('1')
   const [calcPerPiece, setCalcPerPiece] = useState('1')
 
@@ -383,7 +382,7 @@ export default function POSPage() {
     qtySize: 12, sumSize: 12, tfootSize: 12,
     colProductWidth: 48, colQtyWidth: 24, colSumWidth: 28,
     grandTotalLabelSize: 13, grandTotalAmountSize: 20, grandTotalWeight: 900, grandTotalBorder: 2,
-    showCalcInfo: true, calcInfoSize: 10, calcInfoHeaderSize: 10,
+    showCalcInfo: true, calcInfoSize: 10, calcInfoHeaderSize: 10, tableBodyWeight: 900,
     thanksSize: 14, thanksWeight: 900, contactSize: 13, contactWeight: 900,
     tearSpaceHeight: 20,
     ...(receiptConfigData || {}),
@@ -419,7 +418,7 @@ export default function POSPage() {
     const salePrice = getSalePrice(product)
     const costPrice = getCostPrice(product)
 
-    // Open add product dialog with product info
+    // Open add product dialog with base UOM - per piece is always 1 for base UOM
     setAddProductData({
       product,
       selectedUomId: product.base_uom_id,
@@ -430,6 +429,8 @@ export default function POSPage() {
       costPrice: costPrice,
       quantity: 1
     })
+    setCalcPieces('1')
+    setCalcPerPiece('1')
     setShowAddProductDialog(true)
   }
 
@@ -488,25 +489,33 @@ export default function POSPage() {
     if (!addProductData.product) return
 
     if (uomConv === null) {
-      // Base UOM selected
+      // Base UOM selected - per piece is always 1
       const salePrice = getSalePrice(addProductData.product)
+      setCalcPerPiece('1')
+      setCalcPieces('1')
       setAddProductData(prev => ({
         ...prev,
         selectedUomId: addProductData.product!.base_uom_id,
         selectedUomSymbol: addProductData.product!.base_uom_symbol,
         selectedUomName: addProductData.product!.base_uom_name || addProductData.product!.base_uom_symbol,
         conversionFactor: 1,
-        unitPrice: salePrice
+        unitPrice: salePrice,
+        quantity: 1
       }))
     } else {
+      // Non-base UOM selected - per piece = conversion_factor
       const convPrice = uomConv.sale_price || getSalePrice(addProductData.product, uomConv.conversion_factor)
+      const perPieceValue = String(uomConv.conversion_factor)
+      setCalcPerPiece(perPieceValue)
+      setCalcPieces('1')
       setAddProductData(prev => ({
         ...prev,
         selectedUomId: uomConv.uom_id,
         selectedUomSymbol: uomConv.uom_symbol,
         selectedUomName: uomConv.uom_name,
         conversionFactor: uomConv.conversion_factor,
-        unitPrice: convPrice
+        unitPrice: convPrice,
+        quantity: uomConv.conversion_factor
       }))
     }
   }
@@ -515,8 +524,8 @@ export default function POSPage() {
   const handleConfirmAddProduct = () => {
     if (!addProductData.product) return
 
-    // Build calcInfo if calculator mode was used
-    const itemCalcInfo = calcMode && (parseFloat(calcPieces) || 0) > 0 && (parseFloat(calcPerPiece) || 0) > 0
+    // Build calcInfo always (calculator is always on)
+    const itemCalcInfo = (parseFloat(calcPieces) || 0) > 0 && (parseFloat(calcPerPiece) || 0) > 0
       ? { pieces: parseFloat(calcPieces) || 0, perPiece: parseFloat(calcPerPiece) || 0, uom: addProductData.selectedUomSymbol }
       : null
 
@@ -562,7 +571,6 @@ export default function POSPage() {
       costPrice: 0,
       quantity: 1
     })
-    setCalcMode(false)
     setCalcPieces('1')
     setCalcPerPiece('1')
     toast.success(t('added'))
@@ -1954,7 +1962,6 @@ export default function POSPage() {
             costPrice: 0,
             quantity: 1
           })
-          setCalcMode(false)
           setCalcPieces('1')
           setCalcPerPiece('1')
         }
@@ -2035,146 +2042,81 @@ export default function POSPage() {
                 )}
               </div>
 
-              {/* Quantity Input with Calculator */}
+              {/* Quantity Input - Calculator Always On */}
               <div className="w-full">
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-medium text-gray-600">{t('quantityUnit')} ({addProductData.selectedUomSymbol})</label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const newMode = !calcMode
-                      setCalcMode(newMode)
-                      if (newMode) {
-                        // Entering calc mode - reset calculator
-                        setCalcPieces('1')
-                        setCalcPerPiece('1')
-                        setAddProductData(prev => ({ ...prev, quantity: 1 }))
-                      }
-                    }}
-                    className={cn(
-                      "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all",
-                      calcMode
-                        ? "bg-violet-100 text-violet-700 border border-violet-300"
-                        : "bg-gray-100 text-gray-500 hover:bg-gray-200 border border-gray-200"
-                    )}
-                  >
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-violet-100 text-violet-700 border border-violet-300">
                     <Calculator className="w-3.5 h-3.5" />
                     Kalkulyator
-                  </button>
+                  </span>
                 </div>
 
-                {calcMode ? (
-                  /* ═══ CALCULATOR MODE ═══ */
-                  <div className="space-y-2">
-                    <div className="bg-violet-50 border-2 border-violet-200 rounded-lg p-3 space-y-3">
-                      {/* Row 1: Dona (pieces) */}
-                      <div>
-                        <label className="block text-xs font-medium text-violet-600 mb-1">Dona (nechta)</label>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={calcPieces}
-                          onChange={(e) => {
-                            const raw = e.target.value
-                            // Allow: empty, digits, one dot, digits after dot
-                            if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
-                              setCalcPieces(raw)
-                              const numPieces = parseFloat(raw) || 0
-                              const numPerPiece = parseFloat(calcPerPiece) || 0
-                              setAddProductData(prev => ({ ...prev, quantity: parseFloat((numPieces * numPerPiece).toFixed(4)) }))
-                            }
-                          }}
-                          onFocus={(e) => e.target.select()}
-                          onBlur={() => {
-                            if (calcPieces === '' || calcPieces === '.') setCalcPieces('1')
-                          }}
-                          className="w-full h-11 px-3 text-center text-lg font-bold border-2 border-violet-300 rounded-lg focus:border-violet-500 outline-none bg-white"
-                          placeholder="1"
-                        />
-                      </div>
+                <div className="space-y-2">
+                  <div className="bg-violet-50 border-2 border-violet-200 rounded-lg p-3 space-y-3">
+                    {/* Row 1: Dona (pieces) */}
+                    <div>
+                      <label className="block text-xs font-medium text-violet-600 mb-1">Dona (nechta)</label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={calcPieces}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                            setCalcPieces(raw)
+                            const numPieces = parseFloat(raw) || 0
+                            const numPerPiece = parseFloat(calcPerPiece) || 0
+                            setAddProductData(prev => ({ ...prev, quantity: parseFloat((numPieces * numPerPiece).toFixed(4)) }))
+                          }
+                        }}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => {
+                          if (calcPieces === '' || calcPieces === '.') setCalcPieces('1')
+                        }}
+                        className="w-full h-11 px-3 text-center text-lg font-bold border-2 border-violet-300 rounded-lg focus:border-violet-500 outline-none bg-white"
+                        placeholder="1"
+                      />
+                    </div>
 
-                      {/* Row 2: Per piece size */}
-                      <div>
-                        <label className="block text-xs font-medium text-violet-600 mb-1">
-                          Har biri ({addProductData.selectedUomSymbol})
-                        </label>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={calcPerPiece}
-                          onChange={(e) => {
-                            const raw = e.target.value
-                            // Allow: empty, digits, one dot, digits after dot
-                            if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
-                              setCalcPerPiece(raw)
-                              const numPieces = parseFloat(calcPieces) || 0
-                              const numPerPiece = parseFloat(raw) || 0
-                              setAddProductData(prev => ({ ...prev, quantity: parseFloat((numPieces * numPerPiece).toFixed(4)) }))
-                            }
-                          }}
-                          onFocus={(e) => e.target.select()}
-                          onBlur={() => {
-                            if (calcPerPiece === '' || calcPerPiece === '.') setCalcPerPiece('1')
-                          }}
-                          className="w-full h-11 px-3 text-center text-lg font-bold border-2 border-violet-300 rounded-lg focus:border-violet-500 outline-none bg-white"
-                          placeholder="1"
-                        />
-                      </div>
+                    {/* Row 2: Per piece size */}
+                    <div>
+                      <label className="block text-xs font-medium text-violet-600 mb-1">
+                        Har biri ({addProductData.selectedUomSymbol})
+                      </label>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={calcPerPiece}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                            setCalcPerPiece(raw)
+                            const numPieces = parseFloat(calcPieces) || 0
+                            const numPerPiece = parseFloat(raw) || 0
+                            setAddProductData(prev => ({ ...prev, quantity: parseFloat((numPieces * numPerPiece).toFixed(4)) }))
+                          }
+                        }}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={() => {
+                          if (calcPerPiece === '' || calcPerPiece === '.') setCalcPerPiece('1')
+                        }}
+                        className="w-full h-11 px-3 text-center text-lg font-bold border-2 border-violet-300 rounded-lg focus:border-violet-500 outline-none bg-white"
+                        placeholder="1"
+                      />
+                    </div>
 
-                      {/* Calculation result */}
-                      <div className="bg-violet-100 rounded-lg px-3 py-2 text-center">
-                        <div className="text-xs text-violet-600 mb-0.5">
-                          {parseFloat(calcPieces) || 0} dona × {parseFloat(calcPerPiece) || 0} {addProductData.selectedUomSymbol}
-                        </div>
-                        <div className="text-lg font-bold text-violet-800">
-                          = {parseFloat(((parseFloat(calcPieces) || 0) * (parseFloat(calcPerPiece) || 0)).toFixed(4))} {addProductData.selectedUomSymbol}
-                        </div>
+                    {/* Calculation result */}
+                    <div className="bg-violet-100 rounded-lg px-3 py-2 text-center">
+                      <div className="text-xs text-violet-600 mb-0.5">
+                        {parseFloat(calcPieces) || 0} dona × {parseFloat(calcPerPiece) || 0} {addProductData.selectedUomSymbol}
+                      </div>
+                      <div className="text-lg font-bold text-violet-800">
+                        = {parseFloat(((parseFloat(calcPieces) || 0) * (parseFloat(calcPerPiece) || 0)).toFixed(4))} {addProductData.selectedUomSymbol}
                       </div>
                     </div>
                   </div>
-                ) : (
-                  /* ═══ NORMAL MODE ═══ */
-                  <div className="flex items-center gap-2 w-full">
-                    <button
-                      type="button"
-                      onClick={() => setAddProductData(prev => ({ ...prev, quantity: Math.max(0.5, prev.quantity - 1) }))}
-                      className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95 transition-transform"
-                    >
-                      <Minus className="w-5 h-5" />
-                    </button>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={addProductData.quantity === 0 ? '' : addProductData.quantity}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        if (value === '' || value === '0') {
-                          setAddProductData(prev => ({ ...prev, quantity: 0 }))
-                          return
-                        }
-                        const num = parseFloat(value)
-                        if (!isNaN(num) && num >= 0) {
-                          setAddProductData(prev => ({ ...prev, quantity: num }))
-                        }
-                      }}
-                      onFocus={(e) => e.target.select()}
-                      onBlur={(e) => {
-                        if (!e.target.value || parseFloat(e.target.value) <= 0) {
-                          setAddProductData(prev => ({ ...prev, quantity: 1 }))
-                        }
-                      }}
-                      className="flex-1 min-w-0 h-11 px-3 text-center text-lg font-bold border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none box-border"
-                      placeholder="1"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setAddProductData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
-                      className="w-11 h-11 flex-shrink-0 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center active:scale-95 transition-transform"
-                    >
-                      <Plus className="w-5 h-5" />
-                    </button>
-                  </div>
-                )}
+                </div>
               </div>
 
               {/* Total */}
@@ -2661,26 +2603,32 @@ export default function POSPage() {
                 </div>
               )}
 
-              {/* Items Table */}
+              {/* Items Table - Hisob-kitob format */}
               <table style={{ width: '100%', borderCollapse: 'collapse', margin: '3px 0', tableLayout: 'fixed' }}>
                 <thead>
                   <tr>
-                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.tableFontSize}px`, fontWeight: 900, textAlign: 'left', width: `${rc.colProductWidth}%` }}>{t('productLabel')}</th>
-                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.tableFontSize}px`, fontWeight: 900, textAlign: 'center', width: `${rc.colQtyWidth}%` }}>{t('quantityLabel')}</th>
-                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.tableFontSize}px`, fontWeight: 900, textAlign: 'right', width: `${rc.colSumWidth}%` }}>{t('amountLabel')}</th>
+                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'left', width: '28%' }}>Tovar</th>
+                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'center', width: '34%' }}>Soni</th>
+                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'right', width: '18%' }}>Narxi</th>
+                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'right', width: '20%' }}>Summa</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
                     <tr key={item.id}>
-                      <td style={{ border: '1px solid #000', padding: '2px' }}>
-                        <div style={{ fontWeight: 'bold', fontSize: `${rc.productNameSize}px` }}>{index + 1}. {item.product_name}</div>
-                        <div style={{ fontSize: `${rc.productPriceSize}px`, fontWeight: 'bold' }}>({formatMoney(item.unit_price, false)} x)</div>
+                      <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, wordBreak: 'break-word' }}>
+                        {index + 1}. {item.product_name}
                       </td>
-                      <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'center', fontWeight: 900, fontSize: `${rc.qtySize}px` }}>
-                        {formatNumber(item.quantity)} {item.uom_symbol}
+                      <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'center', wordBreak: 'break-word' }}>
+                        {item.calcInfo && rc.showCalcInfo
+                          ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${formatNumber(item.quantity)} ${item.uom_symbol}`
+                          : `${formatNumber(item.quantity)} ${item.uom_symbol}`
+                        }
                       </td>
-                      <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.sumSize}px` }}>
+                      <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'right' }}>
+                        {formatMoney(item.unit_price, false)}
+                      </td>
+                      <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'right' }}>
                         {formatMoney(item.quantity * item.unit_price, false)}
                       </td>
                     </tr>
@@ -2688,7 +2636,7 @@ export default function POSPage() {
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={2} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
+                    <td colSpan={3} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
                       {t('totalWithCount')} ({items.length}):
                     </td>
                     <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
@@ -2697,7 +2645,7 @@ export default function POSPage() {
                   </tr>
                   {generalDiscount > 0 && (
                     <tr>
-                      <td colSpan={2} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
+                      <td colSpan={3} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
                         {t('discount')}:
                       </td>
                       <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
@@ -2707,35 +2655,6 @@ export default function POSPage() {
                   )}
                 </tfoot>
               </table>
-
-              {/* Calc Detail Table */}
-              {rc.showCalcInfo && items.some(item => item.calcInfo) && (
-                <div style={{ margin: '3px 0', borderTop: '1px dashed #000', paddingTop: '2px' }}>
-                  <div style={{ fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 'bold', textAlign: 'center', marginBottom: '2px' }}>📐 Hisob-kitob</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: 'bold', textAlign: 'left', width: '30%' }}>Tovar</th>
-                        <th style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: 'bold', textAlign: 'center', width: '36%' }}>Soni</th>
-                        <th style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: 'bold', textAlign: 'right', width: '16%' }}>Narxi</th>
-                        <th style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: 'bold', textAlign: 'right', width: '18%' }}>Summa</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.filter(item => item.calcInfo).map((item) => (
-                        <tr key={`calc-${item.id}`}>
-                          <td style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px` }}>{item.product_name}</td>
-                          <td style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, textAlign: 'center' }}>
-                            {item.calcInfo!.pieces} dona × {item.calcInfo!.perPiece} {item.calcInfo!.uom} = {formatNumber(item.quantity)} {item.uom_symbol}
-                          </td>
-                          <td style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, textAlign: 'right' }}>{formatMoney(item.unit_price, false)}</td>
-                          <td style={{ border: '1px solid #000', padding: '1px 2px', fontSize: `${rc.calcInfoSize}px`, textAlign: 'right' }}>{formatMoney(item.quantity * item.unit_price, false)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
 
               {/* Grand Total Box */}
               <div style={{ border: `${rc.grandTotalBorder}px solid #000`, padding: '4px', margin: '3px 0', textAlign: 'center' }}>
@@ -2820,7 +2739,7 @@ export default function POSPage() {
                       .customer { padding: 2px 0; border-top: 1px dashed #000; border-bottom: 1px dashed #000; font-size: ${rc.customerFontSize}px; margin: 2px 0; }
                       .customer p { margin: 1px 0; font-weight: bold; }
                       table { width: 100%; border-collapse: collapse; margin: 3px 0; table-layout: fixed; }
-                      th, td { border: 1px solid #000; padding: 2px 2px; font-size: ${rc.tableFontSize}px; word-wrap: break-word; overflow: hidden; }
+                      th, td { border: 1px solid #000; padding: 2px 2px; font-size: ${rc.tableFontSize}px; word-wrap: break-word; word-break: break-word; overflow-wrap: break-word; }
                       th { font-weight: 900; text-align: left; }
                       .col-product { width: ${rc.colProductWidth}%; }
                       .col-qty { width: ${rc.colQtyWidth}%; text-align: center; }
@@ -2869,62 +2788,40 @@ export default function POSPage() {
                     <table>
                       <thead>
                         <tr>
-                          <th class="col-product">${t('productLabel')}</th>
-                          <th class="col-qty">${t('quantityLabel')}</th>
-                          <th class="col-sum">${t('amountLabel')}</th>
+                          <th style="width:28%; font-size:${rc.calcInfoHeaderSize}px;">Tovar</th>
+                          <th style="width:34%; text-align:center; font-size:${rc.calcInfoHeaderSize}px;">Soni</th>
+                          <th style="width:18%; text-align:right; font-size:${rc.calcInfoHeaderSize}px;">Narxi</th>
+                          <th style="width:20%; text-align:right; font-size:${rc.calcInfoHeaderSize}px;">Summa</th>
                         </tr>
                       </thead>
                       <tbody>
                         ${items.map((item, index) => `
                           <tr>
-                            <td class="col-product">
-                              <div class="product-name">${index + 1}. ${item.product_name}</div>
-                              <div class="product-price">(${item.unit_price.toLocaleString('uz-UZ')} x)</div>
+                            <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; word-break:break-word;">${index + 1}. ${item.product_name}</td>
+                            <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:center; word-break:break-word;">
+                              ${item.calcInfo && rc.showCalcInfo
+                                ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}`
+                                : `${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}`
+                              }
                             </td>
-                            <td class="col-qty qty-cell">${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}</td>
-                            <td class="col-sum sum-cell">${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</td>
+                            <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:right;">${item.unit_price.toLocaleString('uz-UZ')}</td>
+                            <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:right;">${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</td>
                           </tr>
                         `).join('')}
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colspan="2" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('totalWithCount')} (${items.length}):</td>
-                          <td class="col-sum font-bold" style="font-size:${rc.tfootSize}px;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
+                          <td colspan="3" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('totalWithCount')} (${items.length}):</td>
+                          <td class="font-bold" style="font-size:${rc.tfootSize}px; text-align:right;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
                         </tr>
                         ${generalDiscount > 0 ? `
                           <tr>
-                            <td colspan="2" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('discount')}:</td>
-                            <td class="col-sum font-bold" style="font-size:${rc.tfootSize}px;">-${generalDiscount.toLocaleString('uz-UZ')}</td>
+                            <td colspan="3" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('discount')}:</td>
+                            <td class="font-bold" style="font-size:${rc.tfootSize}px; text-align:right;">-${generalDiscount.toLocaleString('uz-UZ')}</td>
                           </tr>
                         ` : ''}
                       </tfoot>
                     </table>
-
-                    ${rc.showCalcInfo && items.some(item => item.calcInfo) ? `
-                    <div style="margin:3px 0; border-top:1px dashed #000; padding-top:2px;">
-                      <div style="font-size:${rc.calcInfoHeaderSize}px; font-weight:bold; text-align:center; margin-bottom:2px;">📐 Hisob-kitob</div>
-                      <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
-                        <thead>
-                          <tr>
-                            <th style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; font-weight:bold; text-align:left; width:30%;">Tovar</th>
-                            <th style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; font-weight:bold; text-align:center; width:36%;">Soni</th>
-                            <th style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; font-weight:bold; text-align:right; width:16%;">Narxi</th>
-                            <th style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; font-weight:bold; text-align:right; width:18%;">Summa</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          ${items.filter(item => item.calcInfo).map(item => `
-                            <tr>
-                              <td style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px;">${item.product_name}</td>
-                              <td style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; text-align:center;">${item.calcInfo!.pieces} dona × ${item.calcInfo!.perPiece} ${item.calcInfo!.uom} = ${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}</td>
-                              <td style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; text-align:right;">${item.unit_price.toLocaleString('uz-UZ')}</td>
-                              <td style="border:1px solid #000; padding:1px 2px; font-size:${rc.calcInfoSize}px; text-align:right;">${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</td>
-                            </tr>
-                          `).join('')}
-                        </tbody>
-                      </table>
-                    </div>
-                    ` : ''}
 
                     <div class="grand-total-box">
                       <div class="grand-total-label">${t('grandTotalLabel')}:</div>
