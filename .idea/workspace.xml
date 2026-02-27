@@ -5,9 +5,16 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="4410bd95-49ec-437f-95cf-eb7c109e8a00" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/API/alembic/versions/007_add_default_per_piece.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/app.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/app.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/database/models/product.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/database/models/product.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/routers/products.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/routers/products.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/API/schemas/product.py" beforeDir="false" afterPath="$PROJECT_DIR$/API/schemas/product.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/lib/translations.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/lib/translations.ts" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/frontend/src/pages/POS.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/POS.tsx" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/ReceiptSettings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/ReceiptSettings.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Products.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Products.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/types/index.ts" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/types/index.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

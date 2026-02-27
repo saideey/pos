@@ -418,7 +418,10 @@ export default function POSPage() {
     const salePrice = getSalePrice(product)
     const costPrice = getCostPrice(product)
 
-    // Open add product dialog with base UOM - per piece is always 1 for base UOM
+    // Use product's default_per_piece if set, otherwise 1
+    const perPieceValue = product.default_per_piece ? String(product.default_per_piece) : '1'
+
+    // Open add product dialog with base UOM
     setAddProductData({
       product,
       selectedUomId: product.base_uom_id,
@@ -427,10 +430,10 @@ export default function POSPage() {
       conversionFactor: 1,
       unitPrice: salePrice,
       costPrice: costPrice,
-      quantity: 1
+      quantity: parseFloat(perPieceValue) || 1
     })
     setCalcPieces('1')
-    setCalcPerPiece('1')
+    setCalcPerPiece(perPieceValue)
     setShowAddProductDialog(true)
   }
 
@@ -489,9 +492,10 @@ export default function POSPage() {
     if (!addProductData.product) return
 
     if (uomConv === null) {
-      // Base UOM selected - per piece is always 1
+      // Base UOM selected - use default_per_piece if available
       const salePrice = getSalePrice(addProductData.product)
-      setCalcPerPiece('1')
+      const perPieceValue = addProductData.product.default_per_piece ? String(addProductData.product.default_per_piece) : '1'
+      setCalcPerPiece(perPieceValue)
       setCalcPieces('1')
       setAddProductData(prev => ({
         ...prev,
@@ -500,7 +504,7 @@ export default function POSPage() {
         selectedUomName: addProductData.product!.base_uom_name || addProductData.product!.base_uom_symbol,
         conversionFactor: 1,
         unitPrice: salePrice,
-        quantity: 1
+        quantity: parseFloat(perPieceValue) || 1
       }))
     } else {
       // Non-base UOM selected - per piece = conversion_factor

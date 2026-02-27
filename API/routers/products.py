@@ -251,6 +251,7 @@ async def get_products(
             "image_url": p.image_url,
             "is_active": p.is_active,
             "current_stock": current_stock,
+            "default_per_piece": float(p.default_per_piece) if p.default_per_piece else None,
             "uom_conversions": uom_conversions
         }
         data.append(item)
@@ -351,6 +352,7 @@ async def get_product_by_barcode(
         "image_url": product.image_url,
         "is_active": product.is_active,
         "current_stock": float(current_stock),
+        "default_per_piece": float(product.default_per_piece) if product.default_per_piece else None,
         "uom_conversions": uom_conversions
     }
 

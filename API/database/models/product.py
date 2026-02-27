@@ -129,26 +129,29 @@ class Product(BaseModel, SoftDeleteMixin):
     track_stock = Column(Boolean, default=True)  # Qoldiqni kuzatish
     allow_negative_stock = Column(Boolean, default=False)  # Manfiy qoldiqqa ruxsat
     
+    # Calculator default: standart o'lcham (masalan, 1 dona = 12.5 metr)
+    default_per_piece = Column(Numeric(20, 4), nullable=True)  # Kalkulyator uchun standart qiymat
+
     # Media
     image_url = Column(String(500), nullable=True)
     images = Column(Text, nullable=True)  # JSON array of image URLs
-    
+
     # Additional info
     brand = Column(String(100), nullable=True)
     manufacturer = Column(String(200), nullable=True)
     country_of_origin = Column(String(100), nullable=True)
-    
+
     # Flags
     is_active = Column(Boolean, default=True, nullable=False)
     is_featured = Column(Boolean, default=False)  # Maxsus tovar
     is_service = Column(Boolean, default=False)  # Xizmat (qoldiqsiz)
-    
+
     # Relationships
     category = relationship("Category", back_populates="products")
     base_uom = relationship("UnitOfMeasure")
     uom_conversions = relationship("ProductUOMConversion", back_populates="product", lazy="dynamic", cascade="all, delete-orphan")
     stock_items = relationship("Stock", back_populates="product", lazy="dynamic")
-    
+
     __table_args__ = (
         Index('ix_products_category_id', 'category_id'),
         Index('ix_products_base_uom_id', 'base_uom_id'),
@@ -157,7 +160,7 @@ class Product(BaseModel, SoftDeleteMixin):
         CheckConstraint('cost_price >= 0', name='ck_product_cost_price_positive'),
         CheckConstraint('sale_price >= 0', name='ck_product_sale_price_positive'),
     )
-    
+
     def get_price_for_customer_type(self, is_vip: bool = False) -> Decimal:
         """Get appropriate price based on customer type."""
         if is_vip and self.vip_price:
@@ -168,51 +171,51 @@ class Product(BaseModel, SoftDeleteMixin):
 class ProductUOMConversion(BaseModel):
     """
     Product-specific UOM conversion factors.
-    
+
     Example for Armatura 17B:
     - Base UOM: kg
     - 1 tonna = 1000 kg (conversion_factor = 1000)
     - 1 dona = 2.68 kg (conversion_factor = 2.68)
     - 1 pochka = 200 kg (conversion_factor = 200)
-    
+
     This allows different products to have different conversions:
     - Armatura 17B: 1 dona = 2.68 kg
     - Armatura 20B: 1 dona = 4.44 kg
     """
-    
+
     __tablename__ = 'product_uom_conversions'
-    
+
     product_id = Column(Integer, ForeignKey('products.id', ondelete='CASCADE'), nullable=False)
     uom_id = Column(Integer, ForeignKey('units_of_measure.id'), nullable=False)
-    
+
     # How many base units = 1 of this unit
     # Example: If base is kg and this is tonna, factor = 1000 (1 tonna = 1000 kg)
     conversion_factor = Column(Numeric(20, 10), nullable=False)
-    
+
     # Pricing override for this UOM (optional)
     sale_price = Column(Numeric(20, 4), nullable=True)  # Price per this unit
     vip_price = Column(Numeric(20, 4), nullable=True)
-    
+
     # Display settings
     is_default_sale_uom = Column(Boolean, default=False)  # Default UOM in sales
     is_default_purchase_uom = Column(Boolean, default=False)  # Default UOM in purchases
     is_integer_only = Column(Boolean, default=False)  # Must sell in whole numbers
-    
+
     # Relationships
     product = relationship("Product", back_populates="uom_conversions")
     uom = relationship("UnitOfMeasure")
-    
+
     __table_args__ = (
         UniqueConstraint('product_id', 'uom_id', name='uq_product_uom'),
         Index('ix_product_uom_product_id', 'product_id'),
         Index('ix_product_uom_uom_id', 'uom_id'),
         CheckConstraint('conversion_factor > 0', name='ck_product_uom_positive_factor'),
     )
-    
+
     def to_base_quantity(self, quantity: Decimal) -> Decimal:
         """Convert quantity in this UOM to base UOM quantity."""
         return Decimal(str(quantity)) * Decimal(str(self.conversion_factor))
-    
+
     def from_base_quantity(self, base_quantity: Decimal) -> Decimal:
         """Convert base UOM quantity to this UOM quantity."""
         if self.conversion_factor == 0:
@@ -224,21 +227,21 @@ class ProductPriceHistory(BaseModel):
     """
     Track product price changes for auditing.
     """
-    
+
     __tablename__ = 'product_price_history'
-    
+
     product_id = Column(Integer, ForeignKey('products.id'), nullable=False)
     changed_by_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    
+
     price_type = Column(String(20), nullable=False)  # cost, sale, vip
     old_price = Column(Numeric(20, 4), nullable=True)
     new_price = Column(Numeric(20, 4), nullable=False)
     reason = Column(Text, nullable=True)
-    
+
     # Relationships
     product = relationship("Product")
     changed_by = relationship("User")
-    
+
     __table_args__ = (
         Index('ix_price_history_product_id', 'product_id'),
         Index('ix_price_history_created_at', 'created_at'),

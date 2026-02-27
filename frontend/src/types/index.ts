@@ -79,6 +79,7 @@ export interface Product {
   image_url?: string
   is_active: boolean
   current_stock?: number
+  default_per_piece?: number  // Kalkulyator standart qiymat (masalan 12.5 metr)
   uom_conversions?: UOMConversion[]
 }
 

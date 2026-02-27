@@ -73,6 +73,15 @@ def ensure_missing_columns():
             ))
             missing_columns.append('users.language')
 
+        # products jadvalidagi ustunlarni tekshirish
+        products_columns = [col['name'] for col in inspector.get_columns('products')]
+
+        if 'default_per_piece' not in products_columns:
+            session.execute(text(
+                "ALTER TABLE products ADD COLUMN default_per_piece NUMERIC(20,4)"
+            ))
+            missing_columns.append('products.default_per_piece')
+
         if missing_columns:
             logger.warning(f"⚠️  Qo'shilgan ustunlar: {', '.join(missing_columns)}")
         else:

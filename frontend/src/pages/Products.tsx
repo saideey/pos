@@ -27,6 +27,7 @@ interface ProductFormData {
   color?: string
   is_favorite?: boolean
   min_stock_level?: number
+  default_per_piece?: number  // Kalkulyator standart qiymat
 }
 
 interface UOMConversionFormData {
@@ -56,7 +57,7 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [colorValue, setColorValue] = useState('#3B82F6')
-  
+
   // Price display states (formatted with spaces)
   const [salePriceDisplay, setSalePriceDisplay] = useState('')
   const [vipPriceDisplay, setVipPriceDisplay] = useState('')
@@ -124,6 +125,7 @@ export default function ProductsPage() {
         color: data.color,
         is_favorite: data.is_favorite || false,
         min_stock_level: data.min_stock_level || 0,
+        default_per_piece: (data.default_per_piece && !isNaN(data.default_per_piece)) ? data.default_per_piece : null,
         uom_conversions: []
       })
       return response.data
@@ -131,6 +133,7 @@ export default function ProductsPage() {
     onSuccess: () => {
       toast.success(t('productSaved'))
       queryClient.invalidateQueries({ queryKey: ['products'] })
+      queryClient.invalidateQueries({ queryKey: ['products-pos'] })
       setShowAddDialog(false)
       reset()
       setSalePriceDisplay('')
@@ -161,12 +164,14 @@ export default function ProductsPage() {
         color: data.color,
         is_favorite: data.is_favorite,
         min_stock_level: data.min_stock_level,
+        default_per_piece: (data.default_per_piece && !isNaN(data.default_per_piece)) ? data.default_per_piece : null,
       })
       return response.data
     },
     onSuccess: () => {
       toast.success(t('productUpdated'))
       queryClient.invalidateQueries({ queryKey: ['products'] })
+      queryClient.invalidateQueries({ queryKey: ['products-pos'] })
       setShowAddDialog(false)
       setEditingProduct(null)
       reset()
@@ -336,6 +341,7 @@ export default function ProductsPage() {
     setValue('color', product.color || '#3B82F6')
     setColorValue(product.color || '#3B82F6')
     setValue('is_favorite', product.is_favorite || false)
+    setValue('default_per_piece', product.default_per_piece || '')
     setShowAddDialog(true)
   }
 
@@ -355,7 +361,7 @@ export default function ProductsPage() {
             <span className="hidden sm:inline">{t('category')}</span>
             <span className="sm:hidden">+</span>
           </Button>
-          <Button variant="primary" onClick={() => { setEditingProduct(null); reset(); setShowAddDialog(true) }} className="flex-1 sm:flex-none text-sm lg:text-base">
+          <Button variant="primary" onClick={() => { setEditingProduct(null); reset(); setSalePriceDisplay(''); setVipPriceDisplay(''); setShowAddDialog(true) }} className="flex-1 sm:flex-none text-sm lg:text-base">
             <Plus className="w-4 h-4 lg:w-5 lg:h-5 mr-1 lg:mr-2" />
             <span className="hidden sm:inline">{t('addProduct')}</span>
             <span className="sm:hidden">{t('add')}</span>
@@ -590,42 +596,42 @@ export default function ProductsPage() {
           reset()
         }
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingProduct ? t('editProduct') : t('newProduct')}</DialogTitle>
             <DialogDescription>{t('enterProductDetails')}</DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
             {/* Hidden inputs for price fields */}
             <input type="hidden" {...register('sale_price', { valueAsNumber: true })} />
             <input type="hidden" {...register('vip_price', { valueAsNumber: true })} />
 
-            <div className="space-y-2">
-              <label className="font-medium">{t('productName')} *</label>
+            <div className="space-y-1">
+              <label className="font-medium text-sm">{t('productName')} *</label>
               <Input
                 {...register('name', { required: true })}
                 placeholder={t('productName')}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="font-medium">{t('article')}</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('article')}</label>
                 <Input {...register('article')} placeholder={t('article')} />
               </div>
-              <div className="space-y-2">
-                <label className="font-medium">{t('barcode')}</label>
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('barcode')}</label>
                 <Input {...register('barcode')} placeholder={t('barcode')} />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="font-medium">{t('category')}</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('category')}</label>
                 <select
                   {...register('category_id', { valueAsNumber: true })}
-                  className="w-full min-h-btn px-4 py-3 border-2 border-border rounded-pos"
+                  className="w-full px-3 py-2 border-2 border-border rounded-pos text-sm"
                 >
                   <option value="">{t('notSelected')}</option>
                   {categories?.map((cat: Category) => (
@@ -633,11 +639,11 @@ export default function ProductsPage() {
                   ))}
                 </select>
               </div>
-              <div className="space-y-2">
-                <label className="font-medium">{t('baseUnit')} *</label>
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('baseUnit')} *</label>
                 <select
                   {...register('base_uom_id', { required: true, valueAsNumber: true })}
-                  className="w-full min-h-btn px-4 py-3 border-2 border-border rounded-pos"
+                  className="w-full px-3 py-2 border-2 border-border rounded-pos text-sm"
                 >
                   <option value="">{t('select')}</option>
                   {uoms.map((uom) => (
@@ -647,9 +653,9 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="font-medium">{t('sellingPrice')} (UZS) *</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('sellingPrice')} (UZS) *</label>
                 <div className="relative">
                   <Input
                     type="text"
@@ -666,8 +672,8 @@ export default function ProductsPage() {
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">{t('sum')}</span>
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="font-medium">{t('vipPrice')} (UZS)</label>
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('vipPrice')} (UZS)</label>
                 <div className="relative">
                   <Input
                     type="text"
@@ -686,9 +692,25 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="font-medium">{t('minStock')}</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('defaultPerPiece')}</label>
+                <div className="relative">
+                  <Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-500" />
+                  <Input
+                    type="number"
+                    step="0.01"
+                    {...register('default_per_piece', { valueAsNumber: true })}
+                    placeholder="12.5"
+                    className="pl-10"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  {t('defaultPerPieceHint')}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('minStock')}</label>
                 <div className="relative">
                   <AlertTriangle className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-warning" />
                   <Input
@@ -703,9 +725,35 @@ export default function ProductsPage() {
                   {t('minStockHint')}
                 </p>
               </div>
-              <div className="space-y-2">
-                <label className="font-medium">{t('favoriteProduct')}</label>
-                <div className="flex items-center gap-2 h-10">
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('productColor')}</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={colorValue}
+                    onChange={(e) => {
+                      setColorValue(e.target.value)
+                      setValue('color', e.target.value)
+                    }}
+                    className="w-10 h-9 rounded border cursor-pointer"
+                  />
+                  <Input
+                    value={colorValue}
+                    onChange={(e) => {
+                      setColorValue(e.target.value)
+                      setValue('color', e.target.value)
+                    }}
+                    placeholder="#3B82F6"
+                    className="flex-1"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="font-medium text-sm">{t('favoriteProduct')}</label>
+                <div className="flex items-center gap-2 h-9">
                   <input
                     type="checkbox"
                     {...register('is_favorite')}
@@ -716,31 +764,7 @@ export default function ProductsPage() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="font-medium">{t('productColor')}</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={colorValue}
-                  onChange={(e) => {
-                    setColorValue(e.target.value)
-                    setValue('color', e.target.value)
-                  }}
-                  className="w-12 h-10 rounded border cursor-pointer"
-                />
-                <Input
-                  value={colorValue}
-                  onChange={(e) => {
-                    setColorValue(e.target.value)
-                    setValue('color', e.target.value)
-                  }}
-                  placeholder="#3B82F6"
-                  className="flex-1 max-w-[200px]"
-                />
-              </div>
-            </div>
-
-            <p className="text-sm text-text-secondary bg-blue-50 p-3 rounded-pos">
+            <p className="text-sm text-text-secondary bg-blue-50 p-2 rounded-pos">
               💡 {t('costPriceHint')}
             </p>
 

@@ -174,13 +174,14 @@ class ProductBase(BaseSchema):
     country_of_origin: Optional[str] = None
     is_featured: bool = False
     is_service: bool = False
+    default_per_piece: Optional[Decimal] = None  # Kalkulyator standart qiymat
 
 
 class ProductCreate(ProductBase):
     """Schema for creating a product."""
-    
+
     uom_conversions: List[ProductUOMConversionCreate] = []
-    
+
     @field_validator("barcode", "article", mode="before")
     @classmethod
     def empty_string_to_none(cls, v):
@@ -188,7 +189,7 @@ class ProductCreate(ProductBase):
         if v == "" or v == "":
             return None
         return v
-    
+
     @field_validator("cost_price", "sale_price")
     @classmethod
     def validate_prices(cls, v: Decimal) -> Decimal:
@@ -200,7 +201,7 @@ class ProductCreate(ProductBase):
 
 class ProductUpdate(BaseSchema):
     """Schema for updating a product."""
-    
+
     name: Optional[str] = None
     article: Optional[str] = None
     barcode: Optional[str] = None
@@ -224,6 +225,7 @@ class ProductUpdate(BaseSchema):
     country_of_origin: Optional[str] = None
     is_featured: Optional[bool] = None
     is_active: Optional[bool] = None
+    default_per_piece: Optional[Decimal] = None
 
     @field_validator("barcode", "article", mode="before")
     @classmethod
@@ -269,6 +271,7 @@ class ProductListItem(BaseSchema):
     image_url: Optional[str] = None
     is_active: bool
     current_stock: Decimal = Decimal("0")
+    default_per_piece: Optional[Decimal] = None
     uom_conversions: List[dict] = []
 
     class Config:

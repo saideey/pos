@@ -321,6 +321,8 @@ type TranslationKeys = {
   minStockHint: string
   favoriteProduct: string
   favoriteHint: string
+  defaultPerPiece: string
+  defaultPerPieceHint: string
   productColor: string
   costPriceHint: string
   configureUnits: string
@@ -356,7 +358,7 @@ type TranslationKeys = {
   allRightsReserved: string
   validationError: string
   measure: string
-  
+
   // Reports page
   totalRevenue: string
   totalCostPrice: string
@@ -392,7 +394,7 @@ type TranslationKeys = {
   purchase: string
   currentStatus: string
   currentDebts: string
-  
+
   // Customer dialog
   editCustomerTitle: string
   addCustomerTitle: string
@@ -408,10 +410,10 @@ type TranslationKeys = {
   balanceLabel: string
   notesLabel: string
   notesPlaceholder: string
-  
+
   // Dashboard
   welcomeMessage: string
-  
+
   // POS
   orderSaved: string
   editSaleTitle: string
@@ -419,11 +421,11 @@ type TranslationKeys = {
   editError: string
   selectProduct: string
   additionalInfo: string
-  
+
   // Settings
   reportNotSent: string
   messageNotSent: string
-  
+
   // Customer form additional
   phoneRequired: string
   secondaryPhone: string
@@ -435,15 +437,15 @@ type TranslationKeys = {
   creditLimit: string
   assignedSeller: string
   notAssigned: string
-  
+
   // Edit reason
   editReason: string
   editReasonPlaceholder: string
-  
+
   // Settings additional
   dailyReportSent: string
   testMessageSent: string
-  
+
   // Warehouse
   movementEdited: string
   movementDeleted: string
@@ -893,6 +895,8 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     minStockHint: "Qoldiq shu miqdordan kam bo'lganda ogohlantirish",
     favoriteProduct: 'Sevimli tovar',
     favoriteHint: 'Kassada tez topish uchun',
+    defaultPerPiece: 'Standart uzunlik (dona)',
+    defaultPerPieceHint: 'Kalkulyatorda har biri qiymatiga avtomatik chiqadi (masalan 12.5 metr)',
     productColor: 'Tovar rangi',
     costPriceHint: 'Kelish narxi omborga kirim qilganda avtomatik aniqlanadi',
     configureUnits: "O'lchov birliklarini sozlash",
@@ -1464,6 +1468,8 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     minStockHint: 'Предупреждение при низком остатке',
     favoriteProduct: 'Избранный товар',
     favoriteHint: 'Для быстрого поиска в кассе',
+    defaultPerPiece: 'Стандартная длина (шт)',
+    defaultPerPieceHint: 'Автоматически подставляется в калькулятор (например 12.5 метров)',
     productColor: 'Цвет товара',
     costPriceHint: 'Себестоимость определяется при поступлении на склад',
     configureUnits: 'Настройка единиц измерения',
@@ -2035,6 +2041,8 @@ export const translations: Record<LanguageCode, TranslationKeys> = {
     minStockHint: 'Қолдиқ шу миқдордан кам бўлганда огоҳлантириш',
     favoriteProduct: 'Севимли товар',
     favoriteHint: 'Кассада тез топиш учун',
+    defaultPerPiece: 'Стандарт узунлик (дона)',
+    defaultPerPieceHint: 'Калкуляторда ҳар бири қийматига автоматик чиқади (масалан 12.5 метр)',
     productColor: 'Товар ранги',
     costPriceHint: 'Келиш нархи омборга кирим қилганда автоматик аниқланади',
     configureUnits: 'Ўлчов бирликларини созлаш',
