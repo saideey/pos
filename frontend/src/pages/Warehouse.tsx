@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useFieldArray } from 'react-hook-form'
 import {
@@ -51,6 +51,101 @@ interface MovementEditData {
 }
 
 type MovementFilter = 'all' | 'income' | 'outcome'
+
+// Searchable product select component
+function ProductSearchSelect({ products, value, onChange, loading, placeholder }: {
+  products: Product[]
+  value: number
+  onChange: (id: number) => void
+  loading?: boolean
+  placeholder?: string
+}) {
+  const [search, setSearch] = useState('')
+  const [isOpen, setIsOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selectedProduct = products.find(p => p.id === value)
+
+  const filtered = search.trim()
+    ? products.filter(p =>
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.article && p.article.toLowerCase().includes(search.toLowerCase())) ||
+        (p.barcode && p.barcode.includes(search))
+      ).slice(0, 50)
+    : products.slice(0, 50)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false)
+        if (!value) setSearch('')
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [value])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        ref={inputRef}
+        type="text"
+        value={isOpen ? search : (selectedProduct?.name || '')}
+        onChange={(e) => {
+          setSearch(e.target.value)
+          setIsOpen(true)
+        }}
+        onFocus={() => {
+          setIsOpen(true)
+          setSearch('')
+        }}
+        placeholder={loading ? '...' : (placeholder || 'Tovar qidirish...')}
+        className="w-full px-2 py-2 border border-border rounded text-sm bg-white"
+        autoComplete="off"
+      />
+      {value > 0 && (
+        <button
+          type="button"
+          onClick={() => { onChange(0); setSearch(''); inputRef.current?.focus() }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
+      {isOpen && (
+        <div className="absolute z-50 w-full mt-1 bg-white border border-border rounded shadow-lg max-h-48 overflow-y-auto">
+          {filtered.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-gray-500">Topilmadi</div>
+          ) : (
+            filtered.map(p => (
+              <div
+                key={p.id}
+                onClick={() => {
+                  onChange(p.id)
+                  setSearch('')
+                  setIsOpen(false)
+                }}
+                className={cn(
+                  'px-3 py-2 text-sm cursor-pointer hover:bg-blue-50',
+                  value === p.id && 'bg-blue-100 font-medium'
+                )}
+              >
+                {p.name}
+                {p.article && <span className="text-gray-400 ml-1">({p.article})</span>}
+              </div>
+            ))
+          )}
+          {products.length > 50 && !search && (
+            <div className="px-3 py-1 text-xs text-gray-400 text-center border-t">
+              Qidirish orqali toping ({products.length} ta tovar)
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function WarehousePage() {
   const queryClient = useQueryClient()
@@ -105,7 +200,7 @@ export default function WarehousePage() {
   })
   const productUoms = Array.isArray(productUomsData) ? productUomsData : []
 
-  const { register, control, handleSubmit, reset, watch } = useForm<IncomeFormData>({
+  const { register, control, handleSubmit, reset, watch, setValue } = useForm<IncomeFormData>({
     defaultValues: {
       warehouse_id: 1,
       items: [{ product_id: 0, quantity: 1, uom_id: 1, unit_price_usd: 0, unit_price_uzs: 0 }]
@@ -877,7 +972,7 @@ export default function WarehousePage() {
                 </Button>
               </div>
 
-              <div className="border border-border rounded-pos">
+              <div className="border border-border rounded-pos overflow-visible">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
@@ -902,17 +997,14 @@ export default function WarehousePage() {
                       return (
                         <tr key={field.id}>
                           <td className="px-3 py-2 min-w-[200px]">
-                            <select
-                              {...register(`items.${index}.product_id`, { valueAsNumber: true })}
-                              className="w-full px-2 py-2 border border-border rounded text-sm bg-white"
-                            >
-                              <option value={0}>
-                                {productsLoading ? t('loading') : `${t('selectProduct')} (${productsList.length} ta)`}
-                              </option>
-                              {productsList.map((p: Product) => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                              ))}
-                            </select>
+                            <input type="hidden" {...register(`items.${index}.product_id`, { valueAsNumber: true })} />
+                            <ProductSearchSelect
+                              products={productsList}
+                              value={item?.product_id || 0}
+                              onChange={(id) => setValue(`items.${index}.product_id`, id)}
+                              loading={productsLoading}
+                              placeholder={`${t('selectProduct')} (${productsList.length})`}
+                            />
                           </td>
                           <td className="px-3 py-2">
                             <Input

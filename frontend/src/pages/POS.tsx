@@ -2607,49 +2607,56 @@ export default function POSPage() {
                 </div>
               )}
 
-              {/* Items Table - Hisob-kitob format */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', margin: '3px 0', tableLayout: 'fixed' }}>
-                <thead>
-                  <tr>
-                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'left', width: '28%' }}>Tovar</th>
-                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'center', width: '34%' }}>Soni</th>
-                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'right', width: '18%' }}>Narxi</th>
-                    <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'right', width: '20%' }}>Summa</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item, index) => (
-                    <tr key={item.id}>
-                      <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, wordBreak: 'break-word' }}>
-                        {index + 1}. {item.product_name}
-                      </td>
-                      <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'center', wordBreak: 'break-word' }}>
-                        {item.calcInfo && rc.showCalcInfo
-                          ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${formatNumber(item.quantity)} ${item.uom_symbol}`
-                          : `${formatNumber(item.quantity)} ${item.uom_symbol}`
-                        }
-                      </td>
-                      <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'right' }}>
-                        {formatMoney(item.unit_price, false)}
-                      </td>
-                      <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'right' }}>
-                        {formatMoney(item.quantity * item.unit_price, false)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
+              {/* Items - har bir tovar alohida jadval */}
+              {items.map((item, index) => (
+                <div key={item.id} style={{ marginBottom: '4px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <thead>
+                      {index === 0 && (
+                        <tr>
+                          <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'left', width: '35%' }}>Tovar</th>
+                          <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'center', width: '40%' }}>Soni</th>
+                          <th style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoHeaderSize}px`, fontWeight: 900, textAlign: 'right', width: '25%' }}>Narxi</th>
+                        </tr>
+                      )}
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, wordBreak: 'break-word' }}>
+                          {index + 1}. {item.product_name}
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'center', wordBreak: 'break-word' }}>
+                          {item.calcInfo && rc.showCalcInfo
+                            ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${formatNumber(item.quantity)} ${item.uom_symbol}`
+                            : `${formatNumber(item.quantity)} ${item.uom_symbol}`
+                          }
+                        </td>
+                        <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'right' }}>
+                          {formatMoney(item.unit_price, false)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div style={{ textAlign: 'right', fontSize: `${rc.calcInfoSize}px`, fontWeight: 900, padding: '1px 2px' }}>
+                    Summa: {formatMoney(item.quantity * item.unit_price, false)}
+                  </div>
+                </div>
+              ))}
+
+              {/* Jami */}
+              <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                 <tfoot>
                   <tr>
-                    <td colSpan={3} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
+                    <td colSpan={2} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
                       {t('totalWithCount')} ({items.length}):
                     </td>
-                    <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
+                    <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px`, width: '25%' }}>
                       {formatMoney(items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0), false)}
                     </td>
                   </tr>
                   {generalDiscount > 0 && (
                     <tr>
-                      <td colSpan={3} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
+                      <td colSpan={2} style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
                         {t('discount')}:
                       </td>
                       <td style={{ border: '1px solid #000', padding: '2px', textAlign: 'right', fontWeight: 900, fontSize: `${rc.tfootSize}px` }}>
@@ -2789,38 +2796,44 @@ export default function POSPage() {
                       </div>
                     ` : ''}
 
+                    ${items.map((item, index) => `
+                      <div style="margin-bottom:4px;">
+                        <table>
+                          ${index === 0 ? `
+                          <thead>
+                            <tr>
+                              <th style="width:35%; font-size:${rc.calcInfoHeaderSize}px;">Tovar</th>
+                              <th style="width:40%; text-align:center; font-size:${rc.calcInfoHeaderSize}px;">Soni</th>
+                              <th style="width:25%; text-align:right; font-size:${rc.calcInfoHeaderSize}px;">Narxi</th>
+                            </tr>
+                          </thead>
+                          ` : ''}
+                          <tbody>
+                            <tr>
+                              <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; word-break:break-word;">${index + 1}. ${item.product_name}</td>
+                              <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:center; word-break:break-word;">
+                                ${item.calcInfo && rc.showCalcInfo
+                                  ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}`
+                                  : `${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}`
+                                }
+                              </td>
+                              <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:right;">${item.unit_price.toLocaleString('uz-UZ')}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <div style="text-align:right; font-size:${rc.calcInfoSize}px; font-weight:900; padding:1px 2px;">Summa: ${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</div>
+                      </div>
+                    `).join('')}
+
                     <table>
-                      <thead>
-                        <tr>
-                          <th style="width:28%; font-size:${rc.calcInfoHeaderSize}px;">Tovar</th>
-                          <th style="width:34%; text-align:center; font-size:${rc.calcInfoHeaderSize}px;">Soni</th>
-                          <th style="width:18%; text-align:right; font-size:${rc.calcInfoHeaderSize}px;">Narxi</th>
-                          <th style="width:20%; text-align:right; font-size:${rc.calcInfoHeaderSize}px;">Summa</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        ${items.map((item, index) => `
-                          <tr>
-                            <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; word-break:break-word;">${index + 1}. ${item.product_name}</td>
-                            <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:center; word-break:break-word;">
-                              ${item.calcInfo && rc.showCalcInfo
-                                ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}`
-                                : `${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}`
-                              }
-                            </td>
-                            <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:right;">${item.unit_price.toLocaleString('uz-UZ')}</td>
-                            <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:right;">${(item.quantity * item.unit_price).toLocaleString('uz-UZ')}</td>
-                          </tr>
-                        `).join('')}
-                      </tbody>
                       <tfoot>
                         <tr>
-                          <td colspan="3" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('totalWithCount')} (${items.length}):</td>
-                          <td class="font-bold" style="font-size:${rc.tfootSize}px; text-align:right;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
+                          <td colspan="2" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('totalWithCount')} (${items.length}):</td>
+                          <td class="font-bold" style="font-size:${rc.tfootSize}px; text-align:right; width:25%;">${items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0).toLocaleString('uz-UZ')}</td>
                         </tr>
                         ${generalDiscount > 0 ? `
                           <tr>
-                            <td colspan="3" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('discount')}:</td>
+                            <td colspan="2" class="text-right font-bold" style="font-size:${rc.tfootSize}px;">${t('discount')}:</td>
                             <td class="font-bold" style="font-size:${rc.tfootSize}px; text-align:right;">-${generalDiscount.toLocaleString('uz-UZ')}</td>
                           </tr>
                         ` : ''}

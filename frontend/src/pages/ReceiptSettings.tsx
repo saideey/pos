@@ -222,38 +222,50 @@ export default function ReceiptSettings() {
         <p style="margin:1px 0; font-weight:bold;">Tel: +998 90 123 45 67</p>
       </div>
 
-      <!-- Table - Hisob-kitob format -->
-      <table style="width:100%; border-collapse:collapse; margin:3px 0; table-layout:fixed;">
-        <thead>
-          <tr>
-            <th style="border:1px solid #000; padding:2px; font-size:${config.calcInfoHeaderSize}px; font-weight:900; text-align:left; width:28%;">Tovar</th>
-            <th style="border:1px solid #000; padding:2px; font-size:${config.calcInfoHeaderSize}px; font-weight:900; text-align:center; width:34%;">Soni</th>
-            <th style="border:1px solid #000; padding:2px; font-size:${config.calcInfoHeaderSize}px; font-weight:900; text-align:right; width:18%;">Narxi</th>
-            <th style="border:1px solid #000; padding:2px; font-size:${config.calcInfoHeaderSize}px; font-weight:900; text-align:right; width:20%;">Summa</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; word-break:break-word;">1. Profnastil C-8</td>
-            <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:center; word-break:break-word;">
-              ${config.showCalcInfo ? '12 dona × 2.5 m = 30 m' : '30 metr'}
-            </td>
-            <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:right;">85 000</td>
-            <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:right;">2 550 000</td>
-          </tr>
-          <tr>
-            <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; word-break:break-word;">2. Temir truba</td>
-            <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:center; word-break:break-word;">
-              ${config.showCalcInfo ? '3 dona × 2 m = 6 m' : '6 metr'}
-            </td>
-            <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:right;">45 000</td>
-            <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:right;">270 000</td>
-          </tr>
-        </tbody>
+      <!-- Items -->
+      <div style="margin-bottom:4px;">
+        <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+          <thead>
+            <tr>
+              <th style="border:1px solid #000; padding:2px; font-size:${config.calcInfoHeaderSize}px; font-weight:900; text-align:left; width:35%;">Tovar</th>
+              <th style="border:1px solid #000; padding:2px; font-size:${config.calcInfoHeaderSize}px; font-weight:900; text-align:center; width:40%;">Soni</th>
+              <th style="border:1px solid #000; padding:2px; font-size:${config.calcInfoHeaderSize}px; font-weight:900; text-align:right; width:25%;">Narxi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; word-break:break-word;">1. Profnastil C-8</td>
+              <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:center; word-break:break-word;">
+                ${config.showCalcInfo ? '12 dona × 2.5 m = 30 m' : '30 metr'}
+              </td>
+              <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:right;">85 000</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="text-align:right; font-size:${config.calcInfoSize}px; font-weight:900; padding:1px 2px;">Summa: 2 550 000</div>
+      </div>
+
+      <div style="margin-bottom:4px;">
+        <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
+          <tbody>
+            <tr>
+              <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; word-break:break-word; width:35%;">2. Temir truba</td>
+              <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:center; word-break:break-word; width:40%;">
+                ${config.showCalcInfo ? '3 dona × 2 m = 6 m' : '6 metr'}
+              </td>
+              <td style="border:1px solid #000; padding:2px; font-size:${config.calcInfoSize}px; font-weight:${config.tableBodyWeight}; text-align:right; width:25%;">45 000</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="text-align:right; font-size:${config.calcInfoSize}px; font-weight:900; padding:1px 2px;">Summa: 270 000</div>
+      </div>
+
+      <!-- Jami -->
+      <table style="width:100%; border-collapse:collapse; table-layout:fixed;">
         <tfoot>
           <tr>
-            <td colspan="3" style="border:1px solid #000; padding:2px; text-align:right; font-weight:900; font-size:${config.tfootSize}px;">Jami (2):</td>
-            <td style="border:1px solid #000; padding:2px; text-align:right; font-weight:900; font-size:${config.tfootSize}px;">2 820 000</td>
+            <td colspan="2" style="border:1px solid #000; padding:2px; text-align:right; font-weight:900; font-size:${config.tfootSize}px;">Jami (2):</td>
+            <td style="border:1px solid #000; padding:2px; text-align:right; font-weight:900; font-size:${config.tfootSize}px; width:25%;">2 820 000</td>
           </tr>
         </tfoot>
       </table>
@@ -462,7 +474,7 @@ export default function ReceiptSettings() {
                 <NumInput value={config.tfootSize} onChange={(v) => set('tfootSize', v)} min={8} max={18} />
               </ConfigRow>
               <p className="text-[10px] text-gray-400">
-                Jadval: Tovar | Soni (12 dona × 2.5 m = 30 m) | Narxi | Summa
+                Jadval: Tovar | Soni | Narxi + pastda Summa
               </p>
             </Section>
 
