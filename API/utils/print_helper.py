@@ -65,14 +65,58 @@ def queue_receipt_for_printing(
 
     # Add items
     for item in sale.items:
-        receipt_data["items"].append({
+        # Smart quantity format: 30.0→30, 35.1→35.1
+        raw_qty = float(item.quantity or 0)
+        if raw_qty == int(raw_qty):
+            qty_val = int(raw_qty)
+        else:
+            qty_val = round(raw_qty, 4)
+            # Remove trailing zeros: 35.10 → 35.1
+            qty_val = float(f"{qty_val:.4f}".rstrip('0').rstrip('.'))
+
+        item_data = {
             "name": item.product.name if item.product else "?",
-            "quantity": float(item.quantity or 0),
+            "quantity": qty_val,
             "uom": item.uom.symbol if item.uom else "",
             "unit_price": float(item.unit_price or 0),
             "total": float(item.total_price or 0),
             "discount": float(item.discount_amount or 0)
-        })
+        }
+
+        # Try to get calcInfo from item notes (stored as JSON by POS)
+        if item.notes:
+            try:
+                calc_info = json.loads(item.notes)
+                if isinstance(calc_info, dict) and 'pieces' in calc_info:
+                    # Clean up pieces/perPiece values
+                    p = float(calc_info.get('pieces', 0))
+                    pp = float(calc_info.get('perPiece', 0))
+                    item_data["calcInfo"] = {
+                        "pieces": str(int(p)) if p == int(p) else str(p),
+                        "perPiece": str(int(pp)) if pp == int(pp) else str(pp),
+                        "uom": calc_info.get('uom', item.uom.symbol if item.uom else '')
+                    }
+            except (json.JSONDecodeError, TypeError, ValueError):
+                pass
+
+        # Fallback: reconstruct from product.default_per_piece
+        if "calcInfo" not in item_data and item.product:
+            dpp = getattr(item.product, 'default_per_piece', None)
+            if dpp and float(dpp) > 0:
+                per_piece = float(dpp)
+                qty = float(item.quantity or 0)
+                if qty > 0 and per_piece > 0:
+                    pieces = qty / per_piece
+                    if abs(pieces - round(pieces, 2)) < 0.001:
+                        pieces_clean = int(pieces) if pieces == int(pieces) else round(pieces, 2)
+                        per_piece_clean = int(per_piece) if per_piece == int(per_piece) else per_piece
+                        item_data["calcInfo"] = {
+                            "pieces": str(pieces_clean),
+                            "perPiece": str(per_piece_clean),
+                            "uom": item.uom.symbol if item.uom else ""
+                        }
+
+        receipt_data["items"].append(item_data)
 
     # Create print job
     job = PrintJob(
