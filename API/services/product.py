@@ -137,7 +137,12 @@ class ProductService:
             base_uom_id=data.base_uom_id,
             cost_price=data.cost_price,
             sale_price=data.sale_price,
+            sale_price_usd=data.sale_price_usd,
             vip_price=data.vip_price,
+            vip_price_usd=data.vip_price_usd,
+            color=data.color,
+            is_favorite=data.is_favorite,
+            sort_order=data.sort_order,
             min_stock_level=data.min_stock_level,
             track_stock=data.track_stock,
             allow_negative_stock=data.allow_negative_stock,
@@ -147,6 +152,7 @@ class ProductService:
             country_of_origin=data.country_of_origin,
             is_featured=data.is_featured,
             is_service=data.is_service,
+            default_per_piece=data.default_per_piece,
             is_active=True
         )
         

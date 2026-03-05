@@ -14,7 +14,7 @@ import {
 } from '@/components/ui'
 import { productsService, salesService, customersService } from '@/services'
 import api from '@/services/api'
-import { formatMoney, formatNumber, formatInputNumber, cn, debounce, formatDateTashkent, formatTimeTashkent } from '@/lib/utils'
+import { formatMoney, formatNumber, formatQty, formatInputNumber, cn, debounce, formatDateTashkent, formatTimeTashkent } from '@/lib/utils'
 import { usePOSStore, useAuthStore } from '@/stores'
 import { useLanguage } from '@/contexts/LanguageContext'
 import type { Product, Customer, UOMConversion } from '@/types'
@@ -111,6 +111,7 @@ export default function POSPage() {
 
   // Print preview state
   const [showPrintPreview, setShowPrintPreview] = useState(false)
+  const [lastSaleNumber, setLastSaleNumber] = useState('')
   const printRef = useRef<HTMLDivElement>(null)
 
   // NEW: Add product dialog state
@@ -906,6 +907,7 @@ export default function POSPage() {
           original_price: item.original_price,
           discount_amount: perItemDiscount,
           discount_percent: 0,
+          notes: item.calcInfo ? JSON.stringify(item.calcInfo) : undefined,
         }
       })
 
@@ -957,8 +959,10 @@ export default function POSPage() {
             : `Sotuv yakunlandi ${result.change > 0 ? `Qaytim: ${formatMoney(result.change)}` : ''}`
         )
 
-        handleClearCart()
+        // Save sale number and auto-open print preview
+        setLastSaleNumber(result.sale_number || '')
         setShowPaymentDialog(false)
+        setShowPrintPreview(true)
         queryClient.invalidateQueries({ queryKey: ['products-pos'] })
         queryClient.invalidateQueries({ queryKey: ['sales'] })
       }
@@ -1093,13 +1097,11 @@ export default function POSPage() {
           {sortedCategories?.map((cat: any, index: number) => (
             <div
               key={cat.id}
-              draggable
-              onDragStart={() => handleCategoryDragStart(cat.id)}
               onDragOver={(e) => handleCategoryDragOver(e, cat.id)}
               onDrop={() => handleCategoryDrop(cat.id)}
               onDragEnd={() => { setDraggingCategoryId(null); setDragOverCategoryId(null) }}
               className={cn(
-                'w-full flex items-center gap-2 px-2 py-3 text-left border-b transition-all cursor-grab active:cursor-grabbing',
+                'w-full flex items-center gap-2 px-2 py-3 text-left border-b transition-all',
                 selectedCategory === cat.id
                   ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600'
                   : 'hover:bg-gray-50',
@@ -1107,7 +1109,13 @@ export default function POSPage() {
                 dragOverCategoryId === cat.id && 'bg-blue-100 border-blue-300'
               )}
             >
-              <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
+              <div
+                draggable
+                onDragStart={() => handleCategoryDragStart(cat.id)}
+                className="cursor-grab active:cursor-grabbing p-1 -m-1"
+              >
+                <GripVertical className="w-4 h-4 text-gray-300 flex-shrink-0" />
+              </div>
               <button
                 onClick={() => setSelectedCategory(cat.id)}
                 className="flex items-center gap-2 flex-1 min-w-0"
@@ -1526,7 +1534,7 @@ export default function POSPage() {
                   </div>
                   {item.calcInfo && (
                     <div className="mt-1 px-2 py-0.5 bg-violet-50 border border-violet-200 rounded text-xs text-violet-600">
-                      📐 {item.calcInfo.pieces} dona × {item.calcInfo.perPiece} {item.calcInfo.uom} = {formatNumber(item.quantity)} {item.uom_symbol}
+                      📐 {item.calcInfo.pieces} dona × {item.calcInfo.perPiece} {item.calcInfo.uom} = {formatQty(item.quantity)} {item.uom_symbol}
                     </div>
                   )}
                 </div>
@@ -1863,7 +1871,7 @@ export default function POSPage() {
                       </div>
                       {item.calcInfo && (
                         <div className="mt-1 px-2 py-0.5 bg-violet-50 border border-violet-200 rounded text-xs text-violet-600">
-                          📐 {item.calcInfo.pieces} dona × {item.calcInfo.perPiece} {item.calcInfo.uom} = {formatNumber(item.quantity)} {item.uom_symbol}
+                          📐 {item.calcInfo.pieces} dona × {item.calcInfo.perPiece} {item.calcInfo.uom} = {formatQty(item.quantity)} {item.uom_symbol}
                         </div>
                       )}
                     </div>
@@ -2510,7 +2518,13 @@ export default function POSPage() {
       </Dialog>
 
       {/* Print Preview Dialog */}
-      <Dialog open={showPrintPreview} onOpenChange={setShowPrintPreview}>
+      <Dialog open={showPrintPreview} onOpenChange={(open) => {
+        setShowPrintPreview(open)
+        if (!open && lastSaleNumber) {
+          handleClearCart()
+          setLastSaleNumber('')
+        }
+      }}>
         <DialogContent className="max-w-md p-0 overflow-hidden">
           <DialogHeader className="p-4 border-b">
             <DialogTitle className="flex items-center gap-2">
@@ -2584,6 +2598,11 @@ export default function POSPage() {
                 <div style={{ fontSize: `${rc.dateSize}px`, fontWeight: 'bold' }}>
                   {formatDateTashkent(new Date())} {formatTimeTashkent(new Date())}
                 </div>
+                {(lastSaleNumber || editingSaleNumber) && (
+                  <div style={{ fontSize: `${rc.dateSize}px`, fontWeight: 'bold', marginTop: '2px' }}>
+                    Chek #{lastSaleNumber || editingSaleNumber}
+                  </div>
+                )}
               </div>
 
               {/* Divider */}
@@ -2627,8 +2646,8 @@ export default function POSPage() {
                         </td>
                         <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'center', wordBreak: 'break-word' }}>
                           {item.calcInfo && rc.showCalcInfo
-                            ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${formatNumber(item.quantity)} ${item.uom_symbol}`
-                            : `${formatNumber(item.quantity)} ${item.uom_symbol}`
+                            ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${formatQty(item.quantity)} ${item.uom_symbol}`
+                            : `${formatQty(item.quantity)} ${item.uom_symbol}`
                           }
                         </td>
                         <td style={{ border: '1px solid #000', padding: '2px', fontSize: `${rc.calcInfoSize}px`, fontWeight: rc.tableBodyWeight, textAlign: 'right' }}>
@@ -2783,6 +2802,7 @@ export default function POSPage() {
                       ${rc.showLogo ? `<img src="/logo.png" alt="Logo" onerror="this.style.display='none'" />` : ''}
                       <h1>${rc.companyName}</h1>
                       <p class="date">${formatDateTashkent(new Date())} ${formatTimeTashkent(new Date())}</p>
+                      ${(lastSaleNumber || editingSaleNumber) ? `<p class="date" style="margin-top:2px;">Chek #${lastSaleNumber || editingSaleNumber}</p>` : ''}
                     </div>
 
                     <div class="divider"></div>
@@ -2813,8 +2833,8 @@ export default function POSPage() {
                               <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; word-break:break-word;">${index + 1}. ${item.product_name}</td>
                               <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:center; word-break:break-word;">
                                 ${item.calcInfo && rc.showCalcInfo
-                                  ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}`
-                                  : `${item.quantity.toLocaleString('uz-UZ')} ${item.uom_symbol}`
+                                  ? `${item.calcInfo.pieces} dona × ${item.calcInfo.perPiece} ${item.calcInfo.uom} = ${formatQty(item.quantity)} ${item.uom_symbol}`
+                                  : `${formatQty(item.quantity)} ${item.uom_symbol}`
                                 }
                               </td>
                               <td style="font-size:${rc.calcInfoSize}px; font-weight:${rc.tableBodyWeight}; text-align:right;">${item.unit_price.toLocaleString('uz-UZ')}</td>

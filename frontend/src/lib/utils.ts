@@ -34,13 +34,26 @@ export function formatNumber(num: number | string, decimals: number = 0): string
   return parts.join('.')
 }
 
+/** Format quantity without rounding - shows exact decimals */
+export function formatQty(num: number | string): string {
+  const n = typeof num === 'string' ? parseFloat(num) : num
+  if (isNaN(n)) return '0'
+
+  // Remove trailing zeros but keep meaningful decimals
+  // 30.0 → "30", 35.1 → "35.1", 12.75 → "12.75"
+  const s = parseFloat(n.toPrecision(10)).toString()
+  const parts = s.split('.')
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+  return parts.join('.')
+}
+
 /**
  * Format number for input display (with spaces)
  */
 export function formatInputNumber(num: number | string): string {
   const n = typeof num === 'string' ? parseFloat(num) : num
   if (isNaN(n) || n === 0) return ''
-  
+
   // Format with proper spacing
   const formatted = Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
   return formatted
@@ -51,17 +64,17 @@ export function formatInputNumber(num: number | string): string {
  */
 export function formatDate(date: string | Date, includeTime = false): string {
   const d = typeof date === 'string' ? new Date(date) : date
-  
+
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
-  
+
   if (includeTime) {
     const hours = String(d.getHours()).padStart(2, '0')
     const minutes = String(d.getMinutes()).padStart(2, '0')
     return `${day}.${month}.${year} ${hours}:${minutes}`
   }
-  
+
   return `${day}.${month}.${year}`
 }
 
@@ -71,11 +84,11 @@ export function formatDate(date: string | Date, includeTime = false): string {
 export function formatDateTashkent(date: string | Date | null | undefined): string {
   if (!date) return '-'
   const d = typeof date === 'string' ? new Date(date) : date
-  
+
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
-  
+
   return `${day}.${month}.${year}`
 }
 
@@ -85,10 +98,10 @@ export function formatDateTashkent(date: string | Date | null | undefined): stri
 export function formatTimeTashkent(date: string | Date | null | undefined): string {
   if (!date) return '-'
   const d = typeof date === 'string' ? new Date(date) : date
-  
+
   const hours = String(d.getHours()).padStart(2, '0')
   const minutes = String(d.getMinutes()).padStart(2, '0')
-  
+
   return `${hours}:${minutes}`
 }
 
@@ -98,13 +111,13 @@ export function formatTimeTashkent(date: string | Date | null | undefined): stri
 export function formatDateTimeTashkent(date: string | Date | null | undefined): string {
   if (!date) return '-'
   const d = typeof date === 'string' ? new Date(date) : date
-  
+
   const day = String(d.getDate()).padStart(2, '0')
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const year = d.getFullYear()
   const hours = String(d.getHours()).padStart(2, '0')
   const minutes = String(d.getMinutes()).padStart(2, '0')
-  
+
   return `${day}.${month}.${year} ${hours}:${minutes}`
 }
 
@@ -114,12 +127,12 @@ export function formatDateTimeTashkent(date: string | Date | null | undefined): 
 export function formatPhone(phone: string): string {
   // Remove non-digits
   const digits = phone.replace(/\D/g, '')
-  
+
   // Format as +998 XX XXX XX XX
   if (digits.length === 12 && digits.startsWith('998')) {
     return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 10)} ${digits.slice(10)}`
   }
-  
+
   return phone
 }
 
@@ -131,7 +144,7 @@ export function debounce<T extends (...args: any[]) => any>(
   wait: number
 ): (...args: Parameters<T>) => void {
   let timeout: ReturnType<typeof setTimeout> | null = null
-  
+
   return (...args: Parameters<T>) => {
     if (timeout) clearTimeout(timeout)
     timeout = setTimeout(() => func(...args), wait)
